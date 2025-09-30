@@ -1,0 +1,22 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace Entities
+{
+    public class Course
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = null!;
+        public string Description { get; set; } = null!;
+        public DateTime CreateTime { get; set; } = DateTime.UtcNow;
+        public int InstructorId { get; set; }
+        public Instructor Instructor { get; set; } = null!;
+        public ICollection<StudentCourse> StudentCourses { get; set; } = new List<StudentCourse>();
+        public ICollection<Lecture> Lectures { get; set; } = new List<Lecture>();
+        public ICollection<LeaveComment> LeaveComments { get; set; } = new List<LeaveComment>();
+        public ICollection<Quiz> Quizzes { get; set; } = new List<Quiz>();
+    }
+}
