@@ -1,5 +1,6 @@
 using AccountService.Application.Interfaces;
 using AccountService.Application.Services;
+using AccountService.Infrastructure.Persistence.Repositories;
 using Data.AppDbContext;
 using DotNetEnv;
 using Entities;
@@ -55,6 +56,7 @@ app.Run();
 static void ConfigureDI(IServiceCollection services)
 {
     services.AddScoped<ITokenService, TokenService>();
+    services.AddScoped<IAccountRepository, AccountRepository>();
     services.AddScoped<IAuthService, AuthService>();
 }
 static void ConfigureLocalization(IServiceCollection services, IConfiguration configuration)

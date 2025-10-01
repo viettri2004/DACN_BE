@@ -233,4 +233,8 @@
     <value>Invalid Role</value>
     <comment/>
   </data>
+  <data name="OtpSentSuccessfully" xml:space="preserve">
+    <value>OTP sent successfully</value>
+    <comment/>
+  </data>
 </root>

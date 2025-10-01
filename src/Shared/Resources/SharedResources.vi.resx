@@ -233,4 +233,8 @@
     <value>Vai trò không hợp lệ</value>
     <comment/>
   </data>
+  <data name="OtpSentSuccessfully" xml:space="preserve">
+    <value>Gửi OTP thành công</value>
+    <comment/>
+  </data>
 </root>

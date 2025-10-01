@@ -10,7 +10,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using src.Shared.Resources;
 using src.Shared.Domain.Entities;
-using Data.AppDbContext;
 
 namespace AccountService.Application.Services
 {
@@ -20,16 +19,16 @@ namespace AccountService.Application.Services
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly ITokenService _tokenService;
         private readonly IStringLocalizer<SharedResources> _localizer;
-        private readonly AppDbContext _context;
+        private readonly IAccountRepository _accountRepository;
 
         public AuthService(
-            AppDbContext context,
+            IAccountRepository accountRepository,
             UserManager<User> userManager,
             RoleManager<IdentityRole> roleManager,
             ITokenService tokenService,
             IStringLocalizer<SharedResources> localizer)
         {
-            _context = context;
+            _accountRepository = accountRepository;
             _userManager = userManager;
             _roleManager = roleManager;
             _tokenService = tokenService;
@@ -116,7 +115,7 @@ namespace AccountService.Application.Services
         }
         public async Task<ApiResponse> RefreshToken(string refreshToken)
         {
-            var user = await GetUserFromRefreshToken(refreshToken);
+            var user = await _accountRepository.GetUserFromRefreshToken(refreshToken);
             if (user == null)
                 return new ApiResponse("Error", _localizer["InvalidRefreshToken"].Value, null, false);
 
@@ -134,18 +133,6 @@ namespace AccountService.Application.Services
                 },
                 true
             );
-        }
-
-        private async Task<User> GetUserFromRefreshToken(string refreshToken)
-        {
-            return await _context.Users
-                .Join(_context.UserTokens,
-                    u => u.Id,
-                    t => t.UserId,
-                    (u, t) => new { User = u, Token = t })
-                .Where(x => x.Token.Name == "RefreshToken" && x.Token.Value == refreshToken)
-                .Select(x => x.User)
-                .FirstOrDefaultAsync();
         }
     }
 }

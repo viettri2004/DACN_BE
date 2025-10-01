@@ -18,10 +18,12 @@ namespace src.Services.AccountService.API.Controllers
     {
         private readonly IAuthService _authservice;
         private readonly IStringLocalizer<SharedResources> _localizer;
+        private readonly IEmailService _emailService;
 
-        public AccountController(IAuthService accountService, IStringLocalizer<SharedResources> localizer)
+        public AccountController(IAuthService accountService, IStringLocalizer<SharedResources> localizer, IEmailService emailService)
         {
             _authservice = accountService;
+            _emailService = emailService;
             _localizer = localizer;
         }
         [HttpPost("register")]
@@ -72,6 +74,18 @@ namespace src.Services.AccountService.API.Controllers
                 "Success" => Ok(response),
                 "Error" => Unauthorized(response),
                 "BadRequest" => BadRequest(response),
+                _ => StatusCode(500, response)
+            };
+        }
+        [HttpPost("send-otp")]
+        public async Task<ActionResult<ApiResponse>> SendOtp([FromBody] string email)
+        {
+            var response = await _emailService.SendEmailAsync(email);
+
+            return response.Code switch
+            {
+                "Success" => Ok(response),
+                "Error" => NotFound(response),
                 _ => StatusCode(500, response)
             };
         }
