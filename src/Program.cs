@@ -1,11 +1,16 @@
+using AccountService.Application.Interfaces;
+using AccountService.Application.Services;
 using Data.AppDbContext;
 using DotNetEnv;
 using Entities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using src.Shared.Domain.Entities;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 const string BearerScheme = "Bearer";
 const string AdminRole = "Admin";
@@ -34,6 +39,8 @@ if (string.IsNullOrEmpty(jwtSection["Issuer"]) ||
 }
 
 ConfigureControllers(builder.Services);
+ConfigureDI(builder.Services);
+ConfigureLocalization(builder.Services, builder.Configuration);
 ConfigureSwagger(builder.Services);
 ConfigureIdentity(builder.Services);
 ConfigureAuthentication(builder.Services, builder.Configuration);
@@ -45,6 +52,30 @@ var app = builder.Build();
 ConfigureMiddleware(app);
 
 app.Run();
+static void ConfigureDI(IServiceCollection services)
+{
+    services.AddScoped<ITokenService, TokenService>();
+    services.AddScoped<IAuthService, AuthService>();
+}
+static void ConfigureLocalization(IServiceCollection services, IConfiguration configuration)
+{
+    services.AddLocalization(options => options.ResourcesPath = "");
+    services.Configure<RequestLocalizationOptions>(options =>
+        {
+            var supportedCultures = new[] { "vi", "en" };
+            options.SetDefaultCulture("vi")
+                .AddSupportedCultures(supportedCultures)
+                .AddSupportedUICultures(supportedCultures);
+
+            options.RequestCultureProviders = new List<IRequestCultureProvider>
+            {
+                new AcceptLanguageHeaderRequestCultureProvider(),
+                new QueryStringRequestCultureProvider(),
+                new CookieRequestCultureProvider()
+            };
+        });
+}
+
 static void ConfigureDbContext(IServiceCollection services, IConfiguration configuration)
 {
     // var ConnectionString = configuration.GetConnectionString("DefaultConnection");
@@ -94,12 +125,15 @@ static void ConfigureSwagger(IServiceCollection services)
                 Array.Empty<string>()
             }
         });
+        option.OperationFilter<AcceptLanguageHeaderOperationFilter>();
+        // option.AddGlobalParameter();
+        option.SchemaFilter<LocalizedStringSchemaFilter>();
     });
 }
 
 static void ConfigureIdentity(IServiceCollection services)
 {
-    services.AddIdentity<User, IdentityRole<int>>()
+    services.AddIdentity<User, IdentityRole>()
         .AddEntityFrameworkStores<AppDbContext>()
         .AddDefaultTokenProviders();
 }
@@ -175,6 +209,7 @@ static void ConfigureMiddleware(WebApplication app)
         app.UseSwagger();
         app.UseSwaggerUI();
     }
+    app.UseRequestLocalization();
 
     app.UseCors(x => x
         .AllowAnyMethod()
@@ -185,4 +220,51 @@ static void ConfigureMiddleware(WebApplication app)
     app.UseAuthentication();
     app.UseAuthorization();
     app.MapControllers();
+}
+public class AcceptLanguageHeaderOperationFilter : IOperationFilter
+{
+    public void Apply(OpenApiOperation operation, OperationFilterContext context)
+    {
+        operation.Parameters ??= new List<OpenApiParameter>();
+
+        var existingParam = operation.Parameters.FirstOrDefault(p => p.Name == "Accept-Language");
+        if (existingParam != null)
+        {
+            operation.Parameters.Remove(existingParam);
+        }
+
+        operation.Parameters.Add(new OpenApiParameter
+        {
+            Name = "Accept-Language",
+            In = ParameterLocation.Header,
+            Description = "(vi = Tiếng Việt, en = English)",
+            Required = false,
+            Schema = new OpenApiSchema
+            {
+                Type = "string",
+                Default = new Microsoft.OpenApi.Any.OpenApiString("vi"),
+                Enum = new List<Microsoft.OpenApi.Any.IOpenApiAny>
+                {
+                    new Microsoft.OpenApi.Any.OpenApiString("vi"),
+                    new Microsoft.OpenApi.Any.OpenApiString("en")
+                }
+            }
+        });
+    }
+}
+public class LocalizedStringSchemaFilter : ISchemaFilter
+{
+    public void Apply(OpenApiSchema schema, SchemaFilterContext context)
+    {
+        if (context.Type == typeof(ApiResponse))
+        {
+            schema.Example = new Microsoft.OpenApi.Any.OpenApiObject
+            {
+                ["success"] = new Microsoft.OpenApi.Any.OpenApiBoolean(true),
+                ["code"] = new Microsoft.OpenApi.Any.OpenApiString("SUCCESS"),
+                ["message"] = new Microsoft.OpenApi.Any.OpenApiString("Thành công / Success"),
+                ["data"] = new Microsoft.OpenApi.Any.OpenApiNull()
+            };
+        }
+    }
 }
