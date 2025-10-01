@@ -33,12 +33,12 @@ namespace AccountService.Application.Services
         }
         public async Task<ApiResponse> Register(RegisterDTO RegisterDTO)
         {
-            var testMessage = _localizer["UsernameAlreadyExists"];
-            Console.WriteLine($"Key: UsernameAlreadyExists");
-            Console.WriteLine($"Value: {testMessage.Value}");
-            Console.WriteLine($"ResourceNotFound: {testMessage.ResourceNotFound}");
-            Console.WriteLine($"SearchedLocation: {testMessage.SearchedLocation}");
-            
+            // var testMessage = _localizer["UsernameAlreadyExists"];
+            // Console.WriteLine($"Key: UsernameAlreadyExists");
+            // Console.WriteLine($"Value: {testMessage.Value}");
+            // Console.WriteLine($"ResourceNotFound: {testMessage.ResourceNotFound}");
+            // Console.WriteLine($"SearchedLocation: {testMessage.SearchedLocation}");
+
             if (await _userManager.FindByNameAsync(RegisterDTO.UserName) != null)
                 return new ApiResponse("Error", _localizer["UsernameAlreadyExists"].Value, null, false);
 
@@ -48,14 +48,30 @@ namespace AccountService.Application.Services
             if (await _userManager.Users.AnyAsync(u => u.PhoneNumber == RegisterDTO.PhoneNumber))
                 return new ApiResponse("Error", _localizer["PhoneNumberAlreadyExists"].Value, null, false);
 
-            var user = new User
+            User user;
+            if (RegisterDTO.Role == "Student")
+                user = new Student
+                {
+                    UserName = RegisterDTO.UserName,
+                    Email = RegisterDTO.Email,
+                    FullName = RegisterDTO.FullName,
+                    PhoneNumber = RegisterDTO.PhoneNumber,
+                    IsBanned = false
+                };
+            else if (RegisterDTO.Role == "Instructor")
+                user = new Instructor
+                {
+                    UserName = RegisterDTO.UserName,
+                    Email = RegisterDTO.Email,
+                    FullName = RegisterDTO.FullName,
+                    PhoneNumber = RegisterDTO.PhoneNumber,
+                    IsBanned = false
+                };
+            else
             {
-                UserName = RegisterDTO.UserName,
-                Email = RegisterDTO.Email,
-                FullName = RegisterDTO.FullName,
-                PhoneNumber = RegisterDTO.PhoneNumber,
-                IsBanned = false
-            };
+                return new ApiResponse("BadRequest", _localizer["InvalidRole"].Value, null, false);
+            }
+            ;
 
             var result = await _userManager.CreateAsync(user, RegisterDTO.Password);
             if (!result.Succeeded)
@@ -67,6 +83,30 @@ namespace AccountService.Application.Services
             await _userManager.AddToRoleAsync(user, RegisterDTO.Role);
 
             return new ApiResponse("Success", _localizer["RegisterSuccess"].Value, new { user.Id, user.UserName, Role = RegisterDTO.Role }, true);
+        }
+        public async Task<ApiResponse> Login(LoginDTO LoginDTO)
+        {
+            var user = await _userManager.FindByNameAsync(LoginDTO.Username);
+            if (user == null)
+                return new ApiResponse("Error", _localizer["NotFound"], null, false);
+
+            if (!await _userManager.CheckPasswordAsync(user, LoginDTO.Password))
+                return new ApiResponse("Error", _localizer["InvalidPassword"], null, false);
+
+            if (user.IsBanned)
+                return new ApiResponse("Error", _localizer["AccountLocked"], null, false);
+
+            var roles = await _userManager.GetRolesAsync(user);
+            var accessToken = await _tokenService.GenerateAccessTokenAsync(user);
+            var refreshToken = _tokenService.GenerateRefreshToken();
+            await _tokenService.StoreRefreshTokenAsync(user, refreshToken);
+
+            return new ApiResponse("Success", _localizer["LoginSuccess"], new
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                Role = roles.FirstOrDefault()
+            }, true);
         }
     }
 }

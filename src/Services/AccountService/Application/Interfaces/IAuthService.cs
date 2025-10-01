@@ -10,7 +10,7 @@ namespace AccountService.Application.Interfaces
     public interface IAuthService
     {
         Task<ApiResponse> Register(RegisterDTO model);
-        // Task<ApiResponse> Login(LoginDTO model);
+        Task<ApiResponse> Login(LoginDTO model);
         // Task<ApiResponse> RefreshToken(string refreshToken);
         // Task<ApiResponse> ResetPassword(string email, string newPassword);
         // Task<ApiResponse> ChangePassword(int userId, ChangePasswordDTO dto);

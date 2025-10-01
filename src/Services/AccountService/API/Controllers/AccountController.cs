@@ -30,8 +30,22 @@ namespace src.Services.AccountService.API.Controllers
 
             return response.Code switch
             {
-                "Success" => Created("", response),          
-                "Error" => Conflict(response),              
+                "Success" => Created("", response),
+                "Error" => Conflict(response),
+                "BadRequest" => BadRequest(response),
+                _ => StatusCode(500, response)
+            };
+        }
+        [HttpPost("login")]
+        public async Task<ActionResult<ApiResponse>> Login([FromBody] LoginDTO loginDTO)
+        {
+            var response = await _authservice.Login(loginDTO);
+
+            return response.Code switch
+            {
+                "Success" => Ok(response),                  
+                "Unauthorized" => Unauthorized(response),   
+                "NotFound" => NotFound(response),           
                 "BadRequest" => BadRequest(response),       
                 _ => StatusCode(500, response)              
             };

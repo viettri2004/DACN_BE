@@ -143,9 +143,11 @@
   </data>
   <data name="UsernameAlreadyExists" xml:space="preserve">
     <value>Username already exists</value>
+    <comment/>
   </data>
   <data name="PhoneNumberAlreadyExists" xml:space="preserve">
     <value>Phone number already exists</value>
+    <comment/>
   </data>
   <data name="EmailAlreadyExists" xml:space="preserve">
     <value>Email already exists</value>
@@ -217,6 +219,10 @@
   </data>
   <data name="MinLength" xml:space="preserve">
     <value>{0} must be at least {1} characters</value>
+    <comment/>
+  </data>
+  <data name="InvalidRole" xml:space="preserve">
+    <value>Invalid Role</value>
     <comment/>
   </data>
 </root>

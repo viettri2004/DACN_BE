@@ -8,8 +8,8 @@ namespace Data.AppDbContext
     public class AppDbContext : IdentityDbContext<User, IdentityRole, string>
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
-        public DbSet<Student> Students { get; set; } = null!;
-        public DbSet<Instructor> Instructors { get; set; } = null!;
+        public DbSet<User> Users { get; set; } = null!;
+
         public DbSet<Course> Courses { get; set; } = null!;
         public DbSet<StudentCourse> StudentCourses { get; set; } = null!;
         public DbSet<LeaveComment> LeaveComments { get; set; } = null!;

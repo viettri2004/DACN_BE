@@ -146,10 +146,12 @@
     <comment/>
   </data>
   <data name="UsernameAlreadyExists" xml:space="preserve">
-  <value>Username đã tồn tại</value>
+    <value>Username đã tồn tại</value>
+    <comment/>
   </data>
   <data name="PhoneNumberAlreadyExists" xml:space="preserve">
-  <value>Số điện thoại đã tồn tại</value>
+    <value>Số điện thoại đã tồn tại</value>
+    <comment/>
   </data>
   <data name="InvalidEmailFormat" xml:space="preserve">
     <value>Định dạng email không hợp lệ</value>
@@ -217,6 +219,10 @@
   </data>
   <data name="MinLength" xml:space="preserve">
     <value>{0} phải có ít nhất {1} ký tự</value>
+    <comment/>
+  </data>
+  <data name="InvalidRole" xml:space="preserve">
+    <value>Vai trò không hợp lệ</value>
     <comment/>
   </data>
 </root>
