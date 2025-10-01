@@ -237,4 +237,16 @@
     <value>OTP sent successfully</value>
     <comment/>
   </data>
+  <data name="InvalidOtp" xml:space="preserve">
+    <value>Invalid OTP</value>
+    <comment/>
+  </data>
+  <data name="PasswordResetSuccess" xml:space="preserve">
+    <value>Reset password successfully</value>
+    <comment/>
+  </data>
+  <data name="PasswordResetFailed" xml:space="preserve">
+    <value>Fail to reset password</value>
+    <comment/>
+  </data>
 </root>

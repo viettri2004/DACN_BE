@@ -19,9 +19,11 @@ namespace src.Services.AccountService.API.Controllers
         private readonly IAuthService _authservice;
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly IEmailService _emailService;
+        private readonly IOtpService _otpService;
 
-        public AccountController(IAuthService accountService, IStringLocalizer<SharedResources> localizer, IEmailService emailService)
+        public AccountController(IAuthService accountService, IStringLocalizer<SharedResources> localizer, IEmailService emailService, IOtpService otpService)
         {
+            _otpService = otpService;
             _authservice = accountService;
             _emailService = emailService;
             _localizer = localizer;
@@ -54,11 +56,10 @@ namespace src.Services.AccountService.API.Controllers
                 };
                 Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
             }
-            Console.WriteLine(refreshToken);
+            // Console.WriteLine(refreshToken);
             return response.Code switch
             {
                 "Success" => Ok(response),
-                "Unauthorized" => Unauthorized(response),
                 "NotFound" => NotFound(response),
                 "BadRequest" => BadRequest(response),
                 _ => StatusCode(500, response)
@@ -85,7 +86,28 @@ namespace src.Services.AccountService.API.Controllers
             return response.Code switch
             {
                 "Success" => Ok(response),
-                "Error" => NotFound(response),
+                "NotFound" => NotFound(response),
+                _ => StatusCode(500, response)
+            };
+        }
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDTO dto)
+        {
+            var otpKey = $"ResetPassword:{dto.Email}";
+            var isValidOtp = await _otpService.ValidateOtpAsync(otpKey, dto.Otp);
+            if (!isValidOtp)
+            {
+                return BadRequest(new ApiResponse("Error", _localizer["InvalidOtp"].Value, null, false));
+            }
+
+            var response = await _authservice.ResetPassword(dto.Email, dto.NewPassword);
+
+            return response.Code switch
+            {
+                "Success" => Ok(response),
+                "BadRequest" => BadRequest(response),
+                "NotFound" => NotFound(response),
+                "Error" => StatusCode(500, response),
                 _ => StatusCode(500, response)
             };
         }

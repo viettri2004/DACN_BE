@@ -126,7 +126,7 @@ namespace AccountService.Application.Services
 
             return new ApiResponse(
                 "Success",
-                _localizer["RefreshTokenSuccess"].Value, 
+                _localizer["RefreshTokenSuccess"].Value,
                 new
                 {
                     AccessToken = newAccessToken,
@@ -134,5 +134,26 @@ namespace AccountService.Application.Services
                 true
             );
         }
+        public async Task<ApiResponse> ResetPassword(string email, string newPassword)
+        {
+            var user = await _accountRepository.FindUserByEmail(email);
+            if (user == null)
+            {
+                return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+            }
+
+            user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, newPassword);
+
+            var result = await _userManager.UpdateAsync(user);
+
+            if (result.Succeeded)
+            {
+                return new ApiResponse("Success", _localizer["PasswordResetSuccess"].Value, null, true);
+            }
+
+            return new ApiResponse("Error", _localizer["PasswordResetFailed"].Value, result.Errors, false);
+
+        }
+
     }
 }

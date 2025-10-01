@@ -1,5 +1,7 @@
 using AccountService.Application.Interfaces;
 using AccountService.Application.Services;
+using AccountService.Infrastructure.Email;
+using AccountService.Infrastructure.Otp;
 using AccountService.Infrastructure.Persistence.Repositories;
 using Data.AppDbContext;
 using DotNetEnv;
@@ -40,6 +42,7 @@ if (string.IsNullOrEmpty(jwtSection["Issuer"]) ||
 }
 
 ConfigureControllers(builder.Services);
+ConfigureCache(builder.Services, builder.Configuration);
 ConfigureDI(builder.Services);
 ConfigureLocalization(builder.Services, builder.Configuration);
 ConfigureSwagger(builder.Services);
@@ -53,11 +56,23 @@ var app = builder.Build();
 ConfigureMiddleware(app);
 
 app.Run();
+static void ConfigureCache(IServiceCollection services, IConfiguration configuration)
+{
+    // services.AddStackExchangeRedisCache(options =>
+    // {
+    //     options.Configuration = configuration.GetConnectionString("Redis");
+    //     options.InstanceName = "AccountService:";
+    // });
+    services.AddDistributedMemoryCache();
+
+}
 static void ConfigureDI(IServiceCollection services)
 {
     services.AddScoped<ITokenService, TokenService>();
     services.AddScoped<IAccountRepository, AccountRepository>();
     services.AddScoped<IAuthService, AuthService>();
+    services.AddScoped<IEmailService, EmailService>();
+    services.AddScoped<IOtpService, OtpService>();
 }
 static void ConfigureLocalization(IServiceCollection services, IConfiguration configuration)
 {
@@ -215,7 +230,7 @@ static void ConfigureMiddleware(WebApplication app)
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Demo API V1");
-        c.RoutePrefix = "swagger"; 
+        c.RoutePrefix = "swagger";
     });
     app.UseRequestLocalization();
 

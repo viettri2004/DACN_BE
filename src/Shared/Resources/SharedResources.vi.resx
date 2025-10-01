@@ -237,4 +237,16 @@
     <value>Gửi OTP thành công</value>
     <comment/>
   </data>
+  <data name="InvalidOtp" xml:space="preserve">
+    <value>OTP không hợp lệ</value>
+    <comment/>
+  </data>
+  <data name="PasswordResetSuccess" xml:space="preserve">
+    <value>Thành công reset mật khẩu</value>
+    <comment/>
+  </data>
+  <data name="PasswordResetFailed" xml:space="preserve">
+    <value>Reset mật khẩu thất bại</value>
+    <comment/>
+  </data>
 </root>

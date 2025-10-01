@@ -12,7 +12,7 @@ using src.Shared.Resources;
 
 namespace AccountService.Infrastructure.Email
 {
-    public class EmailService
+    public class EmailService : IEmailService
     {
         private readonly IAccountRepository _accountRepository;
         private readonly IConfiguration _config;
@@ -29,7 +29,7 @@ namespace AccountService.Infrastructure.Email
         {
             var user = await _accountRepository.FindUserByEmail(toEmail);
             if (user == null)
-                return new ApiResponse("Error", "User not found", null, false);
+                return new ApiResponse("NotFound", "User not found", null, false);
 
             var fromEmail = _config["Email:From"];
             var fromPassword = _config["Email:Password"];

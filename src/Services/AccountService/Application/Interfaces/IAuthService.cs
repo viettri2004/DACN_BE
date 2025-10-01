@@ -12,7 +12,7 @@ namespace AccountService.Application.Interfaces
         Task<ApiResponse> Register(RegisterDTO model);
         Task<(ApiResponse response, string refreshToken)> LoginAsync(LoginDTO loginDTO);
         Task<ApiResponse> RefreshToken(string refreshToken);
-        // Task<ApiResponse> ResetPassword(string email, string newPassword);
+        Task<ApiResponse> ResetPassword(string email, string newPassword);
         // Task<ApiResponse> ChangePassword(int userId, ChangePasswordDTO dto);
     }
 }

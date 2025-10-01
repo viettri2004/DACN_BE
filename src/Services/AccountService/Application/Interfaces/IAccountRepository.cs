@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AccountService.Application.DTOs;
 using Entities;
 
 namespace AccountService.Application.Interfaces
@@ -10,5 +11,6 @@ namespace AccountService.Application.Interfaces
     {
         Task<User> GetUserFromRefreshToken(string refreshToken);
         Task<User> FindUserByEmail(string email);
+        Task ChangePassword(User user, ChangePasswordDTO changePasswordDTO);
     }
 }
