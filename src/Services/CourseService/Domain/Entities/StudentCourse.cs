@@ -8,10 +8,10 @@ namespace Entities
 {
     public class StudentCourse
     {
-        public int StudentId { get; set; }
+        public string StudentId { get; set; } = null!;
         public Student Student { get; set; } = null!;
 
-        public int CourseId { get; set; }
+        public string CourseId { get; set; } = null!;
         public Course Course { get; set; } = null!;
 
         [Column(TypeName = "decimal(10,2)")]

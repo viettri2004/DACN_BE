@@ -9,8 +9,8 @@ namespace Entities
     public class Document
     {
         [Key]
-        public int Id { get; set; }
-        public int LectureId { get; set; }
+        public string Id { get; set; } = null!;
+        public string LectureId { get; set; } = null!;
         public Lecture Lecture { get; set; } = null!;
         public int DocumentNumber { get; set; } = 1;
 

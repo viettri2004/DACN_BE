@@ -7,8 +7,8 @@ namespace Entities
 {
     public class Questionnaire
     {
-        public int CourseId { get; set; }
-        public int NumberId { get; set; }
+        public string CourseId { get; set; } = null!;
+        public string NumberId { get; set; } = null!;
         public int QuestionNumber { get; set; }
         public string Question { get; set; } = null!;
         public string Key { get; set; } = null!;

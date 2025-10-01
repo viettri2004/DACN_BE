@@ -7,15 +7,15 @@ namespace Entities
 {
     public class Comment
     {
-        public int Id { get; set; }
+        public string Id { get; set; } = null!;
 
         public string Content { get; set; } = null!;
 
-        public int? ReplyId { get; set; }
+        public string? ReplyId { get; set; }
         public Comment? Parent { get; set; }
         public ICollection<Comment> Replies { get; set; } = new List<Comment>();
 
-        public int LectureId { get; set; }
+        public string LectureId { get; set; } = null!;
         public Lecture Lecture { get; set; } = null!;
     }
 }

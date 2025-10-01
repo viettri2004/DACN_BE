@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace src.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class InitialStringKeys : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -16,8 +16,7 @@ namespace src.Migrations
                 name: "AspNetRoles",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "text", nullable: false),
                     Name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                     NormalizedName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                     ConcurrencyStamp = table.Column<string>(type: "text", nullable: true)
@@ -31,8 +30,7 @@ namespace src.Migrations
                 name: "AspNetUsers",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "text", nullable: false),
                     FullName = table.Column<string>(type: "text", nullable: false),
                     IsBanned = table.Column<bool>(type: "boolean", nullable: false),
                     UserType = table.Column<string>(type: "character varying(13)", maxLength: 13, nullable: false),
@@ -62,7 +60,7 @@ namespace src.Migrations
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    RoleId = table.Column<int>(type: "integer", nullable: false),
+                    RoleId = table.Column<string>(type: "text", nullable: false),
                     ClaimType = table.Column<string>(type: "text", nullable: true),
                     ClaimValue = table.Column<string>(type: "text", nullable: true)
                 },
@@ -83,7 +81,7 @@ namespace src.Migrations
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    UserId = table.Column<int>(type: "integer", nullable: false),
+                    UserId = table.Column<string>(type: "text", nullable: false),
                     ClaimType = table.Column<string>(type: "text", nullable: true),
                     ClaimValue = table.Column<string>(type: "text", nullable: true)
                 },
@@ -105,7 +103,7 @@ namespace src.Migrations
                     LoginProvider = table.Column<string>(type: "text", nullable: false),
                     ProviderKey = table.Column<string>(type: "text", nullable: false),
                     ProviderDisplayName = table.Column<string>(type: "text", nullable: true),
-                    UserId = table.Column<int>(type: "integer", nullable: false)
+                    UserId = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -122,8 +120,8 @@ namespace src.Migrations
                 name: "AspNetUserRoles",
                 columns: table => new
                 {
-                    UserId = table.Column<int>(type: "integer", nullable: false),
-                    RoleId = table.Column<int>(type: "integer", nullable: false)
+                    UserId = table.Column<string>(type: "text", nullable: false),
+                    RoleId = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -146,7 +144,7 @@ namespace src.Migrations
                 name: "AspNetUserTokens",
                 columns: table => new
                 {
-                    UserId = table.Column<int>(type: "integer", nullable: false),
+                    UserId = table.Column<string>(type: "text", nullable: false),
                     LoginProvider = table.Column<string>(type: "text", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
                     Value = table.Column<string>(type: "text", nullable: true)
@@ -166,12 +164,11 @@ namespace src.Migrations
                 name: "Courses",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "text", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
                     Description = table.Column<string>(type: "text", nullable: false),
                     CreateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    InstructorId = table.Column<int>(type: "integer", nullable: false)
+                    InstructorId = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -188,10 +185,9 @@ namespace src.Migrations
                 name: "LeaveComments",
                 columns: table => new
                 {
-                    CommentId = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    StudentId = table.Column<int>(type: "integer", nullable: false),
-                    CourseId = table.Column<int>(type: "integer", nullable: false),
+                    CommentId = table.Column<string>(type: "text", nullable: false),
+                    StudentId = table.Column<string>(type: "text", nullable: false),
+                    CourseId = table.Column<string>(type: "text", nullable: false),
                     Rate = table.Column<int>(type: "integer", nullable: false),
                     Timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Content = table.Column<string>(type: "text", nullable: false)
@@ -217,11 +213,10 @@ namespace src.Migrations
                 name: "Lectures",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "text", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
                     Description = table.Column<string>(type: "text", nullable: false),
-                    CourseId = table.Column<int>(type: "integer", nullable: false)
+                    CourseId = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -238,8 +233,8 @@ namespace src.Migrations
                 name: "Quizzes",
                 columns: table => new
                 {
-                    CourseId = table.Column<int>(type: "integer", nullable: false),
-                    NumberId = table.Column<int>(type: "integer", nullable: false),
+                    CourseId = table.Column<string>(type: "text", nullable: false),
+                    NumberId = table.Column<string>(type: "text", nullable: false),
                     TestTime = table.Column<int>(type: "integer", nullable: false),
                     AttemptCount = table.Column<int>(type: "integer", nullable: false)
                 },
@@ -258,8 +253,8 @@ namespace src.Migrations
                 name: "StudentCourses",
                 columns: table => new
                 {
-                    StudentId = table.Column<int>(type: "integer", nullable: false),
-                    CourseId = table.Column<int>(type: "integer", nullable: false),
+                    StudentId = table.Column<string>(type: "text", nullable: false),
+                    CourseId = table.Column<string>(type: "text", nullable: false),
                     Amount = table.Column<decimal>(type: "numeric(10,2)", nullable: false),
                     StartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ExpireTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
@@ -285,9 +280,8 @@ namespace src.Migrations
                 name: "Documents",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    LectureId = table.Column<int>(type: "integer", nullable: false),
+                    Id = table.Column<string>(type: "text", nullable: false),
+                    LectureId = table.Column<string>(type: "text", nullable: false),
                     DocumentNumber = table.Column<int>(type: "integer", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
                     Type = table.Column<string>(type: "text", nullable: false)
@@ -307,8 +301,8 @@ namespace src.Migrations
                 name: "Questionnaires",
                 columns: table => new
                 {
-                    CourseId = table.Column<int>(type: "integer", nullable: false),
-                    NumberId = table.Column<int>(type: "integer", nullable: false),
+                    CourseId = table.Column<string>(type: "text", nullable: false),
+                    NumberId = table.Column<string>(type: "text", nullable: false),
                     QuestionNumber = table.Column<int>(type: "integer", nullable: false),
                     Question = table.Column<string>(type: "text", nullable: false),
                     Key = table.Column<string>(type: "text", nullable: false),
@@ -329,12 +323,11 @@ namespace src.Migrations
                 name: "Comments",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "text", nullable: false),
                     Content = table.Column<string>(type: "text", nullable: false),
-                    ReplyId = table.Column<int>(type: "integer", nullable: true),
-                    LectureId = table.Column<int>(type: "integer", nullable: false),
-                    LectureVideoId = table.Column<int>(type: "integer", nullable: true)
+                    ReplyId = table.Column<string>(type: "text", nullable: true),
+                    LectureId = table.Column<string>(type: "text", nullable: false),
+                    LectureVideoId = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -357,12 +350,11 @@ namespace src.Migrations
                 name: "LectureVideos",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "text", nullable: false),
                     Content = table.Column<string>(type: "text", nullable: false),
-                    ReplyId = table.Column<int>(type: "integer", nullable: true),
-                    ParentId = table.Column<int>(type: "integer", nullable: true),
-                    LectureId = table.Column<int>(type: "integer", nullable: false)
+                    ReplyId = table.Column<string>(type: "text", nullable: true),
+                    ParentId = table.Column<string>(type: "text", nullable: true),
+                    LectureId = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {

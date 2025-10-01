@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace src.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250930190724_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20251001060209_InitialStringKeys")]
+    partial class InitialStringKeys
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -27,24 +27,22 @@ namespace src.Migrations
 
             modelBuilder.Entity("Entities.Comment", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
 
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("LectureId")
-                        .HasColumnType("integer");
+                    b.Property<string>("LectureId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
-                    b.Property<int?>("LectureVideoId")
-                        .HasColumnType("integer");
+                    b.Property<string>("LectureVideoId")
+                        .HasColumnType("text");
 
-                    b.Property<int?>("ReplyId")
-                        .HasColumnType("integer");
+                    b.Property<string>("ReplyId")
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -59,11 +57,8 @@ namespace src.Migrations
 
             modelBuilder.Entity("Entities.Course", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreateTime")
                         .HasColumnType("timestamp with time zone");
@@ -72,8 +67,9 @@ namespace src.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("InstructorId")
-                        .HasColumnType("integer");
+                    b.Property<string>("InstructorId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -88,17 +84,15 @@ namespace src.Migrations
 
             modelBuilder.Entity("Entities.Document", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
 
                     b.Property<int>("DocumentNumber")
                         .HasColumnType("integer");
 
-                    b.Property<int>("LectureId")
-                        .HasColumnType("integer");
+                    b.Property<string>("LectureId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -117,24 +111,23 @@ namespace src.Migrations
 
             modelBuilder.Entity("Entities.LeaveComment", b =>
                 {
-                    b.Property<int>("CommentId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("CommentId"));
+                    b.Property<string>("CommentId")
+                        .HasColumnType("text");
 
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("CourseId")
-                        .HasColumnType("integer");
+                    b.Property<string>("CourseId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<int>("Rate")
                         .HasColumnType("integer");
 
-                    b.Property<int>("StudentId")
-                        .HasColumnType("integer");
+                    b.Property<string>("StudentId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("timestamp with time zone");
@@ -150,14 +143,12 @@ namespace src.Migrations
 
             modelBuilder.Entity("Entities.Lecture", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CourseId")
-                        .HasColumnType("integer");
+                    b.Property<string>("CourseId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -176,24 +167,22 @@ namespace src.Migrations
 
             modelBuilder.Entity("Entities.LectureVideo", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
 
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("LectureId")
-                        .HasColumnType("integer");
+                    b.Property<string>("LectureId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
-                    b.Property<int?>("ParentId")
-                        .HasColumnType("integer");
+                    b.Property<string>("ParentId")
+                        .HasColumnType("text");
 
-                    b.Property<int?>("ReplyId")
-                        .HasColumnType("integer");
+                    b.Property<string>("ReplyId")
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -206,11 +195,11 @@ namespace src.Migrations
 
             modelBuilder.Entity("Entities.Questionnaire", b =>
                 {
-                    b.Property<int>("CourseId")
-                        .HasColumnType("integer");
+                    b.Property<string>("CourseId")
+                        .HasColumnType("text");
 
-                    b.Property<int>("NumberId")
-                        .HasColumnType("integer");
+                    b.Property<string>("NumberId")
+                        .HasColumnType("text");
 
                     b.Property<int>("QuestionNumber")
                         .HasColumnType("integer");
@@ -233,11 +222,11 @@ namespace src.Migrations
 
             modelBuilder.Entity("Entities.Quiz", b =>
                 {
-                    b.Property<int>("CourseId")
-                        .HasColumnType("integer");
+                    b.Property<string>("CourseId")
+                        .HasColumnType("text");
 
-                    b.Property<int>("NumberId")
-                        .HasColumnType("integer");
+                    b.Property<string>("NumberId")
+                        .HasColumnType("text");
 
                     b.Property<int>("AttemptCount")
                         .HasColumnType("integer");
@@ -252,11 +241,11 @@ namespace src.Migrations
 
             modelBuilder.Entity("Entities.StudentCourse", b =>
                 {
-                    b.Property<int>("StudentId")
-                        .HasColumnType("integer");
+                    b.Property<string>("StudentId")
+                        .HasColumnType("text");
 
-                    b.Property<int>("CourseId")
-                        .HasColumnType("integer");
+                    b.Property<string>("CourseId")
+                        .HasColumnType("text");
 
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(10,2)");
@@ -276,11 +265,8 @@ namespace src.Migrations
 
             modelBuilder.Entity("Entities.User", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
 
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("integer");
@@ -357,13 +343,10 @@ namespace src.Migrations
                     b.UseTphMappingStrategy();
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<int>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
@@ -386,7 +369,7 @@ namespace src.Migrations
                     b.ToTable("AspNetRoles", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -400,8 +383,9 @@ namespace src.Migrations
                     b.Property<string>("ClaimValue")
                         .HasColumnType("text");
 
-                    b.Property<int>("RoleId")
-                        .HasColumnType("integer");
+                    b.Property<string>("RoleId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -410,7 +394,7 @@ namespace src.Migrations
                     b.ToTable("AspNetRoleClaims", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<int>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -424,8 +408,9 @@ namespace src.Migrations
                     b.Property<string>("ClaimValue")
                         .HasColumnType("text");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -434,7 +419,7 @@ namespace src.Migrations
                     b.ToTable("AspNetUserClaims", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<int>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
                     b.Property<string>("LoginProvider")
                         .HasColumnType("text");
@@ -445,8 +430,9 @@ namespace src.Migrations
                     b.Property<string>("ProviderDisplayName")
                         .HasColumnType("text");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("LoginProvider", "ProviderKey");
 
@@ -455,13 +441,13 @@ namespace src.Migrations
                     b.ToTable("AspNetUserLogins", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<int>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<string>", b =>
                 {
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
 
-                    b.Property<int>("RoleId")
-                        .HasColumnType("integer");
+                    b.Property<string>("RoleId")
+                        .HasColumnType("text");
 
                     b.HasKey("UserId", "RoleId");
 
@@ -470,10 +456,10 @@ namespace src.Migrations
                     b.ToTable("AspNetUserRoles", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<int>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
 
                     b.Property<string>("LoginProvider")
                         .HasColumnType("text");
@@ -642,16 +628,16 @@ namespace src.Migrations
                     b.Navigation("Student");
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<int>", null)
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<int>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
                     b.HasOne("Entities.User", null)
                         .WithMany()
@@ -660,7 +646,7 @@ namespace src.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<int>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
                     b.HasOne("Entities.User", null)
                         .WithMany()
@@ -669,9 +655,9 @@ namespace src.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<int>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<string>", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<int>", null)
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -684,7 +670,7 @@ namespace src.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<int>", b =>
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
                     b.HasOne("Entities.User", null)
                         .WithMany()

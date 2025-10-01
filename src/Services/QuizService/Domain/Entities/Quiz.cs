@@ -7,10 +7,10 @@ namespace Entities
 {
     public class Quiz
     {
-        public int CourseId { get; set; }
+        public string CourseId { get; set; } = null!;
         public Course Course { get; set; } = null!;
 
-        public int NumberId { get; set; }
+        public string NumberId { get; set; } = null!;
 
         public int TestTime { get; set; } = 0;
         public int AttemptCount { get; set; } = 0;

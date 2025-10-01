@@ -8,11 +8,11 @@ namespace Entities
 {
     public class Course
     {
-        public int Id { get; set; }
+        public string Id { get; set; } = null!;
         public string Name { get; set; } = null!;
         public string Description { get; set; } = null!;
         public DateTime CreateTime { get; set; } = DateTime.UtcNow;
-        public int InstructorId { get; set; }
+        public string InstructorId { get; set; } = null!;
         public Instructor Instructor { get; set; } = null!;
         public ICollection<StudentCourse> StudentCourses { get; set; } = new List<StudentCourse>();
         public ICollection<Lecture> Lectures { get; set; } = new List<Lecture>();

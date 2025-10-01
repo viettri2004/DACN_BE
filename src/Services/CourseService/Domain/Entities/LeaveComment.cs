@@ -9,12 +9,12 @@ namespace Entities
     public class LeaveComment
     {
         [Key]
-        public int CommentId { get; set; }
+        public string CommentId { get; set; } = null!;
 
-        public int StudentId { get; set; }
+        public string StudentId { get; set; } = null!;
         public Student Student { get; set; } = null!;
 
-        public int CourseId { get; set; }
+        public string CourseId { get; set; } = null!;
         public Course Course { get; set; } = null!;
 
         [Range(1,5)]

@@ -7,10 +7,10 @@ namespace Entities
 {
     public class Lecture
     {
-        public int Id { get; set; }
+        public string Id { get; set; } = null!;
         public string Name { get; set; } = null!;
         public string Description { get; set; } = string.Empty;
-        public int CourseId { get; set; }
+        public string CourseId { get; set; } = null!;
         public Course Course { get; set; } = null!;
         public ICollection<Document> Documents { get; set; } = new List<Document>();
         public ICollection<LectureVideo> LectureVideos { get; set; } = new List<LectureVideo>();
