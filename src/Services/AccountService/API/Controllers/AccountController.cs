@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
 using src.Shared.Resources;
 using src.Shared.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
 
 namespace src.Services.AccountService.API.Controllers
 {
@@ -51,12 +52,25 @@ namespace src.Services.AccountService.API.Controllers
                 };
                 Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
             }
-
+            Console.WriteLine(refreshToken);
             return response.Code switch
             {
                 "Success" => Ok(response),
                 "Unauthorized" => Unauthorized(response),
                 "NotFound" => NotFound(response),
+                "BadRequest" => BadRequest(response),
+                _ => StatusCode(500, response)
+            };
+        }
+        [HttpPost("refresh-token")]
+        public async Task<ActionResult<ApiResponse>> RefreshToken([FromBody] string refreshToken)
+        {
+            var response = await _authservice.RefreshToken(refreshToken);
+
+            return response.Code switch
+            {
+                "Success" => Ok(response),
+                "Error" => Unauthorized(response),
                 "BadRequest" => BadRequest(response),
                 _ => StatusCode(500, response)
             };

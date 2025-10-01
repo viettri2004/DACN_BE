@@ -83,7 +83,7 @@ static void ConfigureDbContext(IServiceCollection services, IConfiguration confi
     // {
     //     throw new InvalidOperationException("Database connection string 'DefaultConnection' is not configured.");
     // }
-    string ConnectionString = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION");
+    string ConnectionString = configuration.GetConnectionString("DefaultConnection");
 
     services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(ConnectionString));
@@ -204,11 +204,17 @@ static void ConfigureAuthorization(IServiceCollection services)
 
 static void ConfigureMiddleware(WebApplication app)
 {
-    if (app.Environment.IsDevelopment())
+    // if (app.Environment.IsDevelopment())
+    // {
+    //     app.UseSwagger();
+    //     app.UseSwaggerUI();
+    // }
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
     {
-        app.UseSwagger();
-        app.UseSwaggerUI();
-    }
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Demo API V1");
+        c.RoutePrefix = "swagger"; 
+    });
     app.UseRequestLocalization();
 
     app.UseCors(x => x

@@ -157,6 +157,14 @@
     <value>Định dạng email không hợp lệ</value>
     <comment/>
   </data>
+  <data name="InvalidRefreshToken" xml:space="preserve">
+    <value>Refresh token không hợp lệ</value>
+    <comment/>
+  </data>
+  <data name="RefreshTokenSuccess" xml:space="preserve">
+    <value>Token được làm mới thành công</value>
+    <comment/>
+  </data>
   <data name="PasswordTooShort" xml:space="preserve">
     <value>Mật khẩu phải có ít nhất {0} ký tự</value>
     <comment/>

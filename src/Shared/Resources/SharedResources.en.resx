@@ -157,6 +157,14 @@
     <value>Invalid email format</value>
     <comment/>
   </data>
+  <data name="InvalidRefreshToken" xml:space="preserve">
+    <value>Invalid refresh token</value>
+    <comment/>
+  </data>
+  <data name="RefreshTokenSuccess" xml:space="preserve">
+    <value>Refresh token successfully</value>
+    <comment/>
+  </data>
   <data name="PasswordTooShort" xml:space="preserve">
     <value>Password must be at least {0} characters</value>
     <comment/>
