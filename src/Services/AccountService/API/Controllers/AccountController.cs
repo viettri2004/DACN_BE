@@ -39,15 +39,26 @@ namespace src.Services.AccountService.API.Controllers
         [HttpPost("login")]
         public async Task<ActionResult<ApiResponse>> Login([FromBody] LoginDTO loginDTO)
         {
-            var response = await _authservice.Login(loginDTO);
+            var (response, refreshToken) = await _authservice.LoginAsync(loginDTO);
+
+            if (!string.IsNullOrEmpty(refreshToken))
+            {
+                var cookieOptions = new CookieOptions
+                {
+                    HttpOnly = true,
+                    SameSite = SameSiteMode.Strict,
+                    Expires = DateTime.UtcNow.AddDays(14)
+                };
+                Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
+            }
 
             return response.Code switch
             {
-                "Success" => Ok(response),                  
-                "Unauthorized" => Unauthorized(response),   
-                "NotFound" => NotFound(response),           
-                "BadRequest" => BadRequest(response),       
-                _ => StatusCode(500, response)              
+                "Success" => Ok(response),
+                "Unauthorized" => Unauthorized(response),
+                "NotFound" => NotFound(response),
+                "BadRequest" => BadRequest(response),
+                _ => StatusCode(500, response)
             };
         }
     }

@@ -84,29 +84,32 @@ namespace AccountService.Application.Services
 
             return new ApiResponse("Success", _localizer["RegisterSuccess"].Value, new { user.Id, user.UserName, Role = RegisterDTO.Role }, true);
         }
-        public async Task<ApiResponse> Login(LoginDTO LoginDTO)
+        public async Task<(ApiResponse response, string refreshToken)> LoginAsync(LoginDTO loginDTO)
         {
-            var user = await _userManager.FindByNameAsync(LoginDTO.Username);
+            var user = await _userManager.FindByNameAsync(loginDTO.Username);
             if (user == null)
-                return new ApiResponse("Error", _localizer["NotFound"], null, false);
+                return (new ApiResponse("NotFound", _localizer["NotFound"], null, false), "");
 
-            if (!await _userManager.CheckPasswordAsync(user, LoginDTO.Password))
-                return new ApiResponse("Error", _localizer["InvalidPassword"], null, false);
+            if (!await _userManager.CheckPasswordAsync(user, loginDTO.Password))
+                return (new ApiResponse("Error", _localizer["InvalidPassword"], null, false), "");
 
             if (user.IsBanned)
-                return new ApiResponse("Error", _localizer["AccountLocked"], null, false);
+                return (new ApiResponse("Error", _localizer["AccountLocked"], null, false), "");
 
             var roles = await _userManager.GetRolesAsync(user);
+
             var accessToken = await _tokenService.GenerateAccessTokenAsync(user);
             var refreshToken = _tokenService.GenerateRefreshToken();
             await _tokenService.StoreRefreshTokenAsync(user, refreshToken);
 
-            return new ApiResponse("Success", _localizer["LoginSuccess"], new
+            var response = new ApiResponse("Success", _localizer["LoginSuccess"], new
             {
                 AccessToken = accessToken,
-                RefreshToken = refreshToken,
                 Role = roles.FirstOrDefault()
             }, true);
+
+            return (response, refreshToken);
         }
+
     }
 }
