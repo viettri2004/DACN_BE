@@ -111,5 +111,25 @@ namespace src.Services.AccountService.API.Controllers
                 _ => StatusCode(500, response)
             };
         }
+        [Authorize(Policy = "Admin")]
+        [HttpGet("admin-only")]
+        public IActionResult GetForAdmin()
+        {
+            return Ok("This is only for admins");
+        }
+
+        [Authorize(Policy = "Student")]
+        [HttpGet("student-only")]
+        public IActionResult GetForUser()
+        {
+            return Ok("This is only for students");
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpGet("instructor-only")]
+        public IActionResult GetForInstructor()
+        {
+            return Ok("This is only for instructors");
+        }
     }
 }
