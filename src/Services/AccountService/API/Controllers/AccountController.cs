@@ -66,8 +66,9 @@ namespace src.Services.AccountService.API.Controllers
             };
         }
         [HttpPost("refresh-token")]
-        public async Task<ActionResult<ApiResponse>> RefreshToken([FromBody] string refreshToken)
+        public async Task<ActionResult<ApiResponse>> RefreshToken()
         {
+            var refreshToken = Request.Cookies["refreshToken"];
             var response = await _authservice.RefreshToken(refreshToken);
 
             return response.Code switch
@@ -79,7 +80,7 @@ namespace src.Services.AccountService.API.Controllers
             };
         }
         [HttpPost("send-otp")]
-        public async Task<ActionResult<ApiResponse>> SendOtp([FromBody] string email)
+        public async Task<ActionResult<ApiResponse>> SendOtp([FromQuery] string email)
         {
             var response = await _emailService.SendEmailAsync(email);
 
