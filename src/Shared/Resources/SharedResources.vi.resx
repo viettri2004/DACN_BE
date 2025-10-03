@@ -241,6 +241,10 @@
     <value>OTP không hợp lệ</value>
     <comment/>
   </data>
+  <data name="OtpVerified" xml:space="preserve">
+    <value>Xác nhận OTP thành công</value>
+    <comment/>
+  </data>
   <data name="PasswordResetSuccess" xml:space="preserve">
     <value>Thành công reset mật khẩu</value>
     <comment/>

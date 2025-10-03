@@ -90,8 +90,8 @@ namespace src.Services.AccountService.API.Controllers
                 _ => StatusCode(500, response)
             };
         }
-        [HttpPost("reset-password")]
-        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDTO dto)
+        [HttpPost("verify-otp")]
+        public async Task<ActionResult<ApiResponse>> VerifyOtp([FromBody] VerifiedOtpDTO dto)
         {
             var otpKey = $"ResetPassword:{dto.Email}";
             var isValidOtp = await _otpService.ValidateOtpAsync(otpKey, dto.Otp);
@@ -100,6 +100,11 @@ namespace src.Services.AccountService.API.Controllers
                 return BadRequest(new ApiResponse("Error", _localizer["InvalidOtp"].Value, null, false));
             }
 
+            return Ok(new ApiResponse("Success", _localizer["OtpVerified"].Value, null, true));
+        }
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDTO dto)
+        {
             var response = await _authservice.ResetPassword(dto.Email, dto.NewPassword);
 
             return response.Code switch

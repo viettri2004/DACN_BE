@@ -241,6 +241,10 @@
     <value>Invalid OTP</value>
     <comment/>
   </data>
+  <data name="OtpVerified" xml:space="preserve">
+    <value>OTP verified</value>
+    <comment/>
+  </data>
   <data name="PasswordResetSuccess" xml:space="preserve">
     <value>Reset password successfully</value>
     <comment/>
