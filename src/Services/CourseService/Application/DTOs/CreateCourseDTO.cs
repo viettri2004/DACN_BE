@@ -1,0 +1,15 @@
+using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
+
+namespace CourseService.Application.DTOs
+{
+    public class CreateCourseDTO
+    {
+        [Required]
+        public string name { get; set; } = null!;
+
+        public string? description { get; set; }
+
+        public IFormFile image { get; set; } = null!;
+    }
+}

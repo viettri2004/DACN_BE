@@ -108,7 +108,6 @@ namespace AccountService.Application.Services
             var response = new ApiResponse("Success", _localizer["LoginSuccess"], new
             {
                 AccessToken = accessToken,
-                Role = roles.FirstOrDefault()
             }, true);
 
             return (response, refreshToken);
