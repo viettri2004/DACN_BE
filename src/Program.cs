@@ -3,7 +3,8 @@ using AccountService.Application.Services;
 using AccountService.Infrastructure.Email;
 using AccountService.Infrastructure.Otp;
 using AccountService.Infrastructure.Persistence.Repositories;
-using Data.AppDbContext;
+using Data.Context;
+using Data.Seeding;
 using DotNetEnv;
 using Entities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -52,7 +53,11 @@ ConfigureAuthorization(builder.Services);
 ConfigureDbContext(builder.Services, builder.Configuration);
 
 var app = builder.Build();
-
+// using (var scope = app.Services.CreateScope())
+//     {
+//         var seeder = scope.ServiceProvider.GetRequiredService<DbSeeder>();
+//         await seeder.SeedAsync();
+//     }
 ConfigureMiddleware(app);
 
 app.Run();
@@ -68,6 +73,7 @@ static void ConfigureCache(IServiceCollection services, IConfiguration configura
 }
 static void ConfigureDI(IServiceCollection services)
 {
+    services.AddScoped<DbSeeder>();
     services.AddScoped<ITokenService, TokenService>();
     services.AddScoped<IAccountRepository, AccountRepository>();
     services.AddScoped<IAuthService, AuthService>();
@@ -226,6 +232,7 @@ static void ConfigureMiddleware(WebApplication app)
     //     app.UseSwagger();
     //     app.UseSwaggerUI();
     // }
+    
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {

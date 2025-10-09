@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using AccountService.Application.DTOs;
 using AccountService.Application.Interfaces;
-using Data.AppDbContext;
+using Data.Context;
 using Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
