@@ -42,6 +42,7 @@ namespace CourseService.Infrastructure.Repositories
                 {
                     Id = Guid.NewGuid().ToString(),
                     Name = createCourseDTO.name,
+                    Price = createCourseDTO.price,
                     Description = createCourseDTO.description,
                     ImageUrl = imageUrl,
                     InstructorId = instructorId,

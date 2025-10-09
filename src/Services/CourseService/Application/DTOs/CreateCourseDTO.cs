@@ -7,6 +7,8 @@ namespace CourseService.Application.DTOs
     {
         [Required]
         public string name { get; set; } = null!;
+        [Required]
+        public decimal price { get; set; }
 
         public string? description { get; set; }
 
