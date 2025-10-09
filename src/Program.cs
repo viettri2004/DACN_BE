@@ -106,8 +106,7 @@ static void ConfigureDbContext(IServiceCollection services, IConfiguration confi
     // {
     //     throw new InvalidOperationException("Database connection string 'DefaultConnection' is not configured.");
     // }
-    string ConnectionString = configuration.GetConnectionString("DefaultConnection");
-
+    string? ConnectionString = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION");
     services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(ConnectionString));
 }
