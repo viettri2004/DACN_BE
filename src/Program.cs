@@ -18,6 +18,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Shared.Infrastructure.cloudinaryService;
 using src.Shared.Domain.Entities;
+using StudentService.Application.Interfaces;
+using StudentService.Infrastructure.Repositories;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 const string BearerScheme = "Bearer";
@@ -80,6 +82,8 @@ static void ConfigureDI(IServiceCollection services)
     services.AddSingleton(provider => new Cloudinary(Environment.GetEnvironmentVariable("CLOUDINARY_URL")));
     services.AddScoped<DbSeeder>();
     services.AddScoped<CloudinaryService>();
+    services.AddAutoMapper(typeof(Program));
+    services.AddScoped<IStudentRepository, StudentRepository>();
     services.AddScoped<ICourseRepository, CourseRepository>();
     services.AddScoped<ITokenService, TokenService>();
     services.AddScoped<IAccountRepository, AccountRepository>();

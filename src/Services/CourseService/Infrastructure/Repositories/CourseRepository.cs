@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AutoMapper;
 using CourseService.Application.DTOs;
 using CourseService.Application.Interfaces;
 using Data.Context;
@@ -19,11 +20,13 @@ namespace CourseService.Infrastructure.Repositories
         private readonly AppDbContext _context;
         private readonly CloudinaryService _cloudinaryService;
         private readonly IStringLocalizer<SharedResources> _localizer;
-        public CourseRepository(AppDbContext context, CloudinaryService cloudinaryService, IStringLocalizer<SharedResources> localizer)
+        private readonly IMapper _mapper;
+        public CourseRepository(AppDbContext context, CloudinaryService cloudinaryService, IStringLocalizer<SharedResources> localizer, IMapper mapper)
         {
             _context = context;
             _cloudinaryService = cloudinaryService;
             _localizer = localizer;
+            _mapper = mapper;
         }
         public async Task<ApiResponse> CreateCourseAsync(CreateCourseDTO createCourseDTO, string instructorId)
         {
@@ -60,5 +63,46 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse("Error", $"Create course failed: {ex.Message}", null, false);
             }
         }
+
+        public async Task<ApiResponse> GetCourseDetailAsync(string courseId)
+        {
+            var course = await _context.Set<Course>()
+                .Include(c => c.Instructor)
+                .Include(c => c.LeaveComments)
+                .Include(c => c.Lectures)
+                .Include(c => c.StudentCourses)
+                .FirstOrDefaultAsync(c => c.Id == courseId);
+
+            if (course == null)
+                return new ApiResponse("NotFound", "NotFound", null, false);
+
+            var dto = _mapper.Map<CourseDetailDTO>(course);
+
+            dto.Rating = course.LeaveComments.Any() ? course.LeaveComments.Average(lc => lc.Rate) : 0;
+
+            dto.TotalStudents = course.StudentCourses.Count;
+
+            dto.TotalReviews = course.LeaveComments.Count;
+
+            dto.TotalHours = 36;
+
+            return new ApiResponse("Success", "", dto, true);
+        }
+        public async Task<ApiResponse> GetCourseCommentsAsync(string courseId)
+        {
+            var comments = await _context.Set<LeaveComment>()
+                .Where(c => c.CourseId == courseId)
+                .OrderByDescending(c => c.Timestamp)
+                .Include(c => c.Student) 
+                .ToListAsync();
+
+            var commentDTOs = _mapper.Map<List<LeaveCommentDTO>>(comments);
+
+            if (comments == null || !comments.Any())
+                return new ApiResponse("NotFound", "Chưa có seed comment hihi", null, false);
+
+            return new ApiResponse("Success", "", comments, true);
+        }
+
     }
 }
