@@ -31,11 +31,35 @@ namespace src.Services.CourseService.API.Controllers
                 return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
             }
             var response = await _courseRepository.CreateCourseAsync(createCourseDTO, instructorId);
-    
+
             return response.Code switch
             {
                 "Success" => Created("", response),
                 "BadRequest" => BadRequest(response),
+                _ => StatusCode(500, response)
+            };
+        }
+        [HttpGet("course-detail")]
+        public async Task<ActionResult<ApiResponse>> GetCourseDetail([FromQuery] string courseId)
+        {
+            var response = await _courseRepository.GetCourseDetailAsync(courseId);
+
+            return response.Code switch
+            {
+                "Success" => Ok(response),
+                "NotFound" => NotFound(response),
+                _ => StatusCode(500, response)
+            };
+        }
+        [HttpGet("comments")]
+        public async Task<ActionResult<ApiResponse>> GetComments([FromQuery] string courseId)
+        {
+            var response = await _courseRepository.GetCourseCommentsAsync(courseId);
+
+            return response.Code switch
+            {
+                "Success" => Ok(response),
+                "NotFound" => NotFound(response),
                 _ => StatusCode(500, response)
             };
         }

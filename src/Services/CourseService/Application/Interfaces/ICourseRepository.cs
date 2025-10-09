@@ -10,5 +10,7 @@ namespace CourseService.Application.Interfaces
     public interface ICourseRepository
     {
         Task<ApiResponse> CreateCourseAsync(CreateCourseDTO createCourseDTO, string instructorId);
+        Task<ApiResponse> GetCourseDetailAsync(string courseId);
+        Task<ApiResponse> GetCourseCommentsAsync(string courseId);
     }
 }
