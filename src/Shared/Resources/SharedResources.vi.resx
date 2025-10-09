@@ -253,4 +253,8 @@
     <value>Reset mật khẩu thất bại</value>
     <comment/>
   </data>
+  <data name="CreateCourseSuccess" xml:space="preserve">
+    <value>Tạo khóa học thành công</value>
+    <comment/>
+  </data>
 </root>

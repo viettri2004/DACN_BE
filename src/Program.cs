@@ -3,6 +3,9 @@ using AccountService.Application.Services;
 using AccountService.Infrastructure.Email;
 using AccountService.Infrastructure.Otp;
 using AccountService.Infrastructure.Persistence.Repositories;
+using CloudinaryDotNet;
+using CourseService.Application.Interfaces;
+using CourseService.Infrastructure.Repositories;
 using Data.Context;
 using Data.Seeding;
 using DotNetEnv;
@@ -13,6 +16,7 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Shared.Infrastructure.cloudinaryService;
 using src.Shared.Domain.Entities;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
@@ -73,7 +77,10 @@ static void ConfigureCache(IServiceCollection services, IConfiguration configura
 }
 static void ConfigureDI(IServiceCollection services)
 {
+    services.AddSingleton(provider => new Cloudinary(Environment.GetEnvironmentVariable("CLOUDINARY_URL")));
     services.AddScoped<DbSeeder>();
+    services.AddScoped<CloudinaryService>();
+    services.AddScoped<ICourseRepository, CourseRepository>();
     services.AddScoped<ITokenService, TokenService>();
     services.AddScoped<IAccountRepository, AccountRepository>();
     services.AddScoped<IAuthService, AuthService>();

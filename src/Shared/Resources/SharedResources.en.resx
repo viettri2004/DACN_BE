@@ -253,4 +253,8 @@
     <value>Fail to reset password</value>
     <comment/>
   </data>
+  <data name="CreateCourseSuccess" xml:space="preserve">
+    <value>Course create successfully</value>
+    <comment/>
+  </data>
 </root>
