@@ -28,11 +28,11 @@ namespace AccountService.Application.Services
         {
             var roles = await _userManager.GetRolesAsync(user);
 
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            var claims = new List<Claim>{
+                new Claim("id", user.Id.ToString()),
+                new Claim("name", user.FullName ?? "")
             };
-            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+            claims.AddRange(roles.Select(role => new Claim("role", role)));
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["JWT:SigningKey"]));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
