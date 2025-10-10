@@ -25,7 +25,7 @@ namespace src.Services.CourseService.API.Controllers
         [HttpPost("create")]
         public async Task<ActionResult<ApiResponse>> CreateCourse([FromForm] CreateCourseDTO createCourseDTO)
         {
-            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value;
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (instructorId == null)
             {
                 return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));

@@ -36,7 +36,7 @@ namespace src.Services.StudentService.API
         public async Task<ActionResult<ApiResponse>> GetMyCourses()
         {
             var studentId = User.Claims.FirstOrDefault(c =>
-                c.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value;
+                c.Type == "id")?.Value;
 
             if (studentId == null)
                 return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
