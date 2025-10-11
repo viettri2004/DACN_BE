@@ -3,7 +3,7 @@ using Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using AccountService.Application.DTOs;
-using AccountService.Application.Interfaces; 
+using AccountService.Application.Interfaces;
 
 namespace Data.Seeding
 {
@@ -28,13 +28,14 @@ namespace Data.Seeding
 
         public async Task SeedAsync()
         {
-            await _context.Database.MigrateAsync();
+            //await _context.Database.MigrateAsync();
 
             //await SeedRolesAsync();
-            await SeedInstructorsAsync();
-            await SeedStudentsAsync();
-            await SeedCoursesAsync();
-            await SeedStudentCoursesAsync();
+            // await SeedInstructorsAsync();
+            // await SeedStudentsAsync();
+            // await SeedCoursesAsync();
+            // await SeedStudentCoursesAsync();
+            await SeedCourseCommentsAsync();
 
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("Database seeding completed!");
@@ -157,6 +158,57 @@ namespace Data.Seeding
 
             await _context.SaveChangesAsync();
             Console.WriteLine("Seeded student-course relations");
+        }
+        private async Task SeedCourseCommentsAsync()
+        {
+            if (_context.LeaveComments.Any())
+                return;
+
+            var students = await _context.Users.OfType<Student>().ToListAsync();
+            var courses = await _context.Courses.ToListAsync();
+            var random = new Random();
+
+            var comments = new List<LeaveComment>();
+
+            foreach (var course in courses)
+            {
+                var randomStudents = students.OrderBy(x => random.Next()).Take(5).ToList();
+
+                foreach (var student in randomStudents)
+                {
+                    comments.Add(new LeaveComment
+                    {
+                        CommentId = Guid.NewGuid().ToString(),
+                        CourseId = course.Id,
+                        StudentId = student.Id,
+                        Content = GetRandomComment(random),
+                        Rate = random.Next(3, 6), // chấm 3-5 sao
+                        Timestamp = DateTime.UtcNow.AddDays(-random.Next(1, 20))
+                    });
+                }
+            }
+
+            await _context.LeaveComments.AddRangeAsync(comments);
+            await _context.SaveChangesAsync();
+
+            Console.WriteLine("Seeded 5 comments per course successfully!");
+        }
+        private string GetRandomComment(Random random)
+        {
+            string[] comments =
+            {
+                "Khóa học rất hữu ích, giảng viên giảng dễ hiểu.",
+                "Nội dung bài học chất lượng, đáng tiền.",
+                "Mình mong có thêm ví dụ thực tế hơn.",
+                "Khóa học này giúp mình nắm được kiến thức cơ bản rất nhanh.",
+                "Thầy cô hỗ trợ nhiệt tình, cảm ơn nhiều!",
+                "Bài giảng rõ ràng, dễ theo dõi.",
+                "Khóa học nên có thêm phần luyện tập.",
+                "Tổng thể khá ổn, phù hợp với người mới.",
+                "Giảng viên trả lời câu hỏi rất nhanh và chi tiết.",
+                "Một khóa học tuyệt vời, mình sẽ giới thiệu cho bạn bè!"
+            };
+            return comments[random.Next(comments.Length)];
         }
     }
 }

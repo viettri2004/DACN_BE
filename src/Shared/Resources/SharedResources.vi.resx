@@ -257,4 +257,8 @@
     <value>Tạo khóa học thành công</value>
     <comment/>
   </data>
+  <data name="NoData" xml:space="preserve">
+    <value>Không tìm thấy dữ liệu</value>
+    <comment/>
+  </data>
 </root>

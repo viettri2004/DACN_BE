@@ -257,4 +257,8 @@
     <value>Course create successfully</value>
     <comment/>
   </data>
+  <data name="NoData" xml:space="preserve">
+    <value>No data found</value>
+    <comment/>
+  </data>
 </root>

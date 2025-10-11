@@ -75,7 +75,7 @@ namespace CourseService.Infrastructure.Repositories
                 .FirstOrDefaultAsync(c => c.Id == courseId);
 
             if (course == null)
-                return new ApiResponse("NotFound", "NotFound", null, false);
+                return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
 
             var dto = _mapper.Map<CourseDetailDTO>(course);
 
@@ -100,9 +100,9 @@ namespace CourseService.Infrastructure.Repositories
             var commentDTOs = _mapper.Map<List<LeaveCommentDTO>>(comments);
 
             if (comments == null || !comments.Any())
-                return new ApiResponse("NotFound", "Chưa có seed comment hihi", null, false);
+                return new ApiResponse("Success", _localizer["NoData"].Value, null, false);
 
-            return new ApiResponse("Success", "", comments, true);
+            return new ApiResponse("Success", "", commentDTOs, true);
         }
 
     }

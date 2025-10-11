@@ -37,7 +37,7 @@ namespace StudentService.Infrastructure.Repositories
 
             if (courses == null || !courses.Any())
             {
-                return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                return new ApiResponse("Success", _localizer["NoData"].Value, null, true);
             }
 
             var courseDTOs = courses.Select(c =>
@@ -49,7 +49,7 @@ namespace StudentService.Infrastructure.Repositories
                 return dto;
             }).ToList();
 
-            return new ApiResponse("Success", "", courseDTOs, true);
+            return new ApiResponse("Success", _localizer["Success"].Value, courseDTOs, true);
         }
         public async Task<ApiResponse> GetMyCoursesAsync(string studentId)
         {
@@ -62,7 +62,7 @@ namespace StudentService.Infrastructure.Repositories
                 .ToListAsync();
 
             if (studentCourses == null || !studentCourses.Any())
-                return new ApiResponse("NotFound", "NotFound", null, false);
+                return new ApiResponse("Success", _localizer["NoData"].Value, null, true);
 
             var courseDTOs = studentCourses.Select(sc =>
             {
@@ -72,7 +72,7 @@ namespace StudentService.Infrastructure.Repositories
                 return dto;
             }).ToList();
 
-            return new ApiResponse("Success", "", courseDTOs, true);
+            return new ApiResponse("Success", _localizer["Success"].Value, courseDTOs, true);
         }
 
     }
