@@ -254,11 +254,31 @@
     <comment/>
   </data>
   <data name="CreateCourseSuccess" xml:space="preserve">
-    <value>Course create successfully</value>
+    <value>Course created successfully</value>
     <comment/>
   </data>
   <data name="NoData" xml:space="preserve">
     <value>No data found</value>
+    <comment/>
+  </data>
+  <data name="TagAlreadyExists" xml:space="preserve">
+    <value>Tag already exists</value>
+    <comment/>
+  </data>
+  <data name="CreateTagSuccess" xml:space="preserve">
+    <value>Tag created successfully</value>
+    <comment/>
+  </data>
+  <data name="TagAssignedSuccessfully" xml:space="preserve">
+    <value>Tag assigned successfully</value>
+    <comment/>
+  </data>
+  <data name="TagNotFound" xml:space="preserve">
+    <value>Tag not found</value>
+    <comment/>
+  </data>
+  <data name="CourseNotFound" xml:space="preserve">
+    <value>Course not found</value>
     <comment/>
   </data>
 </root>

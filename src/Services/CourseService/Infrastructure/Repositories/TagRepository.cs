@@ -97,7 +97,7 @@ namespace CourseService.Infrastructure.Repositories
 
             await _context.SaveChangesAsync();
 
-            return new ApiResponse("Success", _localizer["Success"].Value, null, true);
+            return new ApiResponse("Success", _localizer["TagAssignedSuccessfully"].Value, null, true);
         }
     }
 }

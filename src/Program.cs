@@ -85,6 +85,7 @@ static void ConfigureDI(IServiceCollection services)
     services.AddAutoMapper(typeof(Program));
     services.AddScoped<IStudentRepository, StudentRepository>();
     services.AddScoped<ICourseRepository, CourseRepository>();
+    services.AddScoped<ITagRepository, TagRepository>();
     services.AddScoped<ITokenService, TokenService>();
     services.AddScoped<IAccountRepository, AccountRepository>();
     services.AddScoped<IAuthService, AuthService>();

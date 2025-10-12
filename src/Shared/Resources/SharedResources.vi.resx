@@ -261,4 +261,24 @@
     <value>Không tìm thấy dữ liệu</value>
     <comment/>
   </data>
+  <data name="TagAlreadyExists" xml:space="preserve">
+    <value>Tag đã tồn tại</value>
+    <comment/>
+  </data>
+  <data name="CreateTagSuccess" xml:space="preserve">
+    <value>Tag được tạo thành công</value>
+    <comment/>
+  </data>
+  <data name="TagAssignedSuccessfully" xml:space="preserve">
+    <value>Gắn tag thành công</value>
+    <comment/>
+  </data>
+  <data name="TagNotFound" xml:space="preserve">
+    <value>Tag không tồn tại</value>
+    <comment/>
+  </data>
+  <data name="CourseNotFound" xml:space="preserve">
+    <value>Không tìm thấy khóa học</value>
+    <comment/>
+  </data>
 </root>

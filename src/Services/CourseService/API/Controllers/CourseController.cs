@@ -15,10 +15,52 @@ namespace src.Services.CourseService.API.Controllers
     public class CourseController : ControllerBase
     {
         private readonly ICourseRepository _courseRepository;
+        private readonly ITagRepository _tagRepository;
 
-        public CourseController(ICourseRepository courseRepository)
+        public CourseController(ICourseRepository courseRepository, ITagRepository tagRepository)
         {
+            _tagRepository = tagRepository;
             _courseRepository = courseRepository;
+        }
+
+        [HttpGet("tags")]
+        // [Authorize(Policy = "Admin")]
+        public async Task<ActionResult<ApiResponse>> CreateTag(CreateTagDTO createTagDTO)
+        {
+            var response = await _tagRepository.CreateTagAsync(createTagDTO);
+
+            return response.Code switch
+            {
+                "Success" => Created("", response),
+                "Conflict" => Conflict(response),
+                "BadRequest" => BadRequest(response),
+                _ => StatusCode(500, response)
+            };
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpPost("assign-tag")]
+        public async Task<ActionResult<ApiResponse>> AssignTagToCourse([FromBody] AssignTagToCourseDTO assignTagToCourseDTO)
+        {
+            var response = await _tagRepository.AssignTagToCourseAsync(assignTagToCourseDTO);
+
+            return response.Code switch
+            {
+                "Success" => Created("", response),
+                "NotFound" => NotFound(response),
+                "BadRequest" => BadRequest(response),
+                _ => StatusCode(500, response)
+            };
+        }
+        public async Task<ActionResult<ApiResponse>> GetAllTags()
+        {
+            var response = await _tagRepository.GetAllTagsAsync();
+
+            return response.Code switch
+            {
+                "Success" => Ok(response),
+                _ => StatusCode(500, response)
+            };
         }
 
         [Authorize(Policy = "Instructor")]
@@ -39,6 +81,7 @@ namespace src.Services.CourseService.API.Controllers
                 _ => StatusCode(500, response)
             };
         }
+
         [HttpGet("course-detail")]
         public async Task<ActionResult<ApiResponse>> GetCourseDetail([FromQuery] string courseId)
         {
@@ -51,6 +94,7 @@ namespace src.Services.CourseService.API.Controllers
                 _ => StatusCode(500, response)
             };
         }
+
         [HttpGet("comments")]
         public async Task<ActionResult<ApiResponse>> GetComments([FromQuery] string courseId)
         {
@@ -63,5 +107,6 @@ namespace src.Services.CourseService.API.Controllers
                 _ => StatusCode(500, response)
             };
         }
+
     }
 }
