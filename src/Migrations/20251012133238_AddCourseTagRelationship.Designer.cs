@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace src.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251012124607_AddCourseTagRelationship")]
+    [Migration("20251012133238_AddCourseTagRelationship")]
     partial class AddCourseTagRelationship
     {
         /// <inheritdoc />
@@ -24,21 +24,6 @@ namespace src.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("CourseTag", b =>
-                {
-                    b.Property<string>("CoursesId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("TagsId")
-                        .HasColumnType("text");
-
-                    b.HasKey("CoursesId", "TagsId");
-
-                    b.HasIndex("TagsId");
-
-                    b.ToTable("CourseTag");
-                });
 
             modelBuilder.Entity("Entities.Comment", b =>
                 {
@@ -102,6 +87,21 @@ namespace src.Migrations
                     b.HasIndex("InstructorId");
 
                     b.ToTable("Courses");
+                });
+
+            modelBuilder.Entity("Entities.CourseTag", b =>
+                {
+                    b.Property<string>("CourseId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TagId")
+                        .HasColumnType("text");
+
+                    b.HasKey("CourseId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.ToTable("CourseTags");
                 });
 
             modelBuilder.Entity("Entities.Document", b =>
@@ -300,7 +300,7 @@ namespace src.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Tag");
+                    b.ToTable("Tags");
                 });
 
             modelBuilder.Entity("Entities.User", b =>
@@ -536,21 +536,6 @@ namespace src.Migrations
                     b.HasDiscriminator().HasValue("Student");
                 });
 
-            modelBuilder.Entity("CourseTag", b =>
-                {
-                    b.HasOne("Entities.Course", null)
-                        .WithMany()
-                        .HasForeignKey("CoursesId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Entities.Tag", null)
-                        .WithMany()
-                        .HasForeignKey("TagsId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Entities.Comment", b =>
                 {
                     b.HasOne("Entities.Lecture", "Lecture")
@@ -582,6 +567,25 @@ namespace src.Migrations
                         .IsRequired();
 
                     b.Navigation("Instructor");
+                });
+
+            modelBuilder.Entity("Entities.CourseTag", b =>
+                {
+                    b.HasOne("Entities.Course", "Course")
+                        .WithMany("CourseTags")
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Entities.Tag", "Tag")
+                        .WithMany("Courses")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Course");
+
+                    b.Navigation("Tag");
                 });
 
             modelBuilder.Entity("Entities.Document", b =>
@@ -741,6 +745,8 @@ namespace src.Migrations
 
             modelBuilder.Entity("Entities.Course", b =>
                 {
+                    b.Navigation("CourseTags");
+
                     b.Navigation("LeaveComments");
 
                     b.Navigation("Lectures");
@@ -767,6 +773,11 @@ namespace src.Migrations
             modelBuilder.Entity("Entities.Quiz", b =>
                 {
                     b.Navigation("Questionnaires");
+                });
+
+            modelBuilder.Entity("Entities.Tag", b =>
+                {
+                    b.Navigation("Courses");
                 });
 
             modelBuilder.Entity("Entities.Instructor", b =>

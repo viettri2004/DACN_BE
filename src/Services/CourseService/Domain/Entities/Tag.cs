@@ -10,6 +10,6 @@ namespace Entities
         public string Id { get; set; } = null!;
         public string Name { get; set; } = null!;
         public string Description { get; set; } = null!;
-        public ICollection<Course> Courses { get; set; } = new List<Course>();
+        public ICollection<CourseTag> Courses { get; set; } = new List<CourseTag>();
     }
 }
