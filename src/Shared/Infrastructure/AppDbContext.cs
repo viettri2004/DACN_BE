@@ -12,6 +12,8 @@ namespace Data.Context
 
         public DbSet<Course> Courses { get; set; } = null!;
         public DbSet<StudentCourse> StudentCourses { get; set; } = null!;
+        public DbSet<Tag> Tags { get; set; } = null!;
+        public DbSet<CourseTag> CourseTags { get; set; } = null!;
         public DbSet<LeaveComment> LeaveComments { get; set; } = null!;
         public DbSet<Lecture> Lectures { get; set; } = null!;
         public DbSet<Document> Documents { get; set; } = null!;
@@ -52,10 +54,22 @@ namespace Data.Context
                 .WithMany(i => i.Courses)
                 .HasForeignKey(c => c.InstructorId)
                 .OnDelete(DeleteBehavior.Restrict);
-            // Course -> Tag 
-            modelBuilder.Entity<Course>()
-                .HasMany(c => c.Tags)
-                .WithMany(t => t.Courses);
+
+            // CourseTag composite key
+            modelBuilder.Entity<CourseTag>()
+                .HasKey(ct => new { ct.CourseId, ct.TagId });
+                
+            modelBuilder.Entity<CourseTag>()
+                .HasOne(ct => ct.Course)
+                .WithMany(c => c.CourseTags)
+                .HasForeignKey(ct => ct.CourseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<CourseTag>()
+                .HasOne(ct => ct.Tag)
+                .WithMany(t => t.Courses)
+                .HasForeignKey(ct => ct.TagId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // LeaveComment relations
             modelBuilder.Entity<LeaveComment>()

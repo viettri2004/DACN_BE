@@ -1,0 +1,103 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using CourseService.Application.DTOs;
+using CourseService.Application.Interfaces;
+using Data.Context;
+using Entities;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Localization;
+using src.Shared.Domain.Entities;
+using src.Shared.Resources;
+
+namespace CourseService.Infrastructure.Repositories
+{
+    public class TagRepository : ITagRepository
+    {
+        private readonly AppDbContext _context;
+        private readonly IStringLocalizer<SharedResources> _localizer;
+        public TagRepository(AppDbContext context)
+        {
+            _context = context;
+        }
+        
+        public async Task<ApiResponse> GetAllTagsAsync()
+        {
+            var tags = _context.Tags.ToList();
+            return new ApiResponse("Success", _localizer["Success"].Value, tags, true);
+        }
+
+        public async Task<ApiResponse> CreateTagAsync(CreateTagDTO createTagDTO)
+        {
+            var existingTag = await _context.Tags
+                .FirstOrDefaultAsync(t => t.Name.ToLower() == createTagDTO.Name.ToLower());
+
+            if (existingTag != null)
+            {
+                return new ApiResponse("Conflict", _localizer["TagAlreadyExists"].Value, null, false);
+            }
+
+            var newTag = new Tag
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = createTagDTO.Name,
+                Description = createTagDTO.Description
+            };
+
+            _context.Tags.Add(newTag);
+
+            await _context.SaveChangesAsync();
+
+            return new ApiResponse("Success", _localizer["CreateTagSuccess"].Value, newTag, true);
+        }
+
+        public async Task<ApiResponse> DeleteTagAsync(string tagId)
+        {
+            var tag = await _context.Tags.FindAsync(tagId);
+            if (tag == null)
+            {
+                return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+            }
+
+            _context.Tags.Remove(tag);
+            await _context.SaveChangesAsync();
+
+            return new ApiResponse("Success", _localizer["Success"].Value, null, true);
+        }
+
+        public async Task<ApiResponse> AssignTagToCourseAsync(AssignTagToCourseDTO assignTagToCourseDTO)
+        {
+            var course = await _context.Courses
+                .Include(c => c.CourseTags)
+                .FirstOrDefaultAsync(c => c.Id == assignTagToCourseDTO.CourseId);
+
+            if (course == null)
+            {
+                return new ApiResponse("NotFound", _localizer["CourseNotFound"].Value, null, false);
+            }
+
+            foreach (var tagId in assignTagToCourseDTO.TagId)
+            {
+                var tag = await _context.Tags.FindAsync(tagId);
+                if (tag == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["TagNotFound"].Value, null, false);
+                }
+
+                if (!course.CourseTags.Any(ct => ct.TagId == tagId))
+                {
+                    course.CourseTags.Add(new CourseTag
+                    {
+                        CourseId = course.Id,
+                        TagId = tagId
+                    });
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return new ApiResponse("Success", _localizer["Success"].Value, null, true);
+        }
+    }
+}
