@@ -16,6 +16,7 @@ namespace Entities
         public DateTime CreateTime { get; set; } = DateTime.UtcNow;
         public string InstructorId { get; set; } = null!;
         public Instructor Instructor { get; set; } = null!;
+        public ICollection<Tag> Tags { get; set; } = new List<Tag>();
         public ICollection<StudentCourse> StudentCourses { get; set; } = new List<StudentCourse>();
         public ICollection<Lecture> Lectures { get; set; } = new List<Lecture>();
         public ICollection<LeaveComment> LeaveComments { get; set; } = new List<LeaveComment>();

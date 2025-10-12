@@ -52,6 +52,10 @@ namespace Data.Context
                 .WithMany(i => i.Courses)
                 .HasForeignKey(c => c.InstructorId)
                 .OnDelete(DeleteBehavior.Restrict);
+            // Course -> Tag 
+            modelBuilder.Entity<Course>()
+                .HasMany(c => c.Tags)
+                .WithMany(t => t.Courses);
 
             // LeaveComment relations
             modelBuilder.Entity<LeaveComment>()
