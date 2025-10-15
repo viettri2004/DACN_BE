@@ -30,7 +30,7 @@ namespace AccountService.Application.Services
 
             var claims = new List<Claim>{
                 new Claim("id", user.Id.ToString()),
-                new Claim("name", user.FullName ?? "")
+                //new Claim("name", user.FullName ?? "")
             };
             claims.AddRange(roles.Select(role => new Claim("role", role)));
 
@@ -38,7 +38,7 @@ namespace AccountService.Application.Services
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var expires = DateTime.Now.AddMinutes(double.Parse(_config["JWT:AccessTokenExpireMinutes"] ?? "15"));
-
+    
             var token = new JwtSecurityToken(
                 issuer: _config["JWT:Issuer"],
                 audience: _config["JWT:Audience"],
