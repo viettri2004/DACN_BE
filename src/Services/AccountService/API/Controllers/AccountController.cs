@@ -36,8 +36,10 @@ namespace src.Services.AccountService.API.Controllers
             return response.Code switch
             {
                 "Success" => Created("", response),
-                "Error" => Conflict(response),
+                "NotFound" => NotFound(response),
                 "BadRequest" => BadRequest(response),
+                "Unauthorized" => Unauthorized(response),
+                "Conflict" => Conflict(response),
                 _ => StatusCode(500, response)
             };
         }
@@ -59,9 +61,11 @@ namespace src.Services.AccountService.API.Controllers
             // Console.WriteLine(refreshToken);
             return response.Code switch
             {
-                "Success" => Ok(response),
+                "Success" => Created("", response),
                 "NotFound" => NotFound(response),
                 "BadRequest" => BadRequest(response),
+                "Unauthorized" => Unauthorized(response),
+                "Conflict" => Conflict(response),
                 _ => StatusCode(500, response)
             };
         }
@@ -73,9 +77,11 @@ namespace src.Services.AccountService.API.Controllers
 
             return response.Code switch
             {
-                "Success" => Ok(response),
-                "Error" => Unauthorized(response),
+                "Success" => Created("", response),
+                "NotFound" => NotFound(response),
                 "BadRequest" => BadRequest(response),
+                "Unauthorized" => Unauthorized(response),
+                "Conflict" => Conflict(response),
                 _ => StatusCode(500, response)
             };
         }
@@ -86,8 +92,11 @@ namespace src.Services.AccountService.API.Controllers
 
             return response.Code switch
             {
-                "Success" => Ok(response),
+                "Success" => Created("", response),
                 "NotFound" => NotFound(response),
+                "BadRequest" => BadRequest(response),
+                "Unauthorized" => Unauthorized(response),
+                "Conflict" => Conflict(response),
                 _ => StatusCode(500, response)
             };
         }
@@ -110,10 +119,11 @@ namespace src.Services.AccountService.API.Controllers
 
             return response.Code switch
             {
-                "Success" => Ok(response),
-                "BadRequest" => BadRequest(response),
+                "Success" => Created("", response),
                 "NotFound" => NotFound(response),
-                "Error" => StatusCode(500, response),
+                "BadRequest" => BadRequest(response),
+                "Unauthorized" => Unauthorized(response),
+                "Conflict" => Conflict(response),
                 _ => StatusCode(500, response)
             };
         }

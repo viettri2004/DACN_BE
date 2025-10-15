@@ -121,8 +121,12 @@
     <value>Email not found</value>
     <comment/>
   </data>
-  <data name="InvalidPassword" xml:space="preserve">
-    <value>Invalid password</value>
+  <data name="UserNotFound" xml:space="preserve">
+    <value>User not found</value>
+    <comment/>
+  </data>
+  <data name="InvalidUsernamePassword" xml:space="preserve">
+    <value>Invalid username or password</value>
     <comment/>
   </data>
   <data name="AccountLocked" xml:space="preserve">

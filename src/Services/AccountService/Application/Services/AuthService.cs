@@ -43,13 +43,13 @@ namespace AccountService.Application.Services
             // Console.WriteLine($"SearchedLocation: {testMessage.SearchedLocation}");
 
             if (await _userManager.FindByNameAsync(RegisterDTO.UserName) != null)
-                return new ApiResponse("Error", _localizer["UsernameAlreadyExists"].Value, null, false);
+                return new ApiResponse("Conflict", _localizer["UsernameAlreadyExists"].Value, null, false);
 
             if (await _userManager.FindByEmailAsync(RegisterDTO.Email) != null)
-                return new ApiResponse("Error", _localizer["EmailAlreadyExists"].Value, null, false);
+                return new ApiResponse("Conflict", _localizer["EmailAlreadyExists"].Value, null, false);
 
             if (await _userManager.Users.AnyAsync(u => u.PhoneNumber == RegisterDTO.PhoneNumber))
-                return new ApiResponse("Error", _localizer["PhoneNumberAlreadyExists"].Value, null, false);
+                return new ApiResponse("Conflict", _localizer["PhoneNumberAlreadyExists"].Value, null, false);
 
             User user;
             if (RegisterDTO.Role == "Student")
@@ -91,13 +91,13 @@ namespace AccountService.Application.Services
         {
             var user = await _userManager.FindByNameAsync(loginDTO.Username);
             if (user == null)
-                return (new ApiResponse("NotFound", _localizer["NotFound"], null, false), "");
+                return (new ApiResponse("Unauthorized", _localizer["InvalidUsernamePassword"], null, false), "");
 
             if (!await _userManager.CheckPasswordAsync(user, loginDTO.Password))
-                return (new ApiResponse("Error", _localizer["InvalidPassword"], null, false), "");
+                return (new ApiResponse("Unauthorized", _localizer["InvalidUsernamePassword"], null, false), "");
 
             if (user.IsBanned)
-                return (new ApiResponse("Error", _localizer["AccountLocked"], null, false), "");
+                return (new ApiResponse("Unauthorized", _localizer["AccountLocked"], null, false), "");
 
             var roles = await _userManager.GetRolesAsync(user);
 
@@ -116,7 +116,7 @@ namespace AccountService.Application.Services
         {
             var user = await _accountRepository.GetUserFromRefreshToken(refreshToken);
             if (user == null)
-                return new ApiResponse("Error", _localizer["InvalidRefreshToken"].Value, null, false);
+                return new ApiResponse("Unauthorized", _localizer["InvalidRefreshToken"].Value, null, false);
 
             var newAccessToken = await _tokenService.GenerateAccessTokenAsync(user);
             var newRefreshToken = _tokenService.GenerateRefreshToken();
@@ -138,7 +138,7 @@ namespace AccountService.Application.Services
             var user = await _accountRepository.FindUserByEmail(email);
             if (user == null)
             {
-                return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                return new ApiResponse("NotFound", _localizer["UserNotFound"].Value, null, false);
             }
 
             user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, newPassword);

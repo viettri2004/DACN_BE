@@ -29,7 +29,7 @@ namespace AccountService.Infrastructure.Email
         {
             var user = await _accountRepository.FindUserByEmail(toEmail);
             if (user == null)
-                return new ApiResponse("NotFound", "User not found", null, false);
+                return new ApiResponse("NotFound", _localizer["UserNotFound"].Value, null, false);
 
             var fromEmail = _config["Email:From"];
             var fromPassword = _config["Email:Password"];
