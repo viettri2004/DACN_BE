@@ -43,7 +43,7 @@ namespace CourseService.Infrastructure.Repositories
                     Id = Guid.NewGuid().ToString(),
                     Name = createCourseDTO.name,
                     Price = createCourseDTO.price,
-                    Description = createCourseDTO.description,
+                    Description = createCourseDTO.description ?? string.Empty,
                     ImageUrl = imageUrl,
                     InstructorId = instructorId,
                     CreateTime = DateTime.UtcNow
@@ -94,7 +94,7 @@ namespace CourseService.Infrastructure.Repositories
             var comments = await _context.Set<LeaveComment>()
                 .Where(c => c.CourseId == courseId)
                 .OrderByDescending(c => c.Timestamp)
-                .Include(c => c.Student) 
+                .Include(c => c.Student)
                 .ToListAsync();
 
             var commentDTOs = _mapper.Map<List<LeaveCommentDTO>>(comments);
@@ -103,6 +103,54 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse("Success", _localizer["NoData"].Value, null, false);
 
             return new ApiResponse("Success", "", commentDTOs, true);
+        }
+        public async Task<ApiResponse> GetRecommendedCoursesAsync()
+        {
+            var courses = await _context.Set<Course>()
+                .Include(c => c.Instructor)
+                .Include(c => c.LeaveComments)
+                .OrderByDescending(c => c.CreateTime)
+                .Take(5)
+                .ToListAsync();
+
+            if (courses == null || !courses.Any())
+            {
+                return new ApiResponse("Success", _localizer["NoData"].Value, null, true);
+            }
+
+            var courseDTOs = courses.Select(c =>
+            {
+                var dto = _mapper.Map<CourseListDTO>(c);
+                dto.Rating = c.LeaveComments.Any()
+                    ? c.LeaveComments.Average(lc => lc.Rate)
+                    : 0;
+                return dto;
+            }).ToList();
+
+            return new ApiResponse("Success", _localizer["Success"].Value, courseDTOs, true);
+        }
+        public async Task<ApiResponse> GetCoursesByStudentIdAsync(string studentId)
+        {
+            var studentCourses = await _context.Set<StudentCourse>()
+                .Include(sc => sc.Course)
+                    .ThenInclude(c => c.Instructor)
+                .Include(sc => sc.Course)
+                    .ThenInclude(c => c.LeaveComments)
+                .Where(sc => sc.StudentId == studentId)
+                .ToListAsync();
+
+            if (studentCourses == null || !studentCourses.Any())
+                return new ApiResponse("Success", _localizer["NoData"].Value, null, true);
+
+            var courseDTOs = studentCourses.Select(sc =>
+            {
+                var dto = _mapper.Map<CourseListDTO>(sc.Course);
+                dto.Rating = sc.Course.LeaveComments.Any() ? sc.Course.LeaveComments.Average(lc => lc.Rate) : 0;
+                dto.Price = sc.Amount; 
+                return dto;
+            }).ToList();
+
+            return new ApiResponse("Success", _localizer["Success"].Value, courseDTOs, true);
         }
 
     }

@@ -23,7 +23,20 @@ namespace src.Services.CourseService.API.Controllers
             _courseRepository = courseRepository;
         }
 
+        //[Authorize(Roles = "Admin,Instructor")]
         [HttpGet("tags")]
+        public async Task<ActionResult<ApiResponse>> GetTags()
+        {
+            var response = await _tagRepository.GetAllTagsAsync();
+
+            return response.Code switch
+            {
+                "Success" => Ok(response),
+                _ => StatusCode(500, response)
+            };
+        }   
+
+        [HttpPost("create-tags")]
         // [Authorize(Policy = "Admin")]
         public async Task<ActionResult<ApiResponse>> CreateTag(CreateTagDTO createTagDTO)
         {
@@ -107,6 +120,37 @@ namespace src.Services.CourseService.API.Controllers
                 _ => StatusCode(500, response)
             };
         }
+        [Authorize(Policy = "Student")]
+        [HttpGet("recommended-courses")]
+        public async Task<ActionResult<ApiResponse>> GetRecommendedCourses()
+        {
+            var response = await _courseRepository.GetRecommendedCoursesAsync();
 
+            return response.Code switch
+            {
+                "Success" => Ok(response),
+                "NotFound" => NotFound(response),
+                _ => StatusCode(500, response)
+            };
+        }
+        [Authorize(Policy = "Student")]
+        [HttpGet("student-courses")]
+        public async Task<ActionResult<ApiResponse>> GetMyCourses()
+        {
+            var studentId = User.Claims.FirstOrDefault(c =>
+                c.Type == "id")?.Value;
+
+            if (studentId == null)
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+
+            var response = await _courseRepository.GetCoursesByStudentIdAsync(studentId);
+
+            return response.Code switch
+            {
+                "Success" => Ok(response),
+                "NotFound" => NotFound(response),
+                _ => StatusCode(500, response)
+            };
+        }
     }
 }

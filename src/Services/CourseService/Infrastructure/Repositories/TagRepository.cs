@@ -17,8 +17,9 @@ namespace CourseService.Infrastructure.Repositories
     {
         private readonly AppDbContext _context;
         private readonly IStringLocalizer<SharedResources> _localizer;
-        public TagRepository(AppDbContext context)
+        public TagRepository(AppDbContext context, IStringLocalizer<SharedResources> localizer)
         {
+            _localizer = localizer;
             _context = context;
         }
         

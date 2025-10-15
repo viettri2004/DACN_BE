@@ -13,7 +13,7 @@ namespace Entities
         public string NumberId { get; set; } = null!;
 
         public int TestTime { get; set; } = 0;
-        public int AttemptCount { get; set; } = 0;
+        public int AttemptCount { get; set; }   = 0;
 
         public ICollection<Questionnaire> Questionnaires { get; set; } = new List<Questionnaire>();
     }

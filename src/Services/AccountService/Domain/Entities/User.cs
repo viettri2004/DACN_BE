@@ -4,11 +4,11 @@ namespace Entities
 {
     public class User : IdentityUser
     {
-        public string JobPosition { get; set; } = string.Empty;
-        public string Organization { get; set; } = string.Empty;
-        public string FullName { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public string AvatarUrl { get; set; } = string.Empty;
+        public string? JobPosition { get; set; }
+        public string? Organization { get; set; }
+        public string FullName { get; set; } = null!;
+        public string? Description { get; set; }
+        public string? AvatarUrl { get; set; }
         public bool IsBanned { get; set; }
     }
 }
