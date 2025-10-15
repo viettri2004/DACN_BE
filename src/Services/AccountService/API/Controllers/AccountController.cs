@@ -61,7 +61,7 @@ namespace src.Services.AccountService.API.Controllers
             // Console.WriteLine(refreshToken);
             return response.Code switch
             {
-                "Success" => Created("", response),
+                "Success" => Ok(response),
                 "NotFound" => NotFound(response),
                 "BadRequest" => BadRequest(response),
                 "Unauthorized" => Unauthorized(response),

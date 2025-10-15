@@ -105,8 +105,11 @@ namespace AccountService.Application.Services
             var refreshToken = _tokenService.GenerateRefreshToken();
             await _tokenService.StoreRefreshTokenAsync(user, refreshToken);
 
-            var response = new ApiResponse("Success", _localizer["LoginSuccess"], new
+            var response = new ApiResponse("Success", _localizer["LoginSuccess"], new LoginResponseDTO
             {
+                Email = user.Email ?? "",
+                AvatarUrl = user.AvatarUrl,
+                FullName = user.FullName,
                 AccessToken = accessToken,
             }, true);
 
