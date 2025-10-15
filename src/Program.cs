@@ -80,7 +80,7 @@ static void ConfigureDI(IServiceCollection services)
     services.AddSingleton(provider => new Cloudinary(Environment.GetEnvironmentVariable("CLOUDINARY_URL")));
     services.AddScoped<DbSeeder>();
     services.AddScoped<CloudinaryService>();
-    services.AddAutoMapper(typeof(Program));
+    //services.AddAutoMapper(typeof(Program));
     services.AddScoped<ICourseRepository, CourseRepository>();
     services.AddScoped<ITagRepository, TagRepository>();
     services.AddScoped<ITokenService, TokenService>();
@@ -189,7 +189,7 @@ static void ConfigureAuthentication(IServiceCollection services, IConfiguration 
             ValidAudience = configuration["JWT:Audience"],
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(
-                System.Text.Encoding.UTF8.GetBytes(configuration["JWT:SigningKey"])
+                System.Text.Encoding.UTF8.GetBytes(configuration["JWT:SigningKey"] ?? string.Empty)
             ),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
