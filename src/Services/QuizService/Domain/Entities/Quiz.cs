@@ -7,6 +7,7 @@ namespace Entities
 {
     public class Quiz
     {
+        public string Id { get; set; } = null!;
         public string CourseId { get; set; } = null!;
         public Course Course { get; set; } = null!;
 
@@ -16,5 +17,6 @@ namespace Entities
         public int AttemptCount { get; set; }   = 0;
 
         public ICollection<Questionnaire> Questionnaires { get; set; } = new List<Questionnaire>();
+        public ICollection<QuizAttempt> QuizAttempts { get; set; } = new List<QuizAttempt>();
     }
 }

@@ -132,66 +132,66 @@ namespace Data.Seeding
 
         private async Task SeedStudentCoursesAsync()
         {
-            if (_context.StudentCourses.Any())
-                return;
+            // if (_context.StudentCourses.Any())
+            //     return;
 
-            var students = await _context.Users.OfType<Student>().ToListAsync();
-            var courses = await _context.Courses.ToListAsync();
-            var random = new Random();
+            // var students = await _context.Users.OfType<Student>().ToListAsync();
+            // var courses = await _context.Courses.ToListAsync();
+            // var random = new Random();
 
-            foreach (var student in students)
-            {
-                var selectedCourses = courses.OrderBy(c => random.Next()).Take(5).ToList();
+            // foreach (var student in students)
+            // {
+            //     var selectedCourses = courses.OrderBy(c => random.Next()).Take(5).ToList();
 
-                foreach (var course in selectedCourses)
-                {
-                    _context.StudentCourses.Add(new StudentCourse
-                    {
-                        StudentId = student.Id,
-                        CourseId = course.Id,
-                        Amount = 199.99m,
-                        StartTime = DateTime.UtcNow.AddDays(-random.Next(1, 30)),
-                        ExpireTime = DateTime.UtcNow.AddMonths(6)
-                    });
-                }
-            }
+            //     foreach (var course in selectedCourses)
+            //     {
+            //         _context.StudentCourses.Add(new StudentCourse
+            //         {
+            //             StudentId = student.Id,
+            //             CourseId = course.Id,
+            //             Amount = 199.99m,
+            //             StartTime = DateTime.UtcNow.AddDays(-random.Next(1, 30)),
+            //             ExpireTime = DateTime.UtcNow.AddMonths(6)
+            //         });
+            //     }
+            // }
 
-            await _context.SaveChangesAsync();
-            Console.WriteLine("Seeded student-course relations");
+            // await _context.SaveChangesAsync();
+            // Console.WriteLine("Seeded student-course relations");
         }
         private async Task SeedCourseCommentsAsync()
         {
-            if (_context.LeaveComments.Any())
-                return;
+            // if (_context.LeaveComments.Any())
+            //     return;
 
-            var students = await _context.Users.OfType<Student>().ToListAsync();
-            var courses = await _context.Courses.ToListAsync();
-            var random = new Random();
+            // var students = await _context.Users.OfType<Student>().ToListAsync();
+            // var courses = await _context.Courses.ToListAsync();
+            // var random = new Random();
 
-            var comments = new List<LeaveComment>();
+            // var comments = new List<LeaveComment>();
 
-            foreach (var course in courses)
-            {
-                var randomStudents = students.OrderBy(x => random.Next()).Take(5).ToList();
+            // foreach (var course in courses)
+            // {
+            //     var randomStudents = students.OrderBy(x => random.Next()).Take(5).ToList();
 
-                foreach (var student in randomStudents)
-                {
-                    comments.Add(new LeaveComment
-                    {
-                        CommentId = Guid.NewGuid().ToString(),
-                        CourseId = course.Id,
-                        StudentId = student.Id,
-                        Content = GetRandomComment(random),
-                        Rate = random.Next(3, 6), // chấm 3-5 sao
-                        Timestamp = DateTime.UtcNow.AddDays(-random.Next(1, 20))
-                    });
-                }
-            }
+            //     foreach (var student in randomStudents)
+            //     {
+            //         comments.Add(new LeaveComment
+            //         {
+            //             CommentId = Guid.NewGuid().ToString(),
+            //             CourseId = course.Id,
+            //             StudentId = student.Id,
+            //             Content = GetRandomComment(random),
+            //             Rate = random.Next(3, 6), // chấm 3-5 sao
+            //             Timestamp = DateTime.UtcNow.AddDays(-random.Next(1, 20))
+            //         });
+            //     }
+            // }
 
-            await _context.LeaveComments.AddRangeAsync(comments);
-            await _context.SaveChangesAsync();
+            // await _context.LeaveComments.AddRangeAsync(comments);
+            // await _context.SaveChangesAsync();
 
-            Console.WriteLine("Seeded 5 comments per course successfully!");
+            // Console.WriteLine("Seeded 5 comments per course successfully!");
         }
         private string GetRandomComment(Random random)
         {

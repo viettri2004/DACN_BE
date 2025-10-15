@@ -11,10 +11,13 @@ namespace Data.Context
         public DbSet<User> Users { get; set; } = null!;
 
         public DbSet<Course> Courses { get; set; } = null!;
-        public DbSet<StudentCourse> StudentCourses { get; set; } = null!;
+        public DbSet<Enrollment> Enrollments { get; set; } = null!;
+        public DbSet<Cart> Carts { get; set; } = null!;
+        public DbSet<CartItem> CartItems { get; set; } = null!;
+        public DbSet<Order> Orders { get; set; } = null!;
+        public DbSet<OrderItem> OrderItems { get; set; } = null!;
         public DbSet<Tag> Tags { get; set; } = null!;
         public DbSet<CourseTag> CourseTags { get; set; } = null!;
-        public DbSet<LeaveComment> LeaveComments { get; set; } = null!;
         public DbSet<Lecture> Lectures { get; set; } = null!;
         public DbSet<Document> Documents { get; set; } = null!;
         public DbSet<LectureVideo> LectureVideos { get; set; } = null!;
@@ -31,22 +34,119 @@ namespace Data.Context
                 .HasValue<Admin>("Admin")
                 .HasValue<Student>("Student")
                 .HasValue<Instructor>("Instructor");
+            //Student → Cart 
+            modelBuilder.Entity<Cart>(entity =>
+            {
+                entity.HasKey(c => c.Id);
 
-            // StudentCourse composite key
-            modelBuilder.Entity<StudentCourse>()
-                .HasKey(sc => new { sc.StudentId, sc.CourseId });
+                entity.HasOne(c => c.Student)
+                    .WithOne(s => s.Cart)
+                    .HasForeignKey<Cart>(c => c.StudentId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<StudentCourse>()
-                .HasOne(sc => sc.Student)
-                .WithMany(s => s.StudentCourses)
-                .HasForeignKey(sc => sc.StudentId)
-                .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(c => c.StudentId).IsUnique();
+            });
+            // CartItem
+            modelBuilder.Entity<CartItem>(entity =>
+            {
+                entity.HasKey(ci => ci.Id);
 
-            modelBuilder.Entity<StudentCourse>()
-                .HasOne(sc => sc.Course)
-                .WithMany(c => c.StudentCourses)
-                .HasForeignKey(sc => sc.CourseId)
-                .OnDelete(DeleteBehavior.Cascade);
+                // Cart → CartItem 
+                entity.HasOne(ci => ci.Cart)
+                    .WithMany(c => c.CartItems)
+                    .HasForeignKey(ci => ci.CartId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // CartItem → Course 
+                entity.HasOne(ci => ci.Course)
+                    .WithMany(c => c.CartItems)
+                    .HasForeignKey(ci => ci.CourseId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(ci => new { ci.CartId, ci.CourseId }).IsUnique();
+
+                entity.Property(ci => ci.Price)
+                    .HasColumnType("decimal(18,2)")
+                    .IsRequired();
+            });
+            // Student → Order
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.HasKey(o => o.Id);
+
+                entity.HasOne(o => o.Student)
+                    .WithMany(s => s.Orders)
+                    .HasForeignKey(o => o.StudentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.Property(o => o.TotalAmount)
+                    .HasColumnType("decimal(18,2)")
+                    .IsRequired();
+
+                entity.Property(o => o.Status).IsRequired();
+                entity.Property(o => o.CreatedAt).IsRequired();
+
+                entity.HasIndex(o => o.StudentId);
+                entity.HasIndex(o => o.Status);
+                entity.HasIndex(o => o.CreatedAt);
+            });
+            //OrderItem
+            modelBuilder.Entity<OrderItem>(entity =>
+            {
+                entity.HasKey(oi => oi.Id);
+
+                // Order → OrderItem
+                entity.HasOne(oi => oi.Order)
+                    .WithMany(o => o.OrderItems)
+                    .HasForeignKey(oi => oi.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // OrderItem → Course
+                entity.HasOne(oi => oi.Course)
+                    .WithMany(c => c.OrderItems)
+                    .HasForeignKey(oi => oi.CourseId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.Property(oi => oi.Price)
+                    .HasColumnType("decimal(18,2)")
+                    .IsRequired();
+
+                entity.Property(oi => oi.FinalPrice)
+                    .HasColumnType("decimal(18,2)")
+                    .IsRequired();
+            });
+            //Enrollment
+            modelBuilder.Entity<Enrollment>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                // Enrollment → Student
+                entity.HasOne(e => e.Student)
+                    .WithMany(s => s.Enrollments)
+                    .HasForeignKey(e => e.StudentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Enrollment → Course
+                entity.HasOne(e => e.Course)
+                    .WithMany(c => c.Enrollments)
+                    .HasForeignKey(e => e.CourseId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Enrollment → Order
+                entity.HasOne(e => e.Order)
+                    .WithMany()
+                    .HasForeignKey(e => e.OrderId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => new { e.StudentId, e.CourseId }).IsUnique();
+
+                entity.Property(e => e.EnrolledAt).IsRequired();
+                entity.Property(e => e.ExpiresAt).IsRequired();
+                entity.Property(e => e.Status).IsRequired();
+
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.ExpiresAt);
+            });
 
             // Course -> Instructor
             modelBuilder.Entity<Course>()
@@ -58,7 +158,7 @@ namespace Data.Context
             // CourseTag composite key
             modelBuilder.Entity<CourseTag>()
                 .HasKey(ct => new { ct.CourseId, ct.TagId });
-                
+
             modelBuilder.Entity<CourseTag>()
                 .HasOne(ct => ct.Course)
                 .WithMany(c => c.CourseTags)
@@ -69,19 +169,6 @@ namespace Data.Context
                 .HasOne(ct => ct.Tag)
                 .WithMany(t => t.Courses)
                 .HasForeignKey(ct => ct.TagId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // LeaveComment relations
-            modelBuilder.Entity<LeaveComment>()
-                .HasOne(lc => lc.Student)
-                .WithMany(s => s.LeaveComments)
-                .HasForeignKey(lc => lc.StudentId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<LeaveComment>()
-                .HasOne(lc => lc.Course)
-                .WithMany(c => c.LeaveComments)
-                .HasForeignKey(lc => lc.CourseId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Lecture relations
@@ -105,37 +192,68 @@ namespace Data.Context
                 .HasForeignKey(v => v.LectureId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Comment self-ref
-            modelBuilder.Entity<Comment>()
-                .HasOne(c => c.Parent)
-                .WithMany(p => p.Replies)
-                .HasForeignKey(c => c.ReplyId)
-                .OnDelete(DeleteBehavior.Restrict);
+            // QuizAttempt
+            modelBuilder.Entity<QuizAttempt>(entity =>
+            {
+                entity.HasKey(qa => qa.Id);
 
-            modelBuilder.Entity<Comment>()
-                .HasOne(c => c.Lecture)
-                .WithMany(l => l.Comments)
-                .HasForeignKey(c => c.LectureId)
-                .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(qa => qa.Enrollment)
+                      .WithMany(e => e.QuizAttempts) 
+                      .HasForeignKey(qa => qa.EnrollmentId)
+                      .OnDelete(DeleteBehavior.Restrict); 
 
-            // Quiz composite key
+                entity.HasOne(qa => qa.Quiz)
+                      .WithMany(q => q.QuizAttempts) 
+                      .HasForeignKey(qa => qa.QuizId)
+                      .OnDelete(DeleteBehavior.Restrict); 
+
+                entity.Property(qa => qa.AttemptedAt).IsRequired();
+                
+                entity.HasIndex(qa => qa.EnrollmentId);
+                entity.HasIndex(qa => qa.QuizId);
+            });
+
+            // Comment
+            modelBuilder.Entity<Comment>(entity =>
+            {
+                entity.HasKey(c => c.Id);
+
+                entity.HasOne(c => c.Enrollment)
+                      .WithMany(e => e.Comments) 
+                      .HasForeignKey(c => c.EnrollmentId)
+                      .OnDelete(DeleteBehavior.Restrict); 
+
+                entity.HasOne(c => c.Parent)
+                      .WithMany(p => p.Replies)
+                      .HasForeignKey(c => c.ReplyId)
+                      .OnDelete(DeleteBehavior.Restrict); 
+
+                entity.Property(c => c.Content).IsRequired();
+                entity.Property(c => c.CreatedAt).IsRequired();
+
+                entity.HasIndex(c => c.EnrollmentId);
+                entity.HasIndex(c => c.ReplyId);
+            });
+            // Quiz
             modelBuilder.Entity<Quiz>()
-                .HasKey(q => new { q.CourseId, q.NumberId });
+                .HasKey(q => q.Id);
 
             modelBuilder.Entity<Quiz>()
                 .HasOne(q => q.Course)
                 .WithMany(c => c.Quizzes)
                 .HasForeignKey(q => q.CourseId)
                 .OnDelete(DeleteBehavior.Cascade);
-
+            modelBuilder.Entity<Quiz>()
+                .HasIndex(q => q.CourseId);
+            
             // Questionnaire composite key
             modelBuilder.Entity<Questionnaire>()
-                .HasKey(qn => new { qn.CourseId, qn.NumberId, qn.QuestionNumber });
+                .HasKey(qn => new { qn.QuizId, qn.QuestionNumber });
 
             modelBuilder.Entity<Questionnaire>()
                 .HasOne(qn => qn.Quiz)
                 .WithMany(q => q.Questionnaires)
-                .HasForeignKey(qn => new { qn.CourseId, qn.NumberId })
+                .HasForeignKey(qn => new { qn.QuizId })
                 .OnDelete(DeleteBehavior.Cascade);
 
             // modelBuilder.Entity<User>()
