@@ -3,6 +3,8 @@ using AccountService.Application.Services;
 using AccountService.Infrastructure.Email;
 using AccountService.Infrastructure.Otp;
 using AccountService.Infrastructure.Persistence.Repositories;
+using CartService.Application.Interfaces;
+using CartService.Infrastructure.Repositories;
 using CloudinaryDotNet;
 using CourseService.Application.Interfaces;
 using CourseService.Infrastructure.Repositories;
@@ -82,6 +84,7 @@ static void ConfigureDI(IServiceCollection services)
     services.AddScoped<CloudinaryService>();
     //services.AddAutoMapper(typeof(Program));
     services.AddScoped<ICourseRepository, CourseRepository>();
+    services.AddScoped<ICartRepository, CartRepository>();
     services.AddScoped<ITagRepository, TagRepository>();
     services.AddScoped<ITokenService, TokenService>();
     services.AddScoped<IAccountRepository, AccountRepository>();

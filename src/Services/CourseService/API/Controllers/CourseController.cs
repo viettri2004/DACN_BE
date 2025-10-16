@@ -21,7 +21,15 @@ namespace src.Services.CourseService.API.Controllers
         {
             _courseRepository = courseRepository;
         }
-        
+
+        [Authorize]
+        [HttpGet("filter-courses")]
+        public async Task<ActionResult<ApiResponse>> GetAllCourses([FromQuery] CourseQueryParameters queryParams)
+        {
+            var response = await _courseRepository.GetCoursesAsync(queryParams);
+            return response.ToActionResult();
+        }
+
         [Authorize(Policy = "Instructor")]
         [HttpPost("create")]
         public async Task<ActionResult<ApiResponse>> CreateCourse([FromForm] CreateCourseDTO createCourseDTO)
@@ -51,7 +59,7 @@ namespace src.Services.CourseService.API.Controllers
 
             return response.ToActionResult();
         }
-        
+
         [Authorize(Policy = "Student")]
         [HttpGet("recommended-courses")]
         public async Task<ActionResult<ApiResponse>> GetRecommendedCourses()

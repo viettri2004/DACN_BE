@@ -12,7 +12,7 @@ namespace AccountService.Application.Interfaces
         Task<string> GenerateAccessTokenAsync(User user);
         string GenerateRefreshToken();
         Task StoreRefreshTokenAsync(User user, string refreshToken);
-        Task<string> GetRefreshTokenAsync(User user);
+        Task<string?> GetRefreshTokenAsync(User user);
         Task RemoveRefreshTokenAsync(User user);
     }
 }

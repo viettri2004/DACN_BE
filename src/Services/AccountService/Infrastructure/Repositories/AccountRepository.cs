@@ -30,13 +30,11 @@ namespace AccountService.Infrastructure.Persistence.Repositories
                     (u, t) => new { User = u, Token = t })
                 .Where(x => x.Token.Name == "RefreshToken" && x.Token.Value == refreshToken)
                 .Select(x => x.User)
-                .AsNoTracking()
                 .FirstOrDefaultAsync();
         }
         public async Task<User> FindUserByEmail(string email)
         {
             return await _context.Users
-                .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Email == email);
         }
         public async Task ChangePassword(User user, ChangePasswordDTO changePasswordDTO)

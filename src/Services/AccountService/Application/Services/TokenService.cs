@@ -63,7 +63,7 @@ namespace AccountService.Application.Services
             return _userManager.SetAuthenticationTokenAsync(user, "JWT", "RefreshToken", refreshToken);
         }
 
-        public Task<string> GetRefreshTokenAsync(User user)
+        public Task<string?> GetRefreshTokenAsync(User user)
         {
             return _userManager.GetAuthenticationTokenAsync(user, "JWT", "RefreshToken");
         }

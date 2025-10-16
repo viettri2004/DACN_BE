@@ -117,7 +117,7 @@ namespace AccountService.Application.Services
             var response = new ApiResponse("Success", _localizer["LoginSuccess"], new LoginResponseDTO
             {
                 Email = user.Email ?? "",
-                AvatarUrl = user.AvatarUrl,
+                AvatarUrl = user.AvatarUrl ?? "",
                 FullName = user.FullName,
                 AccessToken = accessToken,
             }, true);

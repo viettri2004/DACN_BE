@@ -9,6 +9,7 @@ using Data.Context;
 using Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
+using Shared.Domain.Entities;
 using Shared.Infrastructure.cloudinaryService;
 using src.Shared.Domain.Entities;
 using src.Shared.Resources;
@@ -25,6 +26,94 @@ namespace CourseService.Infrastructure.Repositories
             _context = context;
             _cloudinaryService = cloudinaryService;
             _localizer = localizer;
+        }
+        public async Task<ApiResponse> GetCoursesAsync(CourseQueryParameters queryParams)
+        {
+            var query = _context.Courses.AsNoTracking();
+
+            
+            if (!string.IsNullOrEmpty(queryParams.TagId))
+            {
+                query = query.Where(c => c.CourseTags.Any(ct => ct.TagId == queryParams.TagId));
+            }
+
+            if (queryParams.MinPrice.HasValue)
+            {
+                query = query.Where(c =>
+                    (int.Parse(c.Id.Substring(0, 1), System.Globalization.NumberStyles.HexNumber) % 2 != 0 ? c.Price * 0.5m : c.Price) >= queryParams.MinPrice.Value
+                );
+            }
+            if (queryParams.MaxPrice.HasValue)
+            {
+                query = query.Where(c =>
+                    (int.Parse(c.Id.Substring(0, 1), System.Globalization.NumberStyles.HexNumber) % 2 != 0 ? c.Price * 0.5m : c.Price) <= queryParams.MaxPrice.Value
+                );
+            }
+
+            var totalCount = await query.CountAsync();
+
+            switch (queryParams.SortBy?.ToLower())
+            {
+                case "rating": 
+                    query = query.OrderByDescending(c => c.Enrollments.SelectMany(e => e.Comments).Any()
+                                                          ? c.Enrollments.SelectMany(e => e.Comments).Average(cm => cm.Rate)
+                                                          : 0);
+                    break;
+                case "newest": 
+                    query = query.OrderByDescending(c => c.CreateTime);
+                    break;
+                case "priceasc": 
+                    query = query.OrderBy(c => (int.Parse(c.Id.Substring(0, 1), System.Globalization.NumberStyles.HexNumber) % 2 != 0 ? c.Price * 0.5m : c.Price));
+                    break;
+                case "pricedesc": 
+                    query = query.OrderByDescending(c => (int.Parse(c.Id.Substring(0, 1), System.Globalization.NumberStyles.HexNumber) % 2 != 0 ? c.Price * 0.5m : c.Price));
+                    break;
+                case "popularity": 
+                default:
+                    query = query.OrderByDescending(c => c.Enrollments.Count);
+                    break;
+            }
+
+            var pagedCoursesData = await query
+                .Skip((queryParams.Page - 1) * queryParams.PageSize)
+                .Take(queryParams.PageSize)
+                .Select(c => new CourseCardDTO
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    ImageUrl = c.ImageUrl,
+                    InstructorName = c.Instructor.FullName,
+                    AverageRating = c.Enrollments.SelectMany(e => e.Comments).Any()
+                        ? Math.Round(c.Enrollments.SelectMany(e => e.Comments).Average(cm => cm.Rate), 1)
+                        : 0,
+                    TotalReviews = c.Enrollments.SelectMany(e => e.Comments).Count(),
+                    TotalStudents = c.Enrollments.Count,
+                    OriginalPrice = c.Price, 
+                    Price = (int.Parse(c.Id.Substring(0, 1), System.Globalization.NumberStyles.HexNumber) % 2 != 0)
+                            ? (c.Price * 0.5m) 
+                            : c.Price,         
+                    IsBestseller = c.Enrollments.Count > 5, 
+                    TotalHours = 25 
+                })
+                .ToListAsync();
+
+            foreach (var course in pagedCoursesData)
+            {
+                if (course.Price == course.OriginalPrice)
+                {
+                    course.OriginalPrice = null;
+                }
+            }
+
+            var pagedResult = new PagedResult<CourseCardDTO>
+            {
+                Items = pagedCoursesData,
+                Page = queryParams.Page,
+                PageSize = queryParams.PageSize,
+                TotalCount = totalCount
+            };
+
+            return new ApiResponse("Success", _localizer["Success"].Value, pagedResult, true);
         }
         public async Task<ApiResponse> CreateCourseAsync(CreateCourseDTO createCourseDTO, string instructorId)
         {
