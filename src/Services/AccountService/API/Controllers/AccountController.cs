@@ -9,6 +9,7 @@ using Microsoft.Extensions.Localization;
 using src.Shared.Resources;
 using src.Shared.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
+using Shared.Application.Extension;
 
 namespace src.Services.AccountService.API.Controllers
 {
@@ -33,15 +34,7 @@ namespace src.Services.AccountService.API.Controllers
         {
             var response = await _authservice.Register(registerDTO);
 
-            return response.Code switch
-            {
-                "Success" => Created("", response),
-                "NotFound" => NotFound(response),
-                "BadRequest" => BadRequest(response),
-                "Unauthorized" => Unauthorized(response),
-                "Conflict" => Conflict(response),
-                _ => StatusCode(500, response)
-            };
+            return response.ToActionResult();
         }
         [HttpPost("login")]
         public async Task<ActionResult<ApiResponse>> Login([FromBody] LoginDTO loginDTO)
@@ -59,15 +52,7 @@ namespace src.Services.AccountService.API.Controllers
                 Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
             }
             // Console.WriteLine(refreshToken);
-            return response.Code switch
-            {
-                "Success" => Ok(response),
-                "NotFound" => NotFound(response),
-                "BadRequest" => BadRequest(response),
-                "Unauthorized" => Unauthorized(response),
-                "Conflict" => Conflict(response),
-                _ => StatusCode(500, response)
-            };
+            return response.ToActionResult();
         }
         [HttpPost("refresh-token")]
         public async Task<ActionResult<ApiResponse>> RefreshToken()
@@ -75,30 +60,14 @@ namespace src.Services.AccountService.API.Controllers
             var refreshToken = Request.Cookies["refreshToken"];
             var response = await _authservice.RefreshToken(refreshToken);
 
-            return response.Code switch
-            {
-                "Success" => Created("", response),
-                "NotFound" => NotFound(response),
-                "BadRequest" => BadRequest(response),
-                "Unauthorized" => Unauthorized(response),
-                "Conflict" => Conflict(response),
-                _ => StatusCode(500, response)
-            };
+            return response.ToActionResult();
         }
         [HttpPost("send-otp")]
         public async Task<ActionResult<ApiResponse>> SendOtp([FromQuery] string email)
         {
             var response = await _emailService.SendEmailAsync(email);
 
-            return response.Code switch
-            {
-                "Success" => Created("", response),
-                "NotFound" => NotFound(response),
-                "BadRequest" => BadRequest(response),
-                "Unauthorized" => Unauthorized(response),
-                "Conflict" => Conflict(response),
-                _ => StatusCode(500, response)
-            };
+            return response.ToActionResult();
         }
         [HttpPost("verify-otp")]
         public async Task<ActionResult<ApiResponse>> VerifyOtp([FromBody] VerifiedOtpDTO dto)
@@ -113,19 +82,11 @@ namespace src.Services.AccountService.API.Controllers
             return Ok(new ApiResponse("Success", _localizer["OtpVerified"].Value, null, true));
         }
         [HttpPost("reset-password")]
-        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDTO dto)
+        public async Task<ActionResult<ApiResponse>> ResetPassword([FromBody] ResetPasswordDTO dto)
         {
             var response = await _authservice.ResetPassword(dto.Email, dto.NewPassword);
 
-            return response.Code switch
-            {
-                "Success" => Created("", response),
-                "NotFound" => NotFound(response),
-                "BadRequest" => BadRequest(response),
-                "Unauthorized" => Unauthorized(response),
-                "Conflict" => Conflict(response),
-                _ => StatusCode(500, response)
-            };
+            return response.ToActionResult();
         }
         [Authorize(Policy = "Admin")]
         [HttpGet("admin-only")]

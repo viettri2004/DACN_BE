@@ -50,7 +50,7 @@ namespace CourseService.Infrastructure.Repositories
 
             await _context.SaveChangesAsync();
 
-            return new ApiResponse("Success", _localizer["CreateTagSuccess"].Value, newTag, true);
+            return new ApiResponse("Created", _localizer["CreateTagSuccess"].Value, newTag, true);
         }
 
         public async Task<ApiResponse> DeleteTagAsync(string tagId)

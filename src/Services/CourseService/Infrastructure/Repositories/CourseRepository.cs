@@ -51,7 +51,7 @@ namespace CourseService.Infrastructure.Repositories
                 await _context.SaveChangesAsync();
 
                 return new ApiResponse(
-                    "Success",
+                    "Created",
                     _localizer["CreateCourseSuccess"].Value,
                     null,
                     true

@@ -85,7 +85,7 @@ namespace AccountService.Application.Services
 
             await _userManager.AddToRoleAsync(user, RegisterDTO.Role);
 
-            return new ApiResponse("Success", _localizer["RegisterSuccess"].Value, new { user.Id, user.UserName, Role = RegisterDTO.Role }, true);
+            return new ApiResponse("Created", _localizer["RegisterSuccess"].Value, new { user.Id, user.UserName, Role = RegisterDTO.Role }, true);
         }
         public async Task<(ApiResponse response, string refreshToken)> LoginAsync(LoginDTO loginDTO)
         {
