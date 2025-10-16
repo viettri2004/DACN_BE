@@ -16,39 +16,13 @@ namespace src.Services.CourseService.API.Controllers
     public class CourseController : ControllerBase
     {
         private readonly ICourseRepository _courseRepository;
-        private readonly ITagRepository _tagRepository;
 
-        public CourseController(ICourseRepository courseRepository, ITagRepository tagRepository)
+        public CourseController(ICourseRepository courseRepository)
         {
-            _tagRepository = tagRepository;
             _courseRepository = courseRepository;
         }
 
-        [HttpPost("create-tags")]
-        // [Authorize(Policy = "Admin")]
-        public async Task<ActionResult<ApiResponse>> CreateTag(CreateTagDTO createTagDTO)
-        {
-            var response = await _tagRepository.CreateTagAsync(createTagDTO);
-
-            return response.ToActionResult();
-        }
-
-        [Authorize(Policy = "Instructor")]
-        [HttpPost("assign-tag")]
-        public async Task<ActionResult<ApiResponse>> AssignTagToCourse([FromBody] AssignTagToCourseDTO assignTagToCourseDTO)
-        {
-            var response = await _tagRepository.AssignTagToCourseAsync(assignTagToCourseDTO);
-
-            return response.ToActionResult();
-        }
-        [HttpGet("all-tags")]
-        public async Task<ActionResult<ApiResponse>> GetAllTags()
-        {
-            var response = await _tagRepository.GetAllTagsAsync();
-
-            return response.ToActionResult();
-        }
-
+        
         [Authorize(Policy = "Instructor")]
         [HttpPost("create")]
         public async Task<ActionResult<ApiResponse>> CreateCourse([FromForm] CreateCourseDTO createCourseDTO)
