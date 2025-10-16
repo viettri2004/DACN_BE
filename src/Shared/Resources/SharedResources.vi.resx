@@ -285,4 +285,32 @@
     <value>Không tìm thấy khóa học</value>
     <comment/>
   </data>
+  <data name="AlreadyEnrolled" xml:space="preserve">
+    <value>Bạn đã đăng ký khóa học này rồi</value>
+    <comment />
+  </data>
+  <data name="ItemAlreadyInCart" xml:space="preserve">
+    <value>Khóa học đã có trong giỏ hàng</value>
+    <comment />
+  </data>
+  <data name="CartFull" xml:space="preserve">
+    <value>Giỏ hàng đã đầy (Tối đa 5 sản phẩm)</value>
+    <comment />
+  </data>
+  <data name="ItemAddedToCart" xml:space="preserve">
+    <value>Đã thêm vào giỏ hàng thành công</value>
+    <comment />
+  </data>
+  <data name="ItemNotFoundInCart" xml:space="preserve">
+    <value>Không tìm thấy sản phẩm trong giỏ hàng</value>
+    <comment />
+  </data>
+  <data name="ItemRemovedFromCart" xml:space="preserve">
+    <value>Đã xóa khỏi giỏ hàng thành công</value>
+    <comment />
+  </data>
+  <data name="CartIsEmpty" xml:space="preserve">
+    <value>Giỏ hàng của bạn đang trống</value>
+    <comment />
+  </data>
 </root>

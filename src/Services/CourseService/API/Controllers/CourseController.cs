@@ -21,14 +21,13 @@ namespace src.Services.CourseService.API.Controllers
         {
             _courseRepository = courseRepository;
         }
-
         
         [Authorize(Policy = "Instructor")]
         [HttpPost("create")]
         public async Task<ActionResult<ApiResponse>> CreateCourse([FromForm] CreateCourseDTO createCourseDTO)
         {
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            if (instructorId == null)
+            if (string.IsNullOrEmpty(instructorId))
             {
                 return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
             }
@@ -37,21 +36,22 @@ namespace src.Services.CourseService.API.Controllers
             return response.ToActionResult();
         }
 
-        [HttpGet("course-detail")]
-        public async Task<ActionResult<ApiResponse>> GetCourseDetail([FromQuery] string courseId)
+        [HttpGet("course-detail/{courseId}")]
+        public async Task<ActionResult<ApiResponse>> GetCourseDetail([FromRoute] string courseId)
         {
             var response = await _courseRepository.GetCourseDetailAsync(courseId);
 
             return response.ToActionResult();
         }
 
-        [HttpGet("course-comments")]
-        public async Task<ActionResult<ApiResponse>> GetComments([FromQuery] string courseId)
+        [HttpGet("course-comments/{courseId}")]
+        public async Task<ActionResult<ApiResponse>> GetComments([FromRoute] string courseId)
         {
             var response = await _courseRepository.GetCourseCommentsAsync(courseId);
 
             return response.ToActionResult();
         }
+        
         [Authorize(Policy = "Student")]
         [HttpGet("recommended-courses")]
         public async Task<ActionResult<ApiResponse>> GetRecommendedCourses()
@@ -67,7 +67,7 @@ namespace src.Services.CourseService.API.Controllers
             var studentId = User.Claims.FirstOrDefault(c =>
                 c.Type == "id")?.Value;
 
-            if (studentId == null)
+            if (string.IsNullOrEmpty(studentId))
                 return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
 
             var response = await _courseRepository.GetCoursesByStudentIdAsync(studentId);

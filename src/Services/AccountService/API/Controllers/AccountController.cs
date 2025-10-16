@@ -63,10 +63,10 @@ namespace src.Services.AccountService.API.Controllers
             return response.ToActionResult();
         }
         [HttpPost("send-otp")]
-        public async Task<ActionResult<ApiResponse>> SendOtp([FromQuery] string email)
+        public async Task<ActionResult<ApiResponse>> SendOtp([FromBody] SendOtpDTO sendOtpDTO)
         {
-            var response = await _emailService.SendEmailAsync(email);
-
+            var response = await _emailService.SendEmailAsync(sendOtpDTO.email);
+            
             return response.ToActionResult();
         }
         [HttpPost("verify-otp")]
