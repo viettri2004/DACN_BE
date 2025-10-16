@@ -10,6 +10,7 @@ using src.Shared.Resources;
 using src.Shared.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Shared.Application.Extension;
+using AccountService.Infrastructure.Persistence.Repositories;
 
 namespace src.Services.AccountService.API.Controllers
 {
@@ -21,13 +22,19 @@ namespace src.Services.AccountService.API.Controllers
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly IEmailService _emailService;
         private readonly IOtpService _otpService;
+        private readonly IAccountRepository _accountRepository;
 
-        public AccountController(IAuthService accountService, IStringLocalizer<SharedResources> localizer, IEmailService emailService, IOtpService otpService)
+        public AccountController(IAuthService accountService,
+                                IStringLocalizer<SharedResources> localizer,
+                                IEmailService emailService,
+                                IOtpService otpService,
+                                IAccountRepository accountRepository)
         {
             _otpService = otpService;
             _authservice = accountService;
             _emailService = emailService;
             _localizer = localizer;
+            _accountRepository = accountRepository;
         }
         [HttpPost("register")]
         public async Task<ActionResult<ApiResponse>> Register([FromBody] RegisterDTO registerDTO)
@@ -54,21 +61,45 @@ namespace src.Services.AccountService.API.Controllers
             // Console.WriteLine(refreshToken);
             return response.ToActionResult();
         }
+
         [HttpPost("refresh-token")]
         public async Task<ActionResult<ApiResponse>> RefreshToken()
         {
             var refreshToken = Request.Cookies["refreshToken"];
-            var response = await _authservice.RefreshToken(refreshToken);
 
+            if (string.IsNullOrEmpty(refreshToken))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            }
+
+            var (response, newRefreshToken) = await _authservice.RefreshToken(refreshToken);
+
+            if (!string.IsNullOrEmpty(newRefreshToken))
+            {
+                var cookieOptions = new CookieOptions
+                {
+                    HttpOnly = true,
+                    SameSite = SameSiteMode.Strict,
+                    Expires = DateTime.UtcNow.AddDays(14)
+                };
+                Response.Cookies.Append("refreshToken", newRefreshToken, cookieOptions);
+            }
+            else
+            {
+                Response.Cookies.Delete("refreshToken");
+            }
+            
             return response.ToActionResult();
         }
+
         [HttpPost("send-otp")]
         public async Task<ActionResult<ApiResponse>> SendOtp([FromBody] SendOtpDTO sendOtpDTO)
         {
             var response = await _emailService.SendEmailAsync(sendOtpDTO.email);
-            
+
             return response.ToActionResult();
         }
+
         [HttpPost("verify-otp")]
         public async Task<ActionResult<ApiResponse>> VerifyOtp([FromBody] VerifiedOtpDTO dto)
         {
@@ -81,6 +112,23 @@ namespace src.Services.AccountService.API.Controllers
 
             return Ok(new ApiResponse("Success", _localizer["OtpVerified"].Value, null, true));
         }
+
+        [HttpGet("profile")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse>> GetMyProfile()
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            }
+
+            var response = await _accountRepository.GetUserProfileAsync(userId);
+
+            return response.ToActionResult();
+        }
+
         [HttpPost("reset-password")]
         public async Task<ActionResult<ApiResponse>> ResetPassword([FromBody] ResetPasswordDTO dto)
         {
@@ -88,25 +136,6 @@ namespace src.Services.AccountService.API.Controllers
 
             return response.ToActionResult();
         }
-        [Authorize(Policy = "Admin")]
-        [HttpGet("admin-only")]
-        public IActionResult GetForAdmin()
-        {
-            return Ok("This is only for admins");
-        }
 
-        [Authorize(Policy = "Student")]
-        [HttpGet("student-only")]
-        public IActionResult GetForUser()
-        {
-            return Ok("This is only for students");
-        }
-
-        [Authorize(Policy = "Instructor")]
-        [HttpGet("instructor-only")]
-        public IActionResult GetForInstructor()
-        {
-            return Ok("This is only for instructors");
-        }
     }
 }

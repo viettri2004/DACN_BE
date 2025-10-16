@@ -96,6 +96,7 @@ namespace AccountService.Application.Services
 
             return new ApiResponse("Created", _localizer["RegisterSuccess"].Value, new { user.Id, user.UserName, Role = RegisterDTO.Role }, true);
         }
+
         public async Task<(ApiResponse response, string refreshToken)> LoginAsync(LoginDTO loginDTO)
         {
             var user = await _userManager.FindByNameAsync(loginDTO.Username);
@@ -124,27 +125,21 @@ namespace AccountService.Application.Services
 
             return (response, refreshToken);
         }
-        public async Task<ApiResponse> RefreshToken(string refreshToken)
+
+        public async Task<(ApiResponse response, string refreshToken)> RefreshToken(string refreshToken)
         {
             var user = await _accountRepository.GetUserFromRefreshToken(refreshToken);
             if (user == null)
-                return new ApiResponse("Unauthorized", _localizer["InvalidRefreshToken"].Value, null, false);
+                return (new ApiResponse("Unauthorized", _localizer["InvalidRefreshToken"].Value, null, false),"");
 
             var newAccessToken = await _tokenService.GenerateAccessTokenAsync(user);
             var newRefreshToken = _tokenService.GenerateRefreshToken();
 
             await _tokenService.StoreRefreshTokenAsync(user, newRefreshToken);
 
-            return new ApiResponse(
-                "Success",
-                _localizer["RefreshTokenSuccess"].Value,
-                new
-                {
-                    AccessToken = newAccessToken,
-                },
-                true
-            );
+            return (new ApiResponse("Success",_localizer["RefreshTokenSuccess"].Value,new{AccessToken = newAccessToken,},true),newRefreshToken);
         }
+
         public async Task<ApiResponse> ResetPassword(string email, string newPassword)
         {
             var user = await _accountRepository.FindUserByEmail(email);

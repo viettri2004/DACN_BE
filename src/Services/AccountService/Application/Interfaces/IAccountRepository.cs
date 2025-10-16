@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using AccountService.Application.DTOs;
 using Entities;
+using src.Shared.Domain.Entities;
 
 namespace AccountService.Application.Interfaces
 {
@@ -12,5 +13,6 @@ namespace AccountService.Application.Interfaces
         Task<User> GetUserFromRefreshToken(string refreshToken);
         Task<User> FindUserByEmail(string email);
         Task ChangePassword(User user, ChangePasswordDTO changePasswordDTO);
+        Task<ApiResponse> GetUserProfileAsync(string userId);
     }
 }

@@ -23,7 +23,7 @@ namespace src.Services.CourseService.API.Controllers
         }
 
         [Authorize]
-        [HttpGet("filter-courses")]
+        [HttpGet("filtered-courses")]
         public async Task<ActionResult<ApiResponse>> GetAllCourses([FromQuery] CourseQueryParameters queryParams)
         {
             var response = await _courseRepository.GetCoursesAsync(queryParams);
