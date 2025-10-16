@@ -70,6 +70,15 @@ namespace AccountService.Application.Services
                     PhoneNumber = RegisterDTO.PhoneNumber,
                     IsBanned = false
                 };
+            // else if (RegisterDTO.Role == "Admin")
+            //     user = new Admin
+            //     {
+            //         UserName = RegisterDTO.UserName,
+            //         Email = RegisterDTO.Email,
+            //         FullName = RegisterDTO.FullName,
+            //         PhoneNumber = RegisterDTO.PhoneNumber,
+            //         IsBanned = false
+            //     };
             else
             {
                 return new ApiResponse("BadRequest", _localizer["InvalidRole"].Value, null, false);

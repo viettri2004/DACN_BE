@@ -25,7 +25,7 @@ namespace CourseService.Infrastructure.Repositories
         
         public async Task<ApiResponse> GetAllTagsAsync()
         {
-            var tags = _context.Tags.ToList();
+            var tags = await _context.Tags.ToListAsync();
             return new ApiResponse("Success", _localizer["Success"].Value, tags, true);
         }
 
