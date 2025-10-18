@@ -243,7 +243,7 @@ static void ConfigureMiddleware(WebApplication app)
     //     app.UseSwagger();
     //     app.UseSwaggerUI();
     // }
-    
+
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
@@ -253,10 +253,9 @@ static void ConfigureMiddleware(WebApplication app)
     app.UseRequestLocalization();
 
     app.UseCors(x => x
+        .AllowAnyOrigin()
         .AllowAnyMethod()
-        .AllowAnyHeader()
-        .AllowCredentials()
-        .SetIsOriginAllowed(origin => true));
+        .AllowAnyHeader());
 
     app.UseAuthentication();
     app.UseAuthorization();

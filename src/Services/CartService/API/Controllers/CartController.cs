@@ -22,7 +22,7 @@ namespace CartService.API.Controllers
         }
 
         [Authorize(Policy = "Student")]
-        [HttpGet("my-cart")]
+        [HttpGet("cart-items")]
         public async Task<ActionResult<ApiResponse>> GetMyCart()
         {
             var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;

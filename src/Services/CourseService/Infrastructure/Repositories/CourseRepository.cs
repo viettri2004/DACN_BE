@@ -31,71 +31,85 @@ namespace CourseService.Infrastructure.Repositories
         {
             var query = _context.Courses.AsNoTracking();
 
-            
             if (!string.IsNullOrEmpty(queryParams.TagId))
             {
                 query = query.Where(c => c.CourseTags.Any(ct => ct.TagId == queryParams.TagId));
             }
 
+            var allCoursesList = await query
+                .Include(c => c.Instructor)
+                .Include(c => c.Enrollments)
+                    .ThenInclude(e => e.Comments)
+                .ToListAsync();
+
+            var coursesWithPrice = allCoursesList.Select(c =>
+            {
+                var calculatedPrice = (int.Parse(c.Id.Substring(0, 1), System.Globalization.NumberStyles.HexNumber) % 2 != 0)
+                                    ? (c.Price * 0.5m)
+                                    : c.Price;
+
+                return new
+                {
+                    Course = c,
+                    Price = calculatedPrice
+                };
+            }).AsQueryable(); 
+
             if (queryParams.MinPrice.HasValue)
             {
-                query = query.Where(c =>
-                    (int.Parse(c.Id.Substring(0, 1), System.Globalization.NumberStyles.HexNumber) % 2 != 0 ? c.Price * 0.5m : c.Price) >= queryParams.MinPrice.Value
-                );
-            }
-            if (queryParams.MaxPrice.HasValue)
-            {
-                query = query.Where(c =>
-                    (int.Parse(c.Id.Substring(0, 1), System.Globalization.NumberStyles.HexNumber) % 2 != 0 ? c.Price * 0.5m : c.Price) <= queryParams.MaxPrice.Value
-                );
+                coursesWithPrice = coursesWithPrice.Where(x => x.Price >= queryParams.MinPrice.Value);
             }
 
-            var totalCount = await query.CountAsync();
+            if (queryParams.MaxPrice.HasValue)
+            {
+                coursesWithPrice = coursesWithPrice.Where(x => x.Price <= queryParams.MaxPrice.Value);
+            }
+
+            var totalCount = coursesWithPrice.Count();
 
             switch (queryParams.SortBy?.ToLower())
             {
-                case "rating": 
-                    query = query.OrderByDescending(c => c.Enrollments.SelectMany(e => e.Comments).Any()
-                                                          ? c.Enrollments.SelectMany(e => e.Comments).Average(cm => cm.Rate)
-                                                          : 0);
+                case "rating":
+                    coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.Enrollments.SelectMany(e => e.Comments).Any()
+                                                    ? x.Course.Enrollments.SelectMany(e => e.Comments).Average(cm => cm.Rate)
+                                                    : 0);
                     break;
-                case "newest": 
-                    query = query.OrderByDescending(c => c.CreateTime);
+                case "newest":
+                    coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.CreateTime);
                     break;
-                case "priceasc": 
-                    query = query.OrderBy(c => (int.Parse(c.Id.Substring(0, 1), System.Globalization.NumberStyles.HexNumber) % 2 != 0 ? c.Price * 0.5m : c.Price));
+                case "priceasc":
+                    coursesWithPrice = coursesWithPrice.OrderBy(x => x.Price);
                     break;
-                case "pricedesc": 
-                    query = query.OrderByDescending(c => (int.Parse(c.Id.Substring(0, 1), System.Globalization.NumberStyles.HexNumber) % 2 != 0 ? c.Price * 0.5m : c.Price));
+                case "pricedesc":
+                    coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Price);
                     break;
-                case "popularity": 
+                case "popularity":
                 default:
-                    query = query.OrderByDescending(c => c.Enrollments.Count);
+                    coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.Enrollments.Count);
                     break;
             }
 
-            var pagedCoursesData = await query
+            var pagedData = coursesWithPrice
                 .Skip((queryParams.Page - 1) * queryParams.PageSize)
                 .Take(queryParams.PageSize)
-                .Select(c => new CourseCardDTO
-                {
-                    Id = c.Id,
-                    Name = c.Name,
-                    ImageUrl = c.ImageUrl,
-                    InstructorName = c.Instructor.FullName,
-                    AverageRating = c.Enrollments.SelectMany(e => e.Comments).Any()
-                        ? Math.Round(c.Enrollments.SelectMany(e => e.Comments).Average(cm => cm.Rate), 1)
-                        : 0,
-                    TotalReviews = c.Enrollments.SelectMany(e => e.Comments).Count(),
-                    TotalStudents = c.Enrollments.Count,
-                    OriginalPrice = c.Price, 
-                    Price = (int.Parse(c.Id.Substring(0, 1), System.Globalization.NumberStyles.HexNumber) % 2 != 0)
-                            ? (c.Price * 0.5m) 
-                            : c.Price,         
-                    IsBestseller = c.Enrollments.Count > 5, 
-                    TotalHours = 25 
-                })
-                .ToListAsync();
+                .ToList();
+
+            var pagedCoursesData = pagedData.Select(x => new CourseCardDTO
+            {
+                Id = x.Course.Id,
+                Name = x.Course.Name,
+                ImageUrl = x.Course.ImageUrl,
+                InstructorName = x.Course.Instructor.FullName,
+                AverageRating = x.Course.Enrollments.SelectMany(e => e.Comments).Any()
+                                     ? Math.Round(x.Course.Enrollments.SelectMany(e => e.Comments).Average(cm => cm.Rate), 1)
+                                     : 0,
+                TotalReviews = x.Course.Enrollments.SelectMany(e => e.Comments).Count(),
+                TotalStudents = x.Course.Enrollments.Count,
+                OriginalPrice = x.Course.Price,
+                Price = x.Price, 
+                IsBestseller = x.Course.Enrollments.Count > 5,
+                TotalHours = 25
+            }).ToList();
 
             foreach (var course in pagedCoursesData)
             {
