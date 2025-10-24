@@ -47,7 +47,10 @@ namespace src.Services.CourseService.API.Controllers
         [HttpGet("course-detail/{courseId}")]
         public async Task<ActionResult<ApiResponse>> GetCourseDetail([FromRoute] string courseId)
         {
-            var response = await _courseRepository.GetCourseDetailAsync(courseId);
+            var studentId = User.Claims.FirstOrDefault(c =>
+                c.Type == "id")?.Value;
+                
+            var response = await _courseRepository.GetCourseDetailAsync(courseId, studentId);
 
             return response.ToActionResult();
         }

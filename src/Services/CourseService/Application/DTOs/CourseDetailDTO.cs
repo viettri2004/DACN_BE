@@ -16,5 +16,6 @@ namespace CourseService.Application.DTOs
         public int TotalReviews { get; set; }
         public int TotalStudents { get; set; }
         public double TotalHours { get; set; }
+        public bool IsEnrolled { get; set; }
     }
 }

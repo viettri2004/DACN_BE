@@ -53,7 +53,7 @@ namespace CourseService.Infrastructure.Repositories
                     Course = c,
                     Price = calculatedPrice
                 };
-            }).AsQueryable(); 
+            }).AsQueryable();
 
             if (queryParams.MinPrice.HasValue)
             {
@@ -106,7 +106,7 @@ namespace CourseService.Infrastructure.Repositories
                 TotalReviews = x.Course.Enrollments.SelectMany(e => e.Comments).Count(),
                 TotalStudents = x.Course.Enrollments.Count,
                 OriginalPrice = x.Course.Price,
-                Price = x.Price, 
+                Price = x.Price,
                 IsBestseller = x.Course.Enrollments.Count > 5,
                 TotalHours = 25
             }).ToList();
@@ -166,7 +166,7 @@ namespace CourseService.Infrastructure.Repositories
             }
         }
 
-        public async Task<ApiResponse> GetCourseDetailAsync(string courseId)
+        public async Task<ApiResponse> GetCourseDetailAsync(string courseId, string studentId)
         {
             var course = await _context.Courses
                 .AsNoTracking()
@@ -185,7 +185,11 @@ namespace CourseService.Infrastructure.Repositories
                         : 0,
                     TotalReviews = c.Enrollments.SelectMany(e => e.Comments).Count(),
                     TotalStudents = c.Enrollments.Count,
-                    TotalHours = 36
+                    TotalHours = 36,
+                    IsEnrolled = string.IsNullOrEmpty(studentId)
+                                ? false
+                                : c.Enrollments
+                                    .Any(e => e.StudentId == studentId && e.Status == true)
                 })
                 .FirstOrDefaultAsync();
 
