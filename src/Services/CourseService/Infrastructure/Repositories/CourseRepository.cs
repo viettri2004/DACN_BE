@@ -21,9 +21,11 @@ namespace CourseService.Infrastructure.Repositories
         private readonly AppDbContext _context;
         private readonly CloudinaryService _cloudinaryService;
         private readonly IStringLocalizer<SharedResources> _localizer;
-        public CourseRepository(AppDbContext context, CloudinaryService cloudinaryService, IStringLocalizer<SharedResources> localizer)
+        private readonly ILuceneSearchService _luceneSearchService;
+        public CourseRepository(AppDbContext context, CloudinaryService cloudinaryService, IStringLocalizer<SharedResources> localizer, ILuceneSearchService luceneSearchService)
         {
             _context = context;
+            _luceneSearchService = luceneSearchService;
             _cloudinaryService = cloudinaryService;
             _localizer = localizer;
         }
@@ -152,11 +154,31 @@ namespace CourseService.Infrastructure.Repositories
 
                 _context.Courses.Add(newCourse);
                 await _context.SaveChangesAsync();
+                
+                try
+                {
+                    var courseForIndex = await _context.Courses
+                        .AsNoTracking()
+                        .Include(c => c.Instructor)
+                        .Include(c => c.CourseTags)  
+                        .Include(c => c.Enrollments)
+                            .ThenInclude(e => e.Comments)
+                        .FirstOrDefaultAsync(c => c.Id == newCourse.Id);
+
+                    if (courseForIndex != null)
+                    {
+                        await _luceneSearchService.IndexCourseAsync(courseForIndex);
+                    }
+                }
+                catch (Exception indexEx)
+                {
+                    Console.WriteLine($"Indexing course failed: {indexEx.Message}");
+                }
 
                 return new ApiResponse(
                     "Created",
                     _localizer["CreateCourseSuccess"].Value,
-                    null,
+                    null, 
                     true
                 );
             }

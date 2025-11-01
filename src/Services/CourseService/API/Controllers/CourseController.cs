@@ -9,17 +9,19 @@ using Microsoft.AspNetCore.Mvc;
 using Shared.Application.Extension;
 using src.Shared.Domain.Entities;
 
-namespace src.Services.CourseService.API.Controllers
+namespace CourseService.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     public class CourseController : ControllerBase
     {
         private readonly ICourseRepository _courseRepository;
+        private readonly ILuceneSearchService _searchService;
 
-        public CourseController(ICourseRepository courseRepository)
+        public CourseController(ICourseRepository courseRepository, ILuceneSearchService searchService)
         {
             _courseRepository = courseRepository;
+            _searchService = searchService;
         }
 
         [Authorize]
@@ -49,7 +51,7 @@ namespace src.Services.CourseService.API.Controllers
         {
             var studentId = User.Claims.FirstOrDefault(c =>
                 c.Type == "id")?.Value;
-                
+
             var response = await _courseRepository.GetCourseDetailAsync(courseId, studentId);
 
             return response.ToActionResult();
@@ -84,6 +86,22 @@ namespace src.Services.CourseService.API.Controllers
             var response = await _courseRepository.GetCoursesByStudentIdAsync(studentId);
 
             return response.ToActionResult();
+        }
+
+        [Authorize]
+        [HttpGet("search")]
+        public async Task<ActionResult<ApiResponse>> SearchCourses([FromQuery] CourseSearchDTO queryParams)
+        {
+            var response = await _searchService.SearchCoursesAsync(queryParams);
+            return response.ToActionResult();
+        }   
+
+        [Authorize(Policy = "Admin")]
+        [HttpPost("re-index")]
+        public async Task<IActionResult> ReIndexAllCourses()
+        {
+            await _searchService.IndexAllCoursesAsync();
+            return Ok(new { message = "Re-indexing process started." });
         }
     }
 }

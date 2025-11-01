@@ -7,6 +7,7 @@ using CartService.Application.Interfaces;
 using CartService.Infrastructure.Repositories;
 using CloudinaryDotNet;
 using CourseService.Application.Interfaces;
+using CourseService.Application.Services;
 using CourseService.Infrastructure.Repositories;
 using Data.Context;
 using Data.Seeding;
@@ -82,6 +83,7 @@ static void ConfigureDI(IServiceCollection services)
     services.AddSingleton(provider => new Cloudinary(Environment.GetEnvironmentVariable("CLOUDINARY_URL")));
     services.AddScoped<DbSeeder>();
     services.AddScoped<CloudinaryService>();
+    services.AddScoped<ILuceneSearchService, LuceneSearchService>();
     //services.AddAutoMapper(typeof(Program));
     services.AddScoped<ICourseRepository, CourseRepository>();
     services.AddScoped<ICartRepository, CartRepository>();
