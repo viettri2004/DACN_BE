@@ -255,9 +255,10 @@ static void ConfigureMiddleware(WebApplication app)
     app.UseRequestLocalization();
 
     app.UseCors(x => x
-        .AllowAnyOrigin()
+        .WithOrigins("http://localhost:5173")
         .AllowAnyMethod()
-        .AllowAnyHeader());
+        .AllowAnyHeader()
+        .AllowCredentials());
 
     app.UseAuthentication();
     app.UseAuthorization();
