@@ -104,6 +104,7 @@ namespace CourseService.API.Controllers
             return Ok(new { message = "Re-indexing process started." });
         }
 
+        
         [HttpGet("course-content/{courseId}")]
         public async Task<ActionResult<ApiResponse>> GetCourseContent([FromRoute] string courseId)
         {

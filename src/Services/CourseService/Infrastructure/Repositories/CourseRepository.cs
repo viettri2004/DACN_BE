@@ -136,9 +136,10 @@ namespace CourseService.Infrastructure.Repositories
             try
             {
                 string imageUrl = string.Empty;
+                string imagePublicId = string.Empty;
                 if (createCourseDTO.image != null)
                 {
-                    imageUrl = await _cloudinaryService.UploadImageAsync(createCourseDTO.image);
+                    (imageUrl, imagePublicId) = await _cloudinaryService.UploadImageAsync(createCourseDTO.image);
                 }
 
                 var newCourse = new Course
@@ -148,6 +149,7 @@ namespace CourseService.Infrastructure.Repositories
                     Price = createCourseDTO.price,
                     Description = createCourseDTO.description ?? string.Empty,
                     ImageUrl = imageUrl,
+                    ImagePublicId = imagePublicId,
                     InstructorId = instructorId,
                     CreateTime = DateTime.UtcNow
                 };

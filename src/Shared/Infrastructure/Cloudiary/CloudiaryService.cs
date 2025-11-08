@@ -13,7 +13,7 @@ namespace Shared.Infrastructure.cloudinaryService
             _cloudinary = cloudinary;
         }
 
-        public async Task<string> UploadImageAsync(IFormFile file)
+        public async Task<(string Url, string PublicId)> UploadImageAsync(IFormFile file)
         {
             if (file == null || file.Length == 0)
                 throw new ArgumentException("Invalid file.");
@@ -29,7 +29,7 @@ namespace Shared.Infrastructure.cloudinaryService
             var result = await _cloudinary.UploadAsync(uploadParams);
 
             if (result.StatusCode == System.Net.HttpStatusCode.OK)
-                return result.SecureUrl.ToString();
+                return (result.SecureUrl.ToString(), result.PublicId);
 
             throw new Exception($"{result.Error?.Message}");
         }
@@ -40,6 +40,39 @@ namespace Shared.Infrastructure.cloudinaryService
             var result = await _cloudinary.DestroyAsync(deleteParams);
 
             if (result.StatusCode != System.Net.HttpStatusCode.OK)
+                throw new Exception($"{result.Error?.Message}");
+        }
+
+        public async Task<(string Url, string PublicId)> UploadVideoAsync(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                throw new ArgumentException("Invalid file.");
+
+            using var stream = file.OpenReadStream();
+
+            var uploadParams = new VideoUploadParams
+            {
+                File = new FileDescription(file.FileName, stream),
+                Folder = "videos"
+            };
+
+            var result = await _cloudinary.UploadAsync(uploadParams);
+
+            if (result.StatusCode == System.Net.HttpStatusCode.OK)
+                return (result.SecureUrl.ToString(), result.PublicId);
+
+            throw new Exception($"{result.Error?.Message}");
+        }
+
+        public async Task DeleteVideoAsync(string publicId)
+        {
+            var deleteParams = new DeletionParams(publicId)
+            {
+                ResourceType = ResourceType.Video
+            };
+            var result = await _cloudinary.DestroyAsync(deleteParams);
+
+            if (result.Result != "ok")
                 throw new Exception($"{result.Error?.Message}");
         }
     }
