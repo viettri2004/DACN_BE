@@ -20,7 +20,6 @@ namespace Entities
         //public ICollection<StudentCourse> StudentCourses { get; set; } = new List<StudentCourse>();
         public ICollection<Lecture> Lectures { get; set; } = new List<Lecture>();
         //public ICollection<LeaveComment> LeaveComments { get; set; } = new List<LeaveComment>();
-        public ICollection<Quiz> Quizzes { get; set; } = new List<Quiz>();
         public ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
         public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();

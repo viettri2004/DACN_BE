@@ -238,12 +238,12 @@ namespace Data.Context
                 .HasKey(q => q.Id);
 
             modelBuilder.Entity<Quiz>()
-                .HasOne(q => q.Course)
+                .HasOne(q => q.Lecture)
                 .WithMany(c => c.Quizzes)
-                .HasForeignKey(q => q.CourseId)
+                .HasForeignKey(q => q.LectureId)
                 .OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<Quiz>()
-                .HasIndex(q => q.CourseId);
+                .HasIndex(q => q.LectureId);
             
             // Questionnaire composite key
             modelBuilder.Entity<Questionnaire>()

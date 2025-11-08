@@ -8,10 +8,10 @@ namespace Entities
     public class Quiz
     {
         public string Id { get; set; } = null!;
-        public string CourseId { get; set; } = null!;
-        public Course Course { get; set; } = null!;
+        public string Name { get; set; } = null!;
+        public string LectureId { get; set; } = null!;
 
-        public string NumberId { get; set; } = null!;
+        public Lecture Lecture { get; set; } = null!;
 
         public int TestTime { get; set; } = 0;
         public int AttemptCount { get; set; }   = 0;

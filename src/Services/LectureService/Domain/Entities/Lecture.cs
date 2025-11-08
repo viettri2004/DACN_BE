@@ -13,6 +13,7 @@ namespace Entities
         public string CourseId { get; set; } = null!;
         public Course Course { get; set; } = null!;
         public ICollection<Document> Documents { get; set; } = new List<Document>();
+        public ICollection<Quiz> Quizzes { get; set; } = new List<Quiz>();
         public ICollection<LectureVideo> LectureVideos { get; set; } = new List<LectureVideo>();
         public ICollection<Comment> Comments { get; set; } = new List<Comment>();
     }

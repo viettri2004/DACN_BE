@@ -3,6 +3,7 @@ using System;
 using Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace src.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251108073211_ChangeQuizToLecture")]
+    partial class ChangeQuizToLecture
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -84,6 +87,9 @@ namespace src.Migrations
                     b.Property<string>("LectureId")
                         .HasColumnType("text");
 
+                    b.Property<string>("LectureVideoId")
+                        .HasColumnType("text");
+
                     b.Property<int>("Rate")
                         .HasColumnType("integer");
 
@@ -98,6 +104,8 @@ namespace src.Migrations
                     b.HasIndex("EnrollmentId");
 
                     b.HasIndex("LectureId");
+
+                    b.HasIndex("LectureVideoId");
 
                     b.HasIndex("ReplyId");
 
@@ -251,21 +259,25 @@ namespace src.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("LectureId")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("Name")
-                        .IsRequired()
+                    b.Property<string>("ParentId")
                         .HasColumnType("text");
 
-                    b.Property<string>("VideoUrl")
-                        .IsRequired()
+                    b.Property<string>("ReplyId")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
 
                     b.HasIndex("LectureId");
+
+                    b.HasIndex("ParentId");
 
                     b.ToTable("LectureVideos");
                 });
@@ -366,7 +378,7 @@ namespace src.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("Name")
+                    b.Property<string>("NumberId")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -716,6 +728,10 @@ namespace src.Migrations
                         .WithMany("Comments")
                         .HasForeignKey("LectureId");
 
+                    b.HasOne("Entities.LectureVideo", null)
+                        .WithMany("Replies")
+                        .HasForeignKey("LectureVideoId");
+
                     b.HasOne("Entities.Comment", "Parent")
                         .WithMany("Replies")
                         .HasForeignKey("ReplyId")
@@ -813,7 +829,13 @@ namespace src.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Entities.Comment", "Parent")
+                        .WithMany()
+                        .HasForeignKey("ParentId");
+
                     b.Navigation("Lecture");
+
+                    b.Navigation("Parent");
                 });
 
             modelBuilder.Entity("Entities.Order", b =>
@@ -977,6 +999,11 @@ namespace src.Migrations
                     b.Navigation("LectureVideos");
 
                     b.Navigation("Quizzes");
+                });
+
+            modelBuilder.Entity("Entities.LectureVideo", b =>
+                {
+                    b.Navigation("Replies");
                 });
 
             modelBuilder.Entity("Entities.Order", b =>
