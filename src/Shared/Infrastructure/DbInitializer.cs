@@ -443,6 +443,7 @@ namespace Data.Seeding
             var newLectures = new List<Lecture>();
             var newLectureVideos = new List<LectureVideo>();
             var newQuizzes = new List<Quiz>();
+            var newDocuments = new List<Document>();
             
             foreach (var course in courses)
             {
@@ -469,6 +470,19 @@ namespace Data.Seeding
                         newLectureVideos.Add(lectureVideo);
                     }
 
+                    for (int k = 1; k <= 2; k++)
+                    {
+                        var document = new Document
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            Name = $"Tài liệu tham khảo {k}",
+                            LectureId = lecture.Id,
+                            Type = "pdf",
+                            DocumentNumber = k
+                        };
+                        newDocuments.Add(document);
+                    }
+
                     var quiz = new Quiz
                     {
                         Id = Guid.NewGuid().ToString(),
@@ -484,10 +498,11 @@ namespace Data.Seeding
             await _context.Lectures.AddRangeAsync(newLectures);
             await _context.LectureVideos.AddRangeAsync(newLectureVideos);
             await _context.Quizzes.AddRangeAsync(newQuizzes);
+            await _context.Documents.AddRangeAsync(newDocuments);
 
             await _context.SaveChangesAsync();
 
-            Console.WriteLine($"Seeded {newLectures.Count} lectures, {newLectureVideos.Count} videos, and {newQuizzes.Count} quizzes.");
+            Console.WriteLine($"Seeded {newLectures.Count} lectures, {newLectureVideos.Count} videos, {newQuizzes.Count} quizzes, and {newDocuments.Count} documents.");
         }
     }
 }
