@@ -43,6 +43,7 @@ namespace Data.Seeding
             // await SeedTagsAsync();
             // await SeedCourseTagsAsync();
             // await SeedEnrollmentsAndCommentsAsync();
+            await SeedCourseContentAsync();
 
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("Database seeding completed!");
@@ -422,6 +423,71 @@ namespace Data.Seeding
                 "Một khóa học tuyệt vời, mình sẽ giới thiệu cho bạn bè!"
             };
             return comments[random.Next(comments.Length)];
+        }
+
+        private async Task SeedCourseContentAsync()
+        {
+            if (await _context.Lectures.AnyAsync())
+            {
+                Console.WriteLine("Lectures, videos, and quizzes are already seeded.");
+                return;
+            }
+
+            var courses = await _context.Courses.ToListAsync();
+            if (!courses.Any())
+            {
+                Console.WriteLine("No courses found to seed content.");
+                return;
+            }
+
+            var newLectures = new List<Lecture>();
+            var newLectureVideos = new List<LectureVideo>();
+            var newQuizzes = new List<Quiz>();
+            
+            foreach (var course in courses)
+            {
+                for (int i = 1; i <= 6; i++)
+                {
+                    var lecture = new Lecture
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        Name = $"Chương {i}: Giới thiệu về chủ đề",
+                        Description = $"Nội dung chi tiết cho chương {i} của khóa học.",
+                        CourseId = course.Id
+                    };
+                    newLectures.Add(lecture);
+
+                    for (int j = 1; j <= 3; j++)
+                    {
+                        var lectureVideo = new LectureVideo
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            Name = $"Video {j}: Bài học phần {j}",
+                            VideoUrl = "https://www.youtube.com/watch?v=dQw4w9WgXcQ", // Placeholder
+                            LectureId = lecture.Id
+                        };
+                        newLectureVideos.Add(lectureVideo);
+                    }
+
+                    var quiz = new Quiz
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        Name = $"Bài kiểm tra cuối chương {i}",
+                        LectureId = lecture.Id,
+                        TestTime = 15,
+                        AttemptCount = 3
+                    };
+                    newQuizzes.Add(quiz);
+                }
+            }
+
+            await _context.Lectures.AddRangeAsync(newLectures);
+            await _context.LectureVideos.AddRangeAsync(newLectureVideos);
+            await _context.Quizzes.AddRangeAsync(newQuizzes);
+
+            await _context.SaveChangesAsync();
+
+            Console.WriteLine($"Seeded {newLectures.Count} lectures, {newLectureVideos.Count} videos, and {newQuizzes.Count} quizzes.");
         }
     }
 }

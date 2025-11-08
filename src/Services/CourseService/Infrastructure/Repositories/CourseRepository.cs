@@ -298,5 +298,34 @@ namespace CourseService.Infrastructure.Repositories
 
             return new ApiResponse("Success", _localizer["Success"].Value, courseDTOs, true);
         }
+
+        public async Task<ApiResponse> GetCourseContentAsync(string courseId)
+        {
+            var courseContent = await _context.Courses
+                .AsNoTracking()
+                .Where(c => c.Id == courseId)
+                .Select(c => new CourseContentDTO
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    Lectures = c.Lectures.Select(l => new LectureContentDTO
+                    {
+                        Id = l.Id,
+                        Name = l.Name,
+                        Description = l.Description,
+                        VideoNames = l.LectureVideos.Select(v => v.Name).ToList(),
+                        DocumentNames = l.Documents.Select(d => d.Name).ToList(),
+                        QuizNames = l.Quizzes.Select(q => q.Name).ToList()
+                    }).ToList()
+                })
+                .FirstOrDefaultAsync();
+
+            if (courseContent == null)
+            {
+                return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+            }
+
+            return new ApiResponse("Success", _localizer["Success"].Value, courseContent, true);
+        }
     }
 }
