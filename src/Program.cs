@@ -95,7 +95,8 @@ static void ConfigureDI(IServiceCollection services)
     services.AddScoped<DbSeeder>();
     services.AddScoped<CloudinaryService>();
     services.AddScoped<ILuceneSearchService, LuceneSearchService>();
-    services.AddScoped<IPaymentService, MoMoService>();    
+    services.AddScoped<IMomoService, MoMoService>();  
+    services.AddScoped<ISepayService, SepayService>();  
     //services.AddAutoMapper(typeof(Program));
     services.AddScoped<ICourseRepository, CourseRepository>();
     services.AddScoped<ICartRepository, CartRepository>();
