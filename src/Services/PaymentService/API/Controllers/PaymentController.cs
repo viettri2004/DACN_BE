@@ -1,17 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Data.Context;
-using Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using PaymentService.Application.DTOs;
 using PaymentService.Application.Interfaces;
+using Shared.Application.Extension;
+using src.Shared.Domain.Entities;
 
 namespace src.Services.PaymentService.API.Controllers
 {
@@ -19,78 +14,35 @@ namespace src.Services.PaymentService.API.Controllers
     [Route("api/[controller]")]
     public class PaymentController : ControllerBase
     {
+        private readonly IPaymentService _paymentService;
         private readonly IMomoService _momoService;
-        private readonly AppDbContext _context;
         private readonly ILogger<PaymentController> _logger;
-        private readonly ISepayService _paymentService;
-        private readonly BankConfig _bankConfig;
-        public PaymentController(IMomoService paymentService, AppDbContext context, ILogger<PaymentController> logger, ISepayService sepayService, IConfiguration configuration)
+        private readonly ISepayService _sepayService;
+
+        public PaymentController(
+            IPaymentService paymentService,
+            IMomoService momoService,
+            ILogger<PaymentController> logger,
+            ISepayService sepayService)
         {
-            _paymentService = sepayService;
+            _paymentService = paymentService;
+            _momoService = momoService;
             _logger = logger;
-            _momoService = paymentService;
-            _context = context;
-            _bankConfig = configuration.GetSection("Bank").Get<BankConfig>() ?? new BankConfig();
+            _sepayService = sepayService;
         }
 
         [Authorize]
         [HttpPost("momo/checkout")]
-        public async Task<IActionResult> CreatePayment([FromBody] CheckoutRequestDto checkoutRequest)
+        public async Task<ActionResult<ApiResponse>> CreateMoMoPayment([FromBody] CheckoutRequestDto checkoutRequest)
         {
-            var studentId = User.Claims.FirstOrDefault(c =>
-                c.Type == "id")?.Value;
-
-            if (studentId == null)
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(studentId))
             {
-                return Unauthorized();
+                return Unauthorized(new ApiResponse("Unauthorized", "User not authenticated", null, false));
             }
 
-            var courses = await _context.Courses
-                .Where(c => checkoutRequest.CourseIds.Contains(c.Id))
-                .ToListAsync();
-
-            var totalAmount = courses.Sum(c => c.Price);
-
-            var order = new Order
-            {
-                Id = Guid.NewGuid().ToString(),
-                StudentId = studentId,
-                TotalAmount = totalAmount,
-                CreatedAt = DateTime.UtcNow,
-                Status = "Pending",
-                MoMoRequestId = Guid.NewGuid().ToString() 
-            };
-
-            foreach (var course in courses)
-            {
-                _context.OrderItems.Add(new OrderItem
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    OrderId = order.Id,
-                    CourseId = course.Id,
-                    Price = course.Price,
-                    FinalPrice = course.Price 
-                });
-            }
-
-            await _context.Orders.AddAsync(order);
-            await _context.SaveChangesAsync();
-
-            try
-            {
-                var momoResponse = await _momoService.CreatePaymentRequestAsync(order);
-
-                if (momoResponse.resultCode == 0)
-                {
-                    return Ok(new { payUrl = momoResponse.payUrl });
-                }
-                return BadRequest(momoResponse.message);
-            }
-            catch (Exception ex)
-
-            {
-                return StatusCode(500, ex.Message);
-            }
+            var response = await _paymentService.CreateMoMoPaymentAsync(checkoutRequest, studentId);
+            return response.ToActionResult();
         }
 
         [HttpPost("momo/ipn")]
@@ -124,72 +76,19 @@ namespace src.Services.PaymentService.API.Controllers
                 return StatusCode(500, new { resultCode = 99, message = ex.Message });
             }
         }
+        
         [HttpPost("sepay/checkout-bank")]
-        [Authorize] 
-        public async Task<IActionResult> CreateBankCheckout([FromBody] CheckoutRequestDto checkoutRequest)
+        [Authorize]
+        public async Task<ActionResult<ApiResponse>> CreateBankPayment([FromBody] CheckoutRequestDto checkoutRequest)
         {
-            var studentId = User.Claims.FirstOrDefault(c =>
-                c.Type == "id")?.Value;
-
-            if (studentId == null)
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(studentId))
             {
-                return Unauthorized();
+                return Unauthorized(new ApiResponse("Unauthorized", "User not authenticated", null, false));
             }
 
-            if (string.IsNullOrEmpty(studentId)) return Unauthorized();
-
-            var courses = await _context.Courses
-                .Where(c => checkoutRequest.CourseIds.Contains(c.Id))
-                .ToListAsync();
-
-            var totalAmount = courses.Sum(c => c.Price);
-
-            var order = new Order
-            {
-                Id = Guid.NewGuid().ToString(), 
-                StudentId = studentId,
-                TotalAmount = totalAmount,
-                CreatedAt = DateTime.UtcNow,
-                Status = "Pending", 
-                PaymentMethod = "Sepay_MBBank",
-                MoMoRequestId = null! 
-            };
-
-            foreach (var course in courses)
-            {
-                _context.OrderItems.Add(new OrderItem
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    OrderId = order.Id,
-                    CourseId = course.Id,
-                    Price = course.Price,
-                    FinalPrice = course.Price
-                });
-            }
-
-            await _context.Orders.AddAsync(order);
-            await _context.SaveChangesAsync();
-
-            string vietQrPayload = VietQrHelper.GenerateVietQrPayload(
-                _bankConfig.AccountNumber,
-                _bankConfig.AccountName,
-                (long)order.TotalAmount,
-                order.Id
-            );
-
-            string qrCodeBase64 = QrCodeGenerator.GenerateQrCodeBase64(vietQrPayload);
-
-            return Ok(new
-            {
-                Message = "Vui lòng chuyển khoản để hoàn tất đơn hàng.",
-                OrderId = order.Id,
-                TotalAmount = order.TotalAmount,
-                BankName = _bankConfig.BankName,
-                AccountNumber = _bankConfig.AccountNumber,
-                AccountName = _bankConfig.AccountName,
-                PaymentContent = order.Id,
-                QrCodeBase64 = qrCodeBase64
-            });
+            var response = await _paymentService.CreateBankPaymentAsync(checkoutRequest, studentId);
+            return response.ToActionResult();
         }
 
         [HttpPost("sepay/webhook")]
@@ -200,7 +99,7 @@ namespace src.Services.PaymentService.API.Controllers
                 _logger.LogInformation("Nhận được Webhook từ Sepay, ID: {Id}, Code: {Code}, Amount: {Amount}",
                     request.Id, request.Code, request.TransferAmount);
 
-                await _paymentService.ProcessSepayWebhookAsync(request);
+                await _sepayService.ProcessSepayWebhookAsync(request);
 
                 return Ok(new { success = true });
             }
@@ -210,10 +109,5 @@ namespace src.Services.PaymentService.API.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
-
-    }
-    public class CheckoutRequestDto
-    {
-        public List<string> CourseIds { get; set; } = new List<string>();
     }
 }
