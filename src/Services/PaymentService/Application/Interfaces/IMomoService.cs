@@ -7,7 +7,7 @@ using PaymentService.Application.DTOs;
 
 namespace PaymentService.Application.Interfaces
 {
-    public interface IPaymentService
+    public interface IMomoService
     {
         Task<MomoCreateResponse> CreatePaymentRequestAsync(Order order);
         Task ProcessMoMoIpnAsync(MomoIpnRequest request);
