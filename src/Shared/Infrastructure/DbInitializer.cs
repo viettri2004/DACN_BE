@@ -354,7 +354,7 @@ namespace Data.Seeding
                             Id = Guid.NewGuid().ToString(),
                             StudentId = student.Id,
                             TotalAmount = course.Price,
-                            Status = true,
+                            Status = "Paid",
                             CreatedAt = DateTime.UtcNow.AddDays(-random.Next(5, 40)),
                             PaidAt = DateTime.UtcNow.AddDays(-random.Next(1, 5))
                         };

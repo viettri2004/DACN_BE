@@ -23,6 +23,7 @@ namespace Data.Context
         public DbSet<Comment> Comments { get; set; } = null!;
         public DbSet<Quiz> Quizzes { get; set; } = null!;
         public DbSet<Questionnaire> Questionnaires { get; set; } = null!;
+        public DbSet<PaymentTransaction> PaymentTransactions { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -68,7 +69,7 @@ namespace Data.Context
                     .HasColumnType("decimal(18,2)")
                     .IsRequired();
             });
-            // Student → Order
+            // Order
             modelBuilder.Entity<Order>(entity =>
             {
                 entity.HasKey(o => o.Id);
@@ -82,14 +83,22 @@ namespace Data.Context
                     .HasColumnType("decimal(18,2)")
                     .IsRequired();
 
-                entity.Property(o => o.Status).IsRequired();
+                entity.Property(o => o.Status)
+                    .IsRequired()
+                    .HasColumnType("text");
+
                 entity.Property(o => o.CreatedAt).IsRequired();
+
+                entity.Property(o => o.PaymentMethod).HasColumnType("text").IsRequired(false);
+                entity.Property(o => o.MoMoRequestId).HasColumnType("text").IsRequired(false);
+                entity.Property(o => o.PaidAt).IsRequired(false);
 
                 entity.HasIndex(o => o.StudentId);
                 entity.HasIndex(o => o.Status);
                 entity.HasIndex(o => o.CreatedAt);
             });
-            //OrderItem
+
+            // OrderItem
             modelBuilder.Entity<OrderItem>(entity =>
             {
                 entity.HasKey(oi => oi.Id);
@@ -114,6 +123,24 @@ namespace Data.Context
                     .HasColumnType("decimal(18,2)")
                     .IsRequired();
             });
+            modelBuilder.Entity<PaymentTransaction>(entity =>
+            {
+                entity.HasKey(pt => pt.Id);
+
+                entity.HasOne(pt => pt.Order)
+                      .WithMany(o => o.PaymentTransactions) 
+                      .HasForeignKey(pt => pt.OrderId)
+                      .OnDelete(DeleteBehavior.Cascade); 
+
+                entity.Property(pt => pt.Amount).HasColumnType("decimal(18,2)").IsRequired();
+                entity.Property(pt => pt.PaymentStatus).IsRequired();
+                entity.Property(pt => pt.GatewayResponse).IsRequired(false);
+
+                entity.HasIndex(pt => pt.OrderId);
+                entity.HasIndex(pt => pt.MoMoTransId).IsUnique(); 
+                entity.HasIndex(pt => pt.MoMoRequestId);
+            });
+
             //Enrollment
             modelBuilder.Entity<Enrollment>(entity =>
             {
