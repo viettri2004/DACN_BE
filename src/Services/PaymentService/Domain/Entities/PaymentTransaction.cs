@@ -9,8 +9,8 @@ namespace Entities
     {
         public string Id { get; set; } = null!;
         public string OrderId { get; set; } = null!;
-        public string MoMoTransId { get; set; } = null!;
-        public string MoMoRequestId { get; set; } = null!;
+        public string? GatewayTransactionId { get; set; }
+        public string? GatewayToken { get; set; }
         public decimal Amount { get; set; } 
         public string PaymentStatus { get; set; } = null!; 
         public DateTime TransactionDate { get; set; }

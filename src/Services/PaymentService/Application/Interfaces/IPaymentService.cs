@@ -8,5 +8,6 @@ namespace PaymentService.Application.Interfaces
     {
         Task<ApiResponse> CreateMoMoPaymentAsync(CheckoutRequestDto checkoutRequest, string studentId);
         Task<ApiResponse> CreateBankPaymentAsync(CheckoutRequestDto checkoutRequest, string studentId);
+        Task<ApiResponse> CreateVnPayPaymentAsync(CheckoutRequestDto checkoutRequest, string studentId);
     }
 }

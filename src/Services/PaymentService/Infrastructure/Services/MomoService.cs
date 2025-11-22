@@ -103,12 +103,12 @@ namespace PaymentService.Infrastructure.Services
             var transaction = new PaymentTransaction
             {
                 OrderId = order.Id,
-                MoMoTransId = request.transId.ToString(),
-                MoMoRequestId = request.requestId,
+                GatewayTransactionId = request.transId.ToString(),
+                GatewayToken = request.requestId,
                 Amount = request.amount,
                 PaymentStatus = request.resultCode == 0 ? "Success" : "Failed",
                 TransactionDate = DateTime.UtcNow,
-                GatewayResponse = JsonSerializer.Serialize(request),
+                GatewayResponse = "MoMo",
                 ErrorCode = request.resultCode.ToString()
             };
             await _context.PaymentTransactions.AddAsync(transaction);

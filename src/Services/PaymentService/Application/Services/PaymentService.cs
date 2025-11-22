@@ -14,15 +14,18 @@ namespace PaymentService.Application.Services
     {
         private readonly IPaymentRepository _paymentRepository;
         private readonly IMomoService _momoService;
+        private readonly IVnPayService _vnPayService;
         private readonly BankConfig _bankConfig;
 
         public PaymentService(
             IPaymentRepository paymentRepository,
             IMomoService momoService,
+            IVnPayService vnPayService,
             IConfiguration configuration)
         {
             _paymentRepository = paymentRepository;
             _momoService = momoService;
+            _vnPayService = vnPayService;
             _bankConfig = configuration.GetSection("Bank").Get<BankConfig>() ?? new BankConfig();
         }
 
@@ -31,6 +34,15 @@ namespace PaymentService.Application.Services
             try
             {
                 var courses = await _paymentRepository.GetCoursesByIdsAsync(checkoutRequest.CourseIds);
+
+                // Check if student already owns any of these courses
+                var existingEnrollments = await _paymentRepository.GetEnrollmentsByStudentAndCoursesAsync(studentId, checkoutRequest.CourseIds);
+                if (existingEnrollments.Any())
+                {
+                    var ownedCourseIds = existingEnrollments.Select(e => e.CourseId).ToList();
+                    return new ApiResponse("Conflict", "Bạn đã sở hữu một số khóa học trong đơn hàng này.", new { ownedCourses = ownedCourseIds }, false);
+                }
+
                 var totalAmount = courses.Sum(c => c.Price);
 
                 var order = new Order
@@ -76,6 +88,15 @@ namespace PaymentService.Application.Services
             try
             {
                 var courses = await _paymentRepository.GetCoursesByIdsAsync(checkoutRequest.CourseIds);
+
+                // Check if student already owns any of these courses
+                var existingEnrollments = await _paymentRepository.GetEnrollmentsByStudentAndCoursesAsync(studentId, checkoutRequest.CourseIds);
+                if (existingEnrollments.Any())
+                {
+                    var ownedCourseIds = existingEnrollments.Select(e => e.CourseId).ToList();
+                    return new ApiResponse("Conflict", "Bạn đã sở hữu một số khóa học trong đơn hàng này.", new { ownedCourses = ownedCourseIds }, false);
+                }
+
                 var totalAmount = courses.Sum(c => c.Price);
 
                 var order = new Order
@@ -124,6 +145,64 @@ namespace PaymentService.Application.Services
                 };
 
                 return new ApiResponse("Success", "Bank payment created successfully", responseData, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> CreateVnPayPaymentAsync(CheckoutRequestDto checkoutRequest, string studentId)
+        {
+            try
+            {
+                var courses = await _paymentRepository.GetCoursesByIdsAsync(checkoutRequest.CourseIds);
+
+                // Check if student already owns any of these courses
+                var existingEnrollments = await _paymentRepository.GetEnrollmentsByStudentAndCoursesAsync(studentId, checkoutRequest.CourseIds);
+                if (existingEnrollments.Any())
+                {
+                    var ownedCourseIds = existingEnrollments.Select(e => e.CourseId).ToList();
+                    return new ApiResponse("Conflict", "Bạn đã sở hữu một số khóa học trong đơn hàng này.", new { ownedCourses = ownedCourseIds }, false);
+                }
+
+                var totalAmount = courses.Sum(c => c.Price);
+
+                var order = new Order
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    StudentId = studentId,
+                    TotalAmount = totalAmount,
+                    CreatedAt = DateTime.UtcNow,
+                    Status = "Pending",
+                    PaymentMethod = "VnPay",
+                    MoMoRequestId = null!
+                };
+
+                var orderItems = courses.Select(course => new OrderItem
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    OrderId = order.Id,
+                    CourseId = course.Id,
+                    Price = course.Price,
+                    FinalPrice = course.Price
+                }).ToList();
+
+                await _paymentRepository.CreateOrderAsync(order);
+                await _paymentRepository.AddOrderItemsAsync(orderItems);
+                await _paymentRepository.SaveChangesAsync();
+
+                var vnPayRequest = new VnPayPaymentRequestModel
+                {
+                    OrderId = order.Id,
+                    Amount = order.TotalAmount,
+                    Description = $"Thanh toán cho đơn hàng {order.Id}",
+                    CreatedDate = order.CreatedAt
+                };
+
+                var payUrl = _vnPayService.CreatePaymentUrl(null, vnPayRequest);
+
+                return new ApiResponse("Success", "VnPay payment created successfully", new { payUrl }, true);
             }
             catch (Exception ex)
             {

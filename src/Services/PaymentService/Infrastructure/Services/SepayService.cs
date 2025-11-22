@@ -96,12 +96,12 @@ namespace PaymentService.Infrastructure.Services
             {
                 Id = Guid.NewGuid().ToString(),
                 OrderId = order.Id,
-                MoMoTransId = request.ReferenceCode,
-                MoMoRequestId = request.Id.ToString(),
+                GatewayTransactionId = request.ReferenceCode,
+                GatewayToken = request.Id.ToString(),
                 Amount = request.TransferAmount,
                 PaymentStatus = "Success",
                 TransactionDate = DateTime.UtcNow,
-                GatewayResponse = JsonSerializer.Serialize(request),
+                GatewayResponse = "Sepay",
                 ErrorCode = "0" 
             };
             await _context.PaymentTransactions.AddAsync(transaction);

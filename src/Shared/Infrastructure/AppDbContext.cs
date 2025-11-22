@@ -137,8 +137,8 @@ namespace Data.Context
                 entity.Property(pt => pt.GatewayResponse).IsRequired(false);
 
                 entity.HasIndex(pt => pt.OrderId);
-                entity.HasIndex(pt => pt.MoMoTransId).IsUnique(); 
-                entity.HasIndex(pt => pt.MoMoRequestId);
+                entity.HasIndex(pt => pt.GatewayTransactionId); 
+                entity.HasIndex(pt => pt.GatewayToken);
             });
 
             //Enrollment

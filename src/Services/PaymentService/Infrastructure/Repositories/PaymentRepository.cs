@@ -53,5 +53,30 @@ namespace PaymentService.Infrastructure.Repositories
                 .Where(oi => oi.OrderId == orderId)
                 .ToListAsync();
         }
+        public async Task AddTransactionAsync(PaymentTransaction transaction)
+        {
+            await _context.PaymentTransactions.AddAsync(transaction);
+        }
+
+        public async Task UpdateOrderStatusAsync(string orderId, string status, DateTime? paidAt)
+        {
+            var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == orderId);
+            if (order != null)
+            {
+                order.Status = status;
+                if (paidAt.HasValue)
+                {
+                    order.PaidAt = paidAt;
+                }
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task<List<Enrollment>> GetEnrollmentsByStudentAndCoursesAsync(string studentId, List<string> courseIds)
+        {
+            return await _context.Enrollments
+                .Where(e => e.StudentId == studentId && courseIds.Contains(e.CourseId) && e.Status == true)
+                .ToListAsync();
+        }
     }
 }

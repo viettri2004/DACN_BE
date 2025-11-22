@@ -98,6 +98,7 @@ static void ConfigureDI(IServiceCollection services)
     services.AddScoped<ILuceneSearchService, LuceneSearchService>();
     services.AddScoped<IMomoService, MoMoService>();
     services.AddScoped<ISepayService, SepayService>();
+    services.AddScoped<IVnPayService, VnPayService>();
     services.AddScoped<IPaymentRepository, PaymentRepository>();
     services.AddScoped<IPaymentService, PaymentService.Application.Services.PaymentService>();
     //services.AddAutoMapper(typeof(Program));

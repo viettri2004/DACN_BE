@@ -12,5 +12,8 @@ namespace PaymentService.Application.Interfaces
         Task SaveChangesAsync();
         Task<Order?> GetOrderByIdAsync(string orderId);
         Task<List<OrderItem>> GetOrderItemsByOrderIdAsync(string orderId);
+        Task AddTransactionAsync(PaymentTransaction transaction);
+        Task UpdateOrderStatusAsync(string orderId, string status, DateTime? paidAt);
+        Task<List<Enrollment>> GetEnrollmentsByStudentAndCoursesAsync(string studentId, List<string> courseIds);
     }
 }
