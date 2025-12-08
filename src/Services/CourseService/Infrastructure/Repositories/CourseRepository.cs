@@ -33,9 +33,9 @@ namespace CourseService.Infrastructure.Repositories
         {
             var query = _context.Courses.AsNoTracking();
 
-            if (!string.IsNullOrEmpty(queryParams.TagId))
+            if (queryParams.TagIds != null && queryParams.TagIds.Any())
             {
-                query = query.Where(c => c.CourseTags.Any(ct => ct.TagId == queryParams.TagId));
+                query = query.Where(c => c.CourseTags.Any(ct => queryParams.TagIds.Contains(ct.TagId)));
             }
 
             var allCoursesList = await query

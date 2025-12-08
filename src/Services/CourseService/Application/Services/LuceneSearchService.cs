@@ -130,15 +130,63 @@ namespace CourseService.Application.Services
 
                 var coursesFromDb = await coursesQuery.ToListAsync();
 
-                var orderedCourses = courseIds
-                    .Select(id => coursesFromDb.FirstOrDefault(c => c.Id == id))
-                    .Where(c => c != null)
-                    .Select(c => c!)
+                // Apply price filtering and create course objects with calculated prices
+                var coursesWithPrice = coursesFromDb.Select(c =>
+                {
+                    var calculatedPrice = CalculatePrice(c);
+                    return new
+                    {
+                        Course = c,
+                        Price = calculatedPrice
+                    };
+                }).AsQueryable();
+
+                // Apply price range filtering
+                if (searchDto.MinPrice.HasValue)
+                {
+                    coursesWithPrice = coursesWithPrice.Where(x => x.Price >= searchDto.MinPrice.Value);
+                }
+
+                if (searchDto.MaxPrice.HasValue)
+                {
+                    coursesWithPrice = coursesWithPrice.Where(x => x.Price <= searchDto.MaxPrice.Value);
+                }
+
+                // Apply sorting
+                switch (searchDto.SortBy?.ToLower())
+                {
+                    case "rating":
+                        coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.Enrollments.SelectMany(e => e.Comments).Any()
+                                                        ? x.Course.Enrollments.SelectMany(e => e.Comments).Average(cm => cm.Rate)
+                                                        : 0);
+                        break;
+                    case "newest":
+                        coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.CreateTime);
+                        break;
+                    case "priceasc":
+                        coursesWithPrice = coursesWithPrice.OrderBy(x => x.Price);
+                        break;
+                    case "pricedesc":
+                        coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Price);
+                        break;
+                    case "popularity":
+                    default:
+                        coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.Enrollments.Count);
+                        break;
+                }
+
+                var sortedCourses = coursesWithPrice.ToList();
+
+                // Apply pagination
+                var pagedSortedCourses = sortedCourses
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
                     .ToList();
 
-                var pagedCoursesData = orderedCourses.Select(course =>
+                var pagedCoursesData = pagedSortedCourses.Select(x =>
                 {
-                    var calculatedPrice = CalculatePrice(course);
+                    var course = x.Course;
+                    var calculatedPrice = x.Price;
                     var comments = (course.Enrollments ?? new List<Enrollment>())
                         .SelectMany(e => e.Comments ?? new List<Comment>())
                         .ToList();
@@ -170,7 +218,7 @@ namespace CourseService.Application.Services
                     Items = pagedCoursesData,
                     Page = page,
                     PageSize = pageSize,
-                    TotalCount = totalHits
+                    TotalCount = sortedCourses.Count
                 };
 
                 return new ApiResponse("Success", _localizer["Success"].Value, pagedResult, true);

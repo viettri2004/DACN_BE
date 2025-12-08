@@ -89,7 +89,6 @@ namespace PaymentService.Application.Services
             {
                 var courses = await _paymentRepository.GetCoursesByIdsAsync(checkoutRequest.CourseIds);
 
-                // Check if student already owns any of these courses
                 var existingEnrollments = await _paymentRepository.GetEnrollmentsByStudentAndCoursesAsync(studentId, checkoutRequest.CourseIds);
                 if (existingEnrollments.Any())
                 {
@@ -158,7 +157,6 @@ namespace PaymentService.Application.Services
             {
                 var courses = await _paymentRepository.GetCoursesByIdsAsync(checkoutRequest.CourseIds);
 
-                // Check if student already owns any of these courses
                 var existingEnrollments = await _paymentRepository.GetEnrollmentsByStudentAndCoursesAsync(studentId, checkoutRequest.CourseIds);
                 if (existingEnrollments.Any())
                 {
