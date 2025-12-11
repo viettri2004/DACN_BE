@@ -53,7 +53,7 @@ namespace CourseService.Application.Services
             _writer = new IndexWriter(_directory, indexConfig);
             _searcherManager = new SearcherManager(_writer, applyAllDeletes: true, null);
         }
-        public async Task<ApiResponse> SearchCoursesAsync(CourseSearchDTO searchDto)
+        public async Task<ApiResponse> SearchCoursesAsync(CourseSearchDTO searchDto, string studentId)
         {
             _searcherManager.MaybeRefreshBlocking();
             var searcher = _searcherManager.Acquire();
@@ -130,7 +130,16 @@ namespace CourseService.Application.Services
 
                 var coursesFromDb = await coursesQuery.ToListAsync();
 
-                // Apply price filtering and create course objects with calculated prices
+                if (!string.IsNullOrEmpty(studentId))
+                {
+                    var enrolledCourseIds = await _context.Enrollments
+                        .Where(e => e.StudentId == studentId && e.Status == true)
+                        .Select(e => e.CourseId)
+                        .ToListAsync();
+                    
+                    coursesFromDb = coursesFromDb.Where(c => !enrolledCourseIds.Contains(c.Id)).ToList();
+                }
+
                 var coursesWithPrice = coursesFromDb.Select(c =>
                 {
                     var calculatedPrice = CalculatePrice(c);
@@ -141,7 +150,6 @@ namespace CourseService.Application.Services
                     };
                 }).AsQueryable();
 
-                // Apply price range filtering
                 if (searchDto.MinPrice.HasValue)
                 {
                     coursesWithPrice = coursesWithPrice.Where(x => x.Price >= searchDto.MinPrice.Value);
@@ -152,7 +160,6 @@ namespace CourseService.Application.Services
                     coursesWithPrice = coursesWithPrice.Where(x => x.Price <= searchDto.MaxPrice.Value);
                 }
 
-                // Apply sorting
                 switch (searchDto.SortBy?.ToLower())
                 {
                     case "rating":
@@ -177,7 +184,6 @@ namespace CourseService.Application.Services
 
                 var sortedCourses = coursesWithPrice.ToList();
 
-                // Apply pagination
                 var pagedSortedCourses = sortedCourses
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)

@@ -10,7 +10,7 @@ namespace CourseService.Application.Interfaces
     
     public interface ILuceneSearchService : IDisposable
     {
-        Task<ApiResponse> SearchCoursesAsync(CourseSearchDTO searchParameters);
+        Task<ApiResponse> SearchCoursesAsync(CourseSearchDTO searchParameters, string studentId);
         Task IndexCourseAsync(Course course);
         Task DeleteCourseFromIndexAsync(string courseId);
         Task IndexAllCoursesAsync();

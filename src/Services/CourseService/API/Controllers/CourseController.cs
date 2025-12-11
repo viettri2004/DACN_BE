@@ -28,7 +28,12 @@ namespace CourseService.API.Controllers
         [HttpGet("filtered-courses")]
         public async Task<ActionResult<ApiResponse>> GetAllCourses([FromQuery] CourseQueryParameters queryParams)
         {
-            var response = await _courseRepository.GetCoursesAsync(queryParams);
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            }
+            var response = await _courseRepository.GetCoursesAsync(queryParams, studentId);
             return response.ToActionResult();
         }
 
@@ -92,7 +97,12 @@ namespace CourseService.API.Controllers
         [HttpGet("search")]
         public async Task<ActionResult<ApiResponse>> SearchCourses([FromQuery] CourseSearchDTO queryParams)
         {
-            var response = await _searchService.SearchCoursesAsync(queryParams);
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            }
+            var response = await _searchService.SearchCoursesAsync(queryParams, studentId);
             return response.ToActionResult();
         }   
 

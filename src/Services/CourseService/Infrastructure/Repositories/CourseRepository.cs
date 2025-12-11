@@ -29,7 +29,7 @@ namespace CourseService.Infrastructure.Repositories
             _cloudinaryService = cloudinaryService;
             _localizer = localizer;
         }
-        public async Task<ApiResponse> GetCoursesAsync(CourseQueryParameters queryParams)
+        public async Task<ApiResponse> GetCoursesAsync(CourseQueryParameters queryParams, string studentId)
         {
             var query = _context.Courses.AsNoTracking();
 
@@ -43,6 +43,16 @@ namespace CourseService.Infrastructure.Repositories
                 .Include(c => c.Enrollments)
                     .ThenInclude(e => e.Comments)
                 .ToListAsync();
+
+            if (!string.IsNullOrEmpty(studentId))
+            {
+                var enrolledCourseIds = await _context.Enrollments
+                    .Where(e => e.StudentId == studentId && e.Status == true)
+                    .Select(e => e.CourseId)
+                    .ToListAsync();
+                
+                allCoursesList = allCoursesList.Where(c => !enrolledCourseIds.Contains(c.Id)).ToList();
+            }
 
             var coursesWithPrice = allCoursesList.Select(c =>
             {
