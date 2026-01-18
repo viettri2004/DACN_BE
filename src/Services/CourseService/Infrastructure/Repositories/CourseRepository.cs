@@ -219,7 +219,7 @@ namespace CourseService.Infrastructure.Repositories
                         : 0,
                     TotalReviews = c.Enrollments.SelectMany(e => e.Comments).Count(),
                     TotalStudents = c.Enrollments.Count,
-                    TotalHours = 36,
+                    TotalHours = 0,
                     IsEnrolled = string.IsNullOrEmpty(studentId)
                                 ? false
                                 : c.Enrollments

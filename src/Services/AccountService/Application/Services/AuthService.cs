@@ -11,6 +11,8 @@ using Microsoft.Extensions.Localization;
 using src.Shared.Resources;
 using src.Shared.Domain.Entities;
 
+using Microsoft.Extensions.Options;
+
 namespace AccountService.Application.Services
 {
     public class AuthService : IAuthService
@@ -20,19 +22,25 @@ namespace AccountService.Application.Services
         private readonly ITokenService _tokenService;
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly IAccountRepository _accountRepository;
+        private readonly IGoogleAuthService _googleAuthService;
+        private readonly GoogleConfig _googleConfig;
 
         public AuthService(
             IAccountRepository accountRepository,
             UserManager<User> userManager,
             RoleManager<IdentityRole> roleManager,
             ITokenService tokenService,
-            IStringLocalizer<SharedResources> localizer)
+            IStringLocalizer<SharedResources> localizer,
+            IGoogleAuthService googleAuthService,
+            IOptions<GoogleConfig> googleConfig)
         {
             _accountRepository = accountRepository;
             _userManager = userManager;
             _roleManager = roleManager;
             _tokenService = tokenService;
             _localizer = localizer;
+            _googleAuthService = googleAuthService;
+            _googleConfig = googleConfig.Value;
         }
         public async Task<ApiResponse> Register(RegisterDTO RegisterDTO)
         {
@@ -51,25 +59,34 @@ namespace AccountService.Application.Services
             if (await _userManager.Users.AnyAsync(u => u.PhoneNumber == RegisterDTO.PhoneNumber))
                 return new ApiResponse("Conflict", _localizer["PhoneNumberAlreadyExists"].Value, null, false);
 
-            User user;
-            if (RegisterDTO.Role == "Student")
-                user = new Student
-                {
-                    UserName = RegisterDTO.UserName,
-                    Email = RegisterDTO.Email,
-                    FullName = RegisterDTO.FullName,
-                    PhoneNumber = RegisterDTO.PhoneNumber,
-                    IsBanned = false
-                };
-            else if (RegisterDTO.Role == "Instructor")
-                user = new Instructor
-                {
-                    UserName = RegisterDTO.UserName,
-                    Email = RegisterDTO.Email,
-                    FullName = RegisterDTO.FullName,
-                    PhoneNumber = RegisterDTO.PhoneNumber,
-                    IsBanned = false
-                };
+            User user = new Student
+            {
+                UserName = RegisterDTO.UserName,
+                Email = RegisterDTO.Email,
+                FullName = RegisterDTO.FullName,
+                PhoneNumber = RegisterDTO.PhoneNumber,
+                IsBanned = false
+            };
+
+
+            // if (RegisterDTO.Role == "Student")
+            //     user = new Student
+            //     {
+            //         UserName = RegisterDTO.UserName,
+            //         Email = RegisterDTO.Email,
+            //         FullName = RegisterDTO.FullName,
+            //         PhoneNumber = RegisterDTO.PhoneNumber,
+            //         IsBanned = false
+            //     };
+            // else if (RegisterDTO.Role == "Instructor")
+            //     user = new Instructor
+            //     {
+            //         UserName = RegisterDTO.UserName,
+            //         Email = RegisterDTO.Email,
+            //         FullName = RegisterDTO.FullName,
+            //         PhoneNumber = RegisterDTO.PhoneNumber,
+            //         IsBanned = false
+            //     };
             // else if (RegisterDTO.Role == "Admin")
             //     user = new Admin
             //     {
@@ -79,22 +96,22 @@ namespace AccountService.Application.Services
             //         PhoneNumber = RegisterDTO.PhoneNumber,
             //         IsBanned = false
             //     };
-            else
-            {
-                return new ApiResponse("BadRequest", _localizer["InvalidRole"].Value, null, false);
-            }
-            ;
+            // else
+            // {
+            //     return new ApiResponse("BadRequest", _localizer["InvalidRole"].Value, null, false);
+            // }
+            // ;
 
             var result = await _userManager.CreateAsync(user, RegisterDTO.Password);
             if (!result.Succeeded)
                 return new ApiResponse("BadRequest", string.Join("; ", result.Errors.Select(e => e.Description)), null, false);
 
-            if (!await _roleManager.RoleExistsAsync(RegisterDTO.Role))
-                await _roleManager.CreateAsync(new IdentityRole(RegisterDTO.Role));
+            // if (!await _roleManager.RoleExistsAsync("Student"))
+            //     await _roleManager.CreateAsync(new IdentityRole("Student"));
 
-            await _userManager.AddToRoleAsync(user, RegisterDTO.Role);
+            await _userManager.AddToRoleAsync(user, "Student");
 
-            return new ApiResponse("Created", _localizer["RegisterSuccess"].Value, new { user.Id, user.UserName, Role = RegisterDTO.Role }, true);
+            return new ApiResponse("Created", _localizer["RegisterSuccess"].Value, new { user.Id, user.UserName, Role = "Student" }, true);
         }
 
         public async Task<(ApiResponse response, string refreshToken)> LoginAsync(LoginDTO loginDTO)
@@ -126,18 +143,110 @@ namespace AccountService.Application.Services
             return (response, refreshToken);
         }
 
+        public async Task<(ApiResponse response, string refreshToken)> GoogleLoginAsync(string IdToken)
+        {
+            var googleUserInfo = await _googleAuthService.ValidateGoogleTokenAsync(IdToken);
+
+            if (googleUserInfo == null)
+            {
+                return (new ApiResponse("Unauthorized", _localizer["InvalidGoogleToken"].Value, null, false), "");
+            }
+
+            var existingUser = await _userManager.FindByEmailAsync(googleUserInfo.Email);
+
+            if (existingUser != null)
+            {
+                if (existingUser.IsBanned)
+                {
+                    return (new ApiResponse("Unauthorized", _localizer["AccountLocked"].Value, null, false), "");
+                }
+
+                var accessToken = await _tokenService.GenerateAccessTokenAsync(existingUser);
+                var refreshToken = _tokenService.GenerateRefreshToken();
+                await _tokenService.StoreRefreshTokenAsync(existingUser, refreshToken);
+
+                var response = new ApiResponse("Success", _localizer["LoginSuccess"].Value, new LoginResponseDTO
+                {
+                    Email = existingUser.Email ?? "",
+                    AvatarUrl = existingUser.AvatarUrl ?? "",
+                    FullName = existingUser.FullName,
+                    AccessToken = accessToken,
+                }, true);
+
+                return (response, refreshToken);
+            }
+            else
+            {
+                User newUser = new Student
+                {
+                    UserName = googleUserInfo.Email,
+                    Email = googleUserInfo.Email,
+                    FullName = googleUserInfo.Name,
+                    AvatarUrl = googleUserInfo.Picture,
+                    EmailConfirmed = googleUserInfo.EmailVerified,
+                    IsBanned = false
+                };
+                // if (role == "Instructor")
+                // {
+                //     newUser = new Instructor
+                //     {
+                //         UserName = googleUserInfo.Email,
+                //         Email = googleUserInfo.Email,
+                //         FullName = googleUserInfo.Name,
+                //         AvatarUrl = googleUserInfo.Picture,
+                //         EmailConfirmed = googleUserInfo.EmailVerified,
+                //         IsBanned = false
+                //     };
+                // }
+                // else
+                // {
+                //     newUser = new Student
+                //     {
+                //         UserName = googleUserInfo.Email,
+                //         Email = googleUserInfo.Email,
+                //         FullName = googleUserInfo.Name,
+                //         AvatarUrl = googleUserInfo.Picture,
+                //         EmailConfirmed = googleUserInfo.EmailVerified,
+                //         IsBanned = false
+                //     };
+                // }
+
+                var createResult = await _userManager.CreateAsync(newUser);
+                if (!createResult.Succeeded)
+                {
+                    return (new ApiResponse("BadRequest", string.Join("; ", createResult.Errors.Select(e => e.Description)), null, false), "");
+                }
+
+                await _userManager.AddToRoleAsync(newUser, "Student");
+
+                var accessToken = await _tokenService.GenerateAccessTokenAsync(newUser);
+                var refreshToken = _tokenService.GenerateRefreshToken();
+                await _tokenService.StoreRefreshTokenAsync(newUser, refreshToken);
+
+                var response = new ApiResponse("Success", _localizer["LoginSuccess"].Value, new LoginResponseDTO
+                {
+                    Email = newUser.Email ?? "",
+                    AvatarUrl = newUser.AvatarUrl ?? "",
+                    FullName = newUser.FullName,
+                    AccessToken = accessToken,
+                }, true);
+
+                return (response, refreshToken);
+            }
+        }
+
         public async Task<(ApiResponse response, string refreshToken)> RefreshToken(string refreshToken)
         {
             var user = await _accountRepository.GetUserFromRefreshToken(refreshToken);
             if (user == null)
-                return (new ApiResponse("Unauthorized", _localizer["InvalidRefreshToken"].Value, null, false),"");
+                return (new ApiResponse("Unauthorized", _localizer["InvalidRefreshToken"].Value, null, false), "");
 
             var newAccessToken = await _tokenService.GenerateAccessTokenAsync(user);
             var newRefreshToken = _tokenService.GenerateRefreshToken();
 
             await _tokenService.StoreRefreshTokenAsync(user, newRefreshToken);
 
-            return (new ApiResponse("Success",_localizer["RefreshTokenSuccess"].Value,new{AccessToken = newAccessToken,},true),newRefreshToken);
+            return (new ApiResponse("Success", _localizer["RefreshTokenSuccess"].Value, new { AccessToken = newAccessToken, }, true), newRefreshToken);
         }
 
         public async Task<ApiResponse> ResetPassword(string email, string newPassword)
@@ -161,5 +270,39 @@ namespace AccountService.Application.Services
 
         }
 
+        public async Task<(ApiResponse response, string refreshToken, string redirectUrl)> GoogleCallbackAsync(string code, string? state, string? savedState)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(state) || state != savedState)
+                {
+                    return (new ApiResponse("Error", "Invalid state (CSRF Protection)", null, false), "", _googleConfig.FrontendFailUrl);
+                }
+
+                var tokenResponse = await _googleAuthService.ExchangeCodeForTokenAsync(code);
+
+                if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.IdToken))
+                {
+                    return (new ApiResponse("Error", "Token exchange failed", null, false), "", _googleConfig.FrontendFailUrl);
+                }
+
+                var (response, refreshToken) = await GoogleLoginAsync(tokenResponse.IdToken);
+
+                if (response.Success)
+                {
+                    var accessToken = (response.Data as LoginResponseDTO)?.AccessToken ?? "";
+                    var redirectUrl = _googleConfig.FrontendSuccessUrl;
+                    var separator = redirectUrl.Contains("?") ? "&" : "?";
+
+                    return (response, refreshToken, $"{redirectUrl}{separator}accessToken={accessToken}");
+                }
+
+                return (response, "", _googleConfig.FrontendFailUrl);
+            }
+            catch (Exception)
+            {
+                return (new ApiResponse("Error", "An unexpected error occurred", null, false), "", _googleConfig.FrontendFailUrl);
+            }
+        }
     }
 }

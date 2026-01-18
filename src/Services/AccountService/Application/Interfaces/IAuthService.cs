@@ -9,10 +9,11 @@ namespace AccountService.Application.Interfaces
 {
     public interface IAuthService
     {
-        Task<ApiResponse> Register(RegisterDTO model);
+        Task<ApiResponse> Register(RegisterDTO registerDTO);
         Task<(ApiResponse response, string refreshToken)> LoginAsync(LoginDTO loginDTO);
+        Task<(ApiResponse response, string refreshToken)> GoogleLoginAsync(string IdToken);
         Task<(ApiResponse response, string refreshToken)> RefreshToken(string refreshToken);
         Task<ApiResponse> ResetPassword(string email, string newPassword);
-        // Task<ApiResponse> ChangePassword(int userId, ChangePasswordDTO dto);
+        Task<(ApiResponse response, string refreshToken, string redirectUrl)> GoogleCallbackAsync(string code, string? state, string? savedState);
     }
 }

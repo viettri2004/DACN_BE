@@ -11,6 +11,7 @@ using src.Shared.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Shared.Application.Extension;
 using AccountService.Infrastructure.Persistence.Repositories;
+using Microsoft.Extensions.Options;
 
 namespace src.Services.AccountService.API.Controllers
 {
@@ -23,19 +24,24 @@ namespace src.Services.AccountService.API.Controllers
         private readonly IEmailService _emailService;
         private readonly IOtpService _otpService;
         private readonly IAccountRepository _accountRepository;
+        private readonly IGoogleAuthService _googleAuthService;
 
         public AccountController(IAuthService accountService,
                                 IStringLocalizer<SharedResources> localizer,
                                 IEmailService emailService,
                                 IOtpService otpService,
-                                IAccountRepository accountRepository)
+                                IAccountRepository accountRepository,
+                                IGoogleAuthService googleAuthService)
         {
             _otpService = otpService;
             _authservice = accountService;
             _emailService = emailService;
             _localizer = localizer;
             _accountRepository = accountRepository;
+            _googleAuthService = googleAuthService;
         }
+
+
         [HttpPost("register")]
         public async Task<ActionResult<ApiResponse>> Register([FromBody] RegisterDTO registerDTO)
         {
@@ -53,7 +59,7 @@ namespace src.Services.AccountService.API.Controllers
                 var cookieOptions = new CookieOptions
                 {
                     HttpOnly = true,
-                    SameSite = SameSiteMode.Strict,
+                    SameSite = SameSiteMode.Lax,
                     Expires = DateTime.UtcNow.AddDays(14)
                 };
                 Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
@@ -79,7 +85,7 @@ namespace src.Services.AccountService.API.Controllers
                 var cookieOptions = new CookieOptions
                 {
                     HttpOnly = true,
-                    SameSite = SameSiteMode.Strict,
+                    SameSite = SameSiteMode.Lax,
                     Expires = DateTime.UtcNow.AddDays(14)
                 };
                 Response.Cookies.Append("refreshToken", newRefreshToken, cookieOptions);
@@ -88,7 +94,7 @@ namespace src.Services.AccountService.API.Controllers
             {
                 Response.Cookies.Delete("refreshToken");
             }
-            
+
             return response.ToActionResult();
         }
 
@@ -137,5 +143,64 @@ namespace src.Services.AccountService.API.Controllers
             return response.ToActionResult();
         }
 
+        [HttpGet("google-auth-url")]
+        public async Task<ActionResult<ApiResponse>> GetGoogleAuthUrl()
+        {
+            string state = Guid.NewGuid().ToString("N");
+
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                SameSite = SameSiteMode.Lax,
+                Expires = DateTime.UtcNow.AddMinutes(15) 
+            };
+            Response.Cookies.Append("google_auth_state", state, cookieOptions);
+
+            var url = await _googleAuthService.GetAuthorizationUrlAsync(state);
+
+            return Ok(new ApiResponse("Success", "Google auth URL generated.", url, true));
+        }
+
+        [HttpGet("google-callback")]
+        public async Task<IActionResult> GoogleCallback([FromQuery] string code, [FromQuery] string? state = null)
+        {
+            var savedState = Request.Cookies["google_auth_state"];
+
+            Response.Cookies.Delete("google_auth_state");
+
+            var (response, refreshToken, redirectUrl) = await _authservice.GoogleCallbackAsync(code, state, savedState);
+
+            if (!string.IsNullOrEmpty(refreshToken))    
+            {
+                var cookieOptions = new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Lax,
+                    Expires = DateTime.UtcNow.AddDays(14)
+                };
+                Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
+            }
+            return Redirect(redirectUrl);
+        }
+        
+        // [HttpPost("google-login")]
+        // public async Task<ActionResult<ApiResponse>> GoogleLogin([FromBody] GoogleAuthDTO googleAuthDTO)
+        // {
+        //     var (response, refreshToken) = await _authservice.GoogleLoginAsync(googleAuthDTO);
+
+        //     if (!string.IsNullOrEmpty(refreshToken))
+        //     {
+        //         var cookieOptions = new CookieOptions
+        //         {
+        //             HttpOnly = true,
+        //             SameSite = SameSiteMode.None,
+        //             Expires = DateTime.UtcNow.AddDays(14)
+        //         };
+        //         Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
+        //     }
+
+        //     return response.ToActionResult();
+        // }
     }
 }

@@ -68,11 +68,11 @@ namespace AccountService.Infrastructure.Persistence.Repositories
 
             var stats = new UserLearningStatsDTO
             {
-                CompletionProgress = 36,    
-                TotalHours = 36,            
-                TotalCertificates = 36,        
-                CurrentStreak = 36,            
-                AverageGivenRating = 36
+                CompletionProgress = 0,    
+                TotalHours = 0,            
+                TotalCertificates = 0,        
+                CurrentStreak = 0,            
+                AverageGivenRating = 0
             };
 
             var profileDto = new UserProfileDTO
@@ -87,10 +87,10 @@ namespace AccountService.Infrastructure.Persistence.Repositories
                 AvatarUrl = user.AvatarUrl ?? "",
 
                 Location = "Hồ Chí Minh, Việt Nam",
-                BirthDate = new DateTime(1363, 6, 03),
+                BirthDate = new DateTime(2004, 6, 13),
                 Gender = "Nam",
                 Experience = "Chưa cập nhật",
-                MemberSinceYear = 2036,
+                MemberSinceYear = 2025,
 
                 Stats = stats
             };

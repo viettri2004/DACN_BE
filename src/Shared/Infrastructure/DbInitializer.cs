@@ -66,55 +66,55 @@ namespace Data.Seeding
         /// <summary>
         /// Hàm này chỉ tạo các tài khoản Instructor cơ bản.
         /// </summary>
-        private async Task SeedInstructorsAsync()
-        {
-            if (await _context.Users.OfType<Instructor>().AnyAsync()) return;
+        // private async Task SeedInstructorsAsync()
+        // {
+        //     if (await _context.Users.OfType<Instructor>().AnyAsync()) return;
             
-            var instructorsToCreate = new List<RegisterDTO>
-            {
-                new() { UserName = "john_dev", Email = "john.dev@example.com", Password = "Password123@", FullName = "John Dev", PhoneNumber = "0901112231", Role = "Instructor" },
-                new() { UserName = "jane_data", Email = "jane.data@example.com", Password = "Password123@", FullName = "Jane Data", PhoneNumber = "0901112232", Role = "Instructor" },
-                new() { UserName = "mike_uiux", Email = "mike.uiux@example.com", Password = "Password123@", FullName = "Mike UI/UX", PhoneNumber = "0901112233", Role = "Instructor" },
-                new() { UserName = "emily_agile", Email = "emily.agile@example.com", Password = "Password123@", FullName = "Emily Agile", PhoneNumber = "0901112234", Role = "Instructor" },
-                new() { UserName = "david_sec", Email = "david.sec@example.com", Password = "Password123@", FullName = "David Security", PhoneNumber = "0901112235", Role = "Instructor" }
-            };
+        //     var instructorsToCreate = new List<RegisterDTO>
+        //     {
+        //         new() { UserName = "john_dev", Email = "john.dev@example.com", Password = "Password123@", FullName = "John Dev", PhoneNumber = "0901112231", Role = "Instructor" },
+        //         new() { UserName = "jane_data", Email = "jane.data@example.com", Password = "Password123@", FullName = "Jane Data", PhoneNumber = "0901112232", Role = "Instructor" },
+        //         new() { UserName = "mike_uiux", Email = "mike.uiux@example.com", Password = "Password123@", FullName = "Mike UI/UX", PhoneNumber = "0901112233", Role = "Instructor" },
+        //         new() { UserName = "emily_agile", Email = "emily.agile@example.com", Password = "Password123@", FullName = "Emily Agile", PhoneNumber = "0901112234", Role = "Instructor" },
+        //         new() { UserName = "david_sec", Email = "david.sec@example.com", Password = "Password123@", FullName = "David Security", PhoneNumber = "0901112235", Role = "Instructor" }
+        //     };
 
-            foreach (var dto in instructorsToCreate)
-            {
-                var result = await _accountService.Register(dto);
-                if (result.Success)
-                    Console.WriteLine($"Created instructor account: {dto.UserName}");
-                else
-                    Console.WriteLine($"Failed to create instructor {dto.UserName}: {result.Message}");
-            }
-        }
+        //     foreach (var dto in instructorsToCreate)
+        //     {
+        //         var result = await _accountService.Register(dto);
+        //         if (result.Success)
+        //             Console.WriteLine($"Created instructor account: {dto.UserName}");
+        //         else
+        //             Console.WriteLine($"Failed to create instructor {dto.UserName}: {result.Message}");
+        //     }
+        // }
 
         /// <summary>
         /// Hàm này chỉ tạo các tài khoản Student cơ bản.
         /// </summary>
-        private async Task SeedStudentsAsync()
-        {
-            if (await _context.Users.OfType<Student>().AnyAsync()) return;
+        // private async Task SeedStudentsAsync()
+        // {
+        //     if (await _context.Users.OfType<Student>().AnyAsync()) return;
 
-            for (int i = 1; i <= 10; i++)
-            {
-                var registerDto = new RegisterDTO
-                {
-                    UserName = $"student{i}",
-                    Email = $"student{i}@example.com",
-                    Password = "Password123@",
-                    FullName = $"Student {i}",
-                    PhoneNumber = $"09100000{i:D2}",
-                    Role = "Student"
-                };
+        //     for (int i = 1; i <= 10; i++)
+        //     {
+        //         var registerDto = new RegisterDTO
+        //         {
+        //             UserName = $"student{i}",
+        //             Email = $"student{i}@example.com",
+        //             Password = "Password123@",
+        //             FullName = $"Student {i}",
+        //             PhoneNumber = $"09100000{i:D2}",
+        //             Role = "Student"
+        //         };
 
-                var result = await _accountService.Register(registerDto);
-                if (result.Success)
-                    Console.WriteLine($"Created student account: {registerDto.UserName}");
-                else
-                    Console.WriteLine($"Failed to create student {registerDto.UserName}: {result.Message}");
-            }
-        }
+        //         var result = await _accountService.Register(registerDto);
+        //         if (result.Success)
+        //             Console.WriteLine($"Created student account: {registerDto.UserName}");
+        //         else
+        //             Console.WriteLine($"Failed to create student {registerDto.UserName}: {result.Message}");
+        //     }
+        // }
         
         // --- CÁC HÀM MỚI ĐỂ CẬP NHẬT USER CÓ SẴN ---
 

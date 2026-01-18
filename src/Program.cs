@@ -1,6 +1,8 @@
+using AccountService.Application.DTOs;
 using AccountService.Application.Interfaces;
 using AccountService.Application.Services;
 using AccountService.Infrastructure.Email;
+using AccountService.Infrastructure.Google;
 using AccountService.Infrastructure.Otp;
 using AccountService.Infrastructure.Persistence.Repositories;
 using CartService.Application.Interfaces;
@@ -55,7 +57,7 @@ if (string.IsNullOrEmpty(jwtSection["Issuer"]) ||
 
 ConfigureControllers(builder.Services);
 ConfigureCache(builder.Services, builder.Configuration);
-ConfigureDI(builder.Services);
+ConfigureDI(builder.Services, builder.Configuration);
 ConfigureLocalization(builder.Services, builder.Configuration);
 ConfigureSwagger(builder.Services);
 ConfigureIdentity(builder.Services);
@@ -89,10 +91,15 @@ static void ConfigureCache(IServiceCollection services, IConfiguration configura
     services.AddDistributedMemoryCache();
 
 }
-static void ConfigureDI(IServiceCollection services)
+static void ConfigureDI(IServiceCollection services, IConfiguration configuration)
 {
     services.AddHttpClient();
     services.AddSingleton(provider => new Cloudinary(Environment.GetEnvironmentVariable("CLOUDINARY_URL")));
+    
+    // Configure Google OAuth2
+    services.Configure<GoogleConfig>(configuration.GetSection("Google"));
+    services.AddScoped<IGoogleAuthService, GoogleAuthService>();
+    
     services.AddScoped<DbSeeder>();
     services.AddScoped<CloudinaryService>();
     services.AddScoped<ILuceneSearchService, LuceneSearchService>();

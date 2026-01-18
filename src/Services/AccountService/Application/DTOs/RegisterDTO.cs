@@ -26,6 +26,6 @@ namespace AccountService.Application.DTOs
         [Required]
         [RegularExpression(@"^\d{10}$", ErrorMessage = "Phone number must be 10 digits.")]
         public string PhoneNumber { get; set; } = null!;
-        public string Role { get; set; } = "Student";
+        // public string Role { get; set; } = "Student";
     }
 }
