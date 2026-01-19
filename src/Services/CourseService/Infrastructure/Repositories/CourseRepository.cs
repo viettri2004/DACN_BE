@@ -164,6 +164,22 @@ namespace CourseService.Infrastructure.Repositories
                     CreateTime = DateTime.UtcNow
                 };
 
+                if (createCourseDTO.TagIds != null && createCourseDTO.TagIds.Any())
+                {
+                    foreach (var tagId in createCourseDTO.TagIds)
+                    {
+                        var tag = await _context.Tags.FindAsync(tagId);
+                        if (tag != null)
+                        {
+                            newCourse.CourseTags.Add(new CourseTag
+                            {
+                                CourseId = newCourse.Id,
+                                TagId = tagId
+                            });
+                        }
+                    }
+                }
+
                 _context.Courses.Add(newCourse);
                 await _context.SaveChangesAsync();
                 
