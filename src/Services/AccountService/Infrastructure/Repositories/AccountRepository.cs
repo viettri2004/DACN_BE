@@ -97,5 +97,40 @@ namespace AccountService.Infrastructure.Persistence.Repositories
 
             return new ApiResponse("Success", _localizer["Success"].Value, profileDto, true);
         }
+
+        public async Task<bool> CreateInstructorRequestAsync(InstructorRequest request)
+        {
+            _context.InstructorRequests.Add(request);
+            return await _context.SaveChangesAsync() > 0;
+        }
+
+        public async Task<List<InstructorRequest>> GetPendingInstructorRequestsAsync()
+        {
+            return await _context.InstructorRequests
+                .Include(r => r.User)
+                .Where(r => r.Status == "Pending")
+                .ToListAsync();
+        }
+
+        public async Task<InstructorRequest?> GetInstructorRequestByIdAsync(int id)
+        {
+            return await _context.InstructorRequests
+                .Include(r => r.User)
+                .FirstOrDefaultAsync(r => r.Id == id);
+        }
+
+        public async Task UpdateInstructorRequestAsync(InstructorRequest request)
+        {
+            _context.InstructorRequests.Update(request);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task UpdateUserDiscriminatorToInstructor(string userId)
+        {
+            // Assuming table name is AspNetUsers and discriminator column is UserType
+            // Using parameterized query for safety
+            var sql = "UPDATE \"AspNetUsers\" SET \"UserType\" = 'Instructor' WHERE \"Id\" = {0}";
+            await _context.Database.ExecuteSqlRawAsync(sql, userId);
+        }
     }
 }

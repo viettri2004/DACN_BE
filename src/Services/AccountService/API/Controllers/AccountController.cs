@@ -183,7 +183,7 @@ namespace src.Services.AccountService.API.Controllers
             }
             return Redirect(redirectUrl);
         }
-        
+
         // [HttpPost("google-login")]
         // public async Task<ActionResult<ApiResponse>> GoogleLogin([FromBody] GoogleAuthDTO googleAuthDTO)
         // {
@@ -202,5 +202,54 @@ namespace src.Services.AccountService.API.Controllers
 
         //     return response.ToActionResult();
         // }
+
+        [HttpPost("request-instructor")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse>> RequestInstructor([FromBody] InstructorRequestDTO dto)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+             if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+
+            var response = await _authservice.RequestInstructor(userId, dto);
+            return response.ToActionResult();
+        }
+
+        [HttpGet("instructor-requests")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<ApiResponse>> GetInstructorRequests()
+        {
+            var response = await _authservice.GetInstructorRequests();
+            return response.ToActionResult();
+        }
+
+        [HttpPost("approve-instructor-request")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<ApiResponse>> ApproveInstructorRequest([FromBody] ApproveRequestDTO dto)
+        {
+            var adminId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+             if (string.IsNullOrEmpty(adminId))
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+
+            var response = await _authservice.ApproveInstructorRequest(dto.RequestId, adminId, dto.IsApproved);
+            return response.ToActionResult();
+        }
+
+        [HttpPost("logout")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse>> Logout()
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            }
+
+            var response = await _authservice.LogoutAsync(userId);
+
+            Response.Cookies.Delete("refreshToken");
+
+            return response.ToActionResult();
+        }
     }
 }

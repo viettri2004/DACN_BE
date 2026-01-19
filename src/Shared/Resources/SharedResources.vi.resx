@@ -313,4 +313,52 @@
     <value>Giỏ hàng của bạn đang trống</value>
     <comment />
   </data>
+  <data name="InvalidGoogleToken" xml:space="preserve">
+    <value>Google Token không hợp lệ</value>
+    <comment/>
+  </data>
+  <data name="InvalidStateCSRF" xml:space="preserve">
+    <value>Trạng thái không hợp lệ (Bảo vệ CSRF)</value>
+    <comment/>
+  </data>
+  <data name="TokenExchangeFailed" xml:space="preserve">
+    <value>Trao đổi token thất bại</value>
+    <comment/>
+  </data>
+  <data name="UnexpectedError" xml:space="preserve">
+    <value>Đã xảy ra lỗi không mong muốn</value>
+    <comment/>
+  </data>
+  <data name="UserAlreadyInstructor" xml:space="preserve">
+    <value>Người dùng đã là Giảng viên</value>
+    <comment/>
+  </data>
+  <data name="RequestSubmittedSuccess" xml:space="preserve">
+    <value>Gửi yêu cầu thành công</value>
+    <comment/>
+  </data>
+  <data name="RequestSubmitFailed" xml:space="preserve">
+    <value>Gửi yêu cầu thất bại</value>
+    <comment/>
+  </data>
+  <data name="PendingRequestsRetrieved" xml:space="preserve">
+    <value>Đã lấy danh sách yêu cầu chờ xử lý</value>
+    <comment/>
+  </data>
+  <data name="RequestNotFound" xml:space="preserve">
+    <value>Không tìm thấy yêu cầu</value>
+    <comment/>
+  </data>
+  <data name="RequestNotPending" xml:space="preserve">
+    <value>Yêu cầu không ở trạng thái chờ xử lý</value>
+    <comment/>
+  </data>
+  <data name="RequestApproved" xml:space="preserve">
+    <value>Yêu cầu đã được chấp nhận</value>
+    <comment/>
+  </data>
+  <data name="RequestRejected" xml:space="preserve">
+    <value>Yêu cầu đã bị từ chối</value>
+    <comment/>
+  </data>
 </root>

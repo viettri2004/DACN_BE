@@ -3,6 +3,7 @@ using System;
 using Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace src.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260118071341_AddInstructorRequest")]
+    partial class AddInstructorRequest
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -236,26 +239,14 @@ namespace src.Migrations
                     b.Property<string>("AdminId")
                         .HasColumnType("text");
 
-                    b.Property<string>("Certificate")
-                        .HasColumnType("text");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Experience")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Expertise")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Introduction")
+                    b.Property<string>("Evidence")
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("SocialLinks")
-                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()

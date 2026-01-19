@@ -313,4 +313,52 @@
     <value>Your cart is empty</value>
     <comment />
   </data>
+  <data name="InvalidGoogleToken" xml:space="preserve">
+    <value>Invalid Google Token</value>
+    <comment/>
+  </data>
+  <data name="InvalidStateCSRF" xml:space="preserve">
+    <value>Invalid state (CSRF Protection)</value>
+    <comment/>
+  </data>
+  <data name="TokenExchangeFailed" xml:space="preserve">
+    <value>Token exchange failed</value>
+    <comment/>
+  </data>
+  <data name="UnexpectedError" xml:space="preserve">
+    <value>An unexpected error occurred</value>
+    <comment/>
+  </data>
+  <data name="UserAlreadyInstructor" xml:space="preserve">
+    <value>User is already an Instructor</value>
+    <comment/>
+  </data>
+  <data name="RequestSubmittedSuccess" xml:space="preserve">
+    <value>Request submitted successfully</value>
+    <comment/>
+  </data>
+  <data name="RequestSubmitFailed" xml:space="preserve">
+    <value>Failed to submit request</value>
+    <comment/>
+  </data>
+  <data name="PendingRequestsRetrieved" xml:space="preserve">
+    <value>Pending requests retrieved</value>
+    <comment/>
+  </data>
+  <data name="RequestNotFound" xml:space="preserve">
+    <value>Request not found</value>
+    <comment/>
+  </data>
+  <data name="RequestNotPending" xml:space="preserve">
+    <value>Request is not pending</value>
+    <comment/>
+  </data>
+  <data name="RequestApproved" xml:space="preserve">
+    <value>Request approved</value>
+    <comment/>
+  </data>
+  <data name="RequestRejected" xml:space="preserve">
+    <value>Request rejected</value>
+    <comment/>
+  </data>
 </root>

@@ -24,6 +24,7 @@ namespace Data.Context
         public DbSet<Quiz> Quizzes { get; set; } = null!;
         public DbSet<Questionnaire> Questionnaires { get; set; } = null!;
         public DbSet<PaymentTransaction> PaymentTransactions { get; set; } = null!;
+        public DbSet<InstructorRequest> InstructorRequests { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

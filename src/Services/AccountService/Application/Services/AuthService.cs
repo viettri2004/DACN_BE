@@ -276,14 +276,14 @@ namespace AccountService.Application.Services
             {
                 if (string.IsNullOrEmpty(state) || state != savedState)
                 {
-                    return (new ApiResponse("Error", "Invalid state (CSRF Protection)", null, false), "", _googleConfig.FrontendFailUrl);
+                    return (new ApiResponse("Error", _localizer["InvalidStateCSRF"].Value, null, false), "", _googleConfig.FrontendFailUrl);
                 }
 
                 var tokenResponse = await _googleAuthService.ExchangeCodeForTokenAsync(code);
 
                 if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.IdToken))
                 {
-                    return (new ApiResponse("Error", "Token exchange failed", null, false), "", _googleConfig.FrontendFailUrl);
+                    return (new ApiResponse("Error", _localizer["TokenExchangeFailed"].Value, null, false), "", _googleConfig.FrontendFailUrl);
                 }
 
                 var (response, refreshToken) = await GoogleLoginAsync(tokenResponse.IdToken);
@@ -301,8 +301,104 @@ namespace AccountService.Application.Services
             }
             catch (Exception)
             {
-                return (new ApiResponse("Error", "An unexpected error occurred", null, false), "", _googleConfig.FrontendFailUrl);
+                return (new ApiResponse("Error", _localizer["UnexpectedError"].Value, null, false), "", _googleConfig.FrontendFailUrl);
             }
+        }
+
+        public async Task<ApiResponse> RequestInstructor(string userId, InstructorRequestDTO requestDTO)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+                 return new ApiResponse("NotFound", _localizer["UserNotFound"].Value, null, false);
+            
+            if (await _userManager.IsInRoleAsync(user, "Instructor"))
+                 return new ApiResponse("Conflict", _localizer["UserAlreadyInstructor"].Value, null, false);
+            
+            var request = new InstructorRequest
+            {
+                UserId = userId,
+                Experience = requestDTO.Experience,
+                Expertise = requestDTO.Expertise,
+                Certificate = requestDTO.Certificate,
+                Introduction = requestDTO.Introduction,
+                SocialLinks = requestDTO.SocialLinks,
+                Status = "Pending",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var result = await _accountRepository.CreateInstructorRequestAsync(request);
+            if (result)
+                return new ApiResponse("Created", _localizer["RequestSubmittedSuccess"].Value, null, true);
+            
+            return new ApiResponse("Error", _localizer["RequestSubmitFailed"].Value, null, false);
+        }
+
+        public async Task<ApiResponse> GetInstructorRequests()
+        {
+            var requests = await _accountRepository.GetPendingInstructorRequestsAsync();
+            var dtos = requests.Select(r => new InstructorRequestViewDTO
+            {
+                Id = r.Id,
+                UserId = r.UserId,
+                FullName = r.User.FullName,
+                Email = r.User.Email ?? "",
+                Experience = r.Experience,
+                Expertise = r.Expertise,
+                Certificate = r.Certificate,
+                Introduction = r.Introduction,
+                SocialLinks = r.SocialLinks,
+                Status = r.Status,
+                CreatedAt = r.CreatedAt,
+                ProcessedAt = r.ProcessedAt
+            }).ToList();
+
+            return new ApiResponse("Success", _localizer["PendingRequestsRetrieved"].Value, dtos, true);
+        }
+
+        public async Task<ApiResponse> ApproveInstructorRequest(int requestId, string adminId, bool isApproved)
+        {
+            var request = await _accountRepository.GetInstructorRequestByIdAsync(requestId);
+            if (request == null)
+                return new ApiResponse("NotFound", _localizer["RequestNotFound"].Value, null, false);
+            
+            if (request.Status != "Pending")
+                 return new ApiResponse("Conflict", _localizer["RequestNotPending"].Value, null, false);
+
+            request.AdminId = adminId;
+            request.ProcessedAt = DateTime.UtcNow;
+            
+            if (isApproved)
+            {
+                request.Status = "Approved";
+                
+                var user = request.User;
+                if (!await _roleManager.RoleExistsAsync("Instructor"))
+                    await _roleManager.CreateAsync(new IdentityRole("Instructor"));
+                
+                await _userManager.AddToRoleAsync(user, "Instructor");
+                await _accountRepository.UpdateUserDiscriminatorToInstructor(user.Id);
+            }
+            else
+            {
+                request.Status = "Rejected";
+            }
+
+            await _accountRepository.UpdateInstructorRequestAsync(request);
+            
+            return new ApiResponse("Success", isApproved ? _localizer["RequestApproved"].Value : _localizer["RequestRejected"].Value, null, true);
+        }
+
+        public async Task<ApiResponse> LogoutAsync(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                return new ApiResponse("NotFound", _localizer["UserNotFound"].Value, null, false);
+            }
+
+            await _tokenService.RemoveRefreshTokenAsync(user);
+
+            return new ApiResponse("Success", _localizer["LogoutSuccess"].Value, null, true);
         }
     }
 }

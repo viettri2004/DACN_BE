@@ -15,5 +15,9 @@ namespace AccountService.Application.Interfaces
         Task<(ApiResponse response, string refreshToken)> RefreshToken(string refreshToken);
         Task<ApiResponse> ResetPassword(string email, string newPassword);
         Task<(ApiResponse response, string refreshToken, string redirectUrl)> GoogleCallbackAsync(string code, string? state, string? savedState);
+        Task<ApiResponse> RequestInstructor(string userId, InstructorRequestDTO requestDTO);
+        Task<ApiResponse> GetInstructorRequests();
+        Task<ApiResponse> ApproveInstructorRequest(int requestId, string adminId, bool isApproved);
+        Task<ApiResponse> LogoutAsync(string userId);
     }
 }
