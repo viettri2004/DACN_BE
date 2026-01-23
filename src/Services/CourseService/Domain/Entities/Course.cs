@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
+using CourseService.Domain.Enums;
 
 namespace Entities
 {
@@ -14,6 +15,7 @@ namespace Entities
         public string Name { get; set; } = null!;
         public decimal Price { get; set; }
         public string Description { get; set; } = null!;
+        public CourseStatus Status { get; set; } = CourseStatus.Private;
         public DateTime CreateTime { get; set; } = DateTime.UtcNow;
         public string InstructorId { get; set; } = null!;
         public Instructor Instructor { get; set; } = null!;

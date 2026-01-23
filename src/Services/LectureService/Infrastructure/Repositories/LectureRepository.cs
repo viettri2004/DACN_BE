@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Data.Context;
 using Entities;
+using LectureService.Application.DTOs;
 using LectureService.Application.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +27,35 @@ namespace LectureService.Infrastructure.Repositories
             _context = context;
             _cloudinaryService = cloudinaryService;
             _localizer = localizer;
+        }
+
+        public async Task<ApiResponse> CreateLectureAsync(CreateLectureDTO createLectureDTO)
+        {
+            try
+            {
+                var course = await _context.Courses.FindAsync(createLectureDTO.CourseId);
+                if (course == null)
+                {
+                    return new ApiResponse("NotFound", "Course not found", null, false);
+                }
+
+                var lecture = new Lecture
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Name = createLectureDTO.Name,
+                    Description = createLectureDTO.Description,
+                    CourseId = createLectureDTO.CourseId
+                };
+
+                _context.Lectures.Add(lecture);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse("Success", _localizer["Success"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
         }
 
         public async Task<ApiResponse> AddVideoToLectureAsync(string lectureId, IFormFile videoFile)

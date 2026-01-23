@@ -51,6 +51,19 @@ namespace CourseService.API.Controllers
             return response.ToActionResult();
         }
 
+        [Authorize(Policy = "Instructor")]
+        [HttpGet("instructor-courses")]
+        public async Task<ActionResult<ApiResponse>> GetInstructorCourses()
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            }
+            var response = await _courseRepository.GetCoursesByInstructorAsync(instructorId);
+            return response.ToActionResult();
+        }
+
         [HttpGet("course-detail/{courseId}")]
         public async Task<ActionResult<ApiResponse>> GetCourseDetail([FromRoute] string courseId)
         {

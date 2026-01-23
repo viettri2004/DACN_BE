@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using AutoMapper;
 using CourseService.Application.DTOs;
 using CourseService.Application.Interfaces;
+using CourseService.Domain.Enums;
 using Data.Context;
 using Entities;
 using Microsoft.EntityFrameworkCore;
@@ -31,7 +32,8 @@ namespace CourseService.Infrastructure.Repositories
         }
         public async Task<ApiResponse> GetCoursesAsync(CourseQueryParameters queryParams, string studentId)
         {
-            var query = _context.Courses.AsNoTracking();
+            var query = _context.Courses.AsNoTracking()
+                .Where(c => c.Status == CourseStatus.Public);
 
             if (queryParams.TagIds != null && queryParams.TagIds.Any())
             {
@@ -120,7 +122,8 @@ namespace CourseService.Infrastructure.Repositories
                 OriginalPrice = x.Course.Price,
                 Price = x.Price,
                 IsBestseller = x.Course.Enrollments.Count > 5,
-                TotalHours = 25
+                TotalHours = 25,
+                // Status = x.Course.Status.ToString()
             }).ToList();
 
             foreach (var course in pagedCoursesData)
@@ -161,7 +164,8 @@ namespace CourseService.Infrastructure.Repositories
                     ImageUrl = imageUrl,
                     ImagePublicId = imagePublicId,
                     InstructorId = instructorId,
-                    CreateTime = DateTime.UtcNow
+                    CreateTime = DateTime.UtcNow,
+                    Status = CourseStatus.Private
                 };
 
                 if (createCourseDTO.TagIds != null && createCourseDTO.TagIds.Any())
@@ -239,7 +243,8 @@ namespace CourseService.Infrastructure.Repositories
                     IsEnrolled = string.IsNullOrEmpty(studentId)
                                 ? false
                                 : c.Enrollments
-                                    .Any(e => e.StudentId == studentId && e.Status == true)
+                                    .Any(e => e.StudentId == studentId && e.Status == true),
+                    // Status = c.Status.ToString()
                 })
                 .FirstOrDefaultAsync();
 
@@ -289,7 +294,8 @@ namespace CourseService.Infrastructure.Repositories
                                 .SelectMany(e => e.Comments)
                                 .Average(cm => cm.Rate)
                             : 0,
-                    Price = c.Price
+                    Price = c.Price,
+                    // Status = c.Status.ToString()
                 })
                 .Take(5)
                 .ToListAsync();
@@ -317,7 +323,37 @@ namespace CourseService.Infrastructure.Repositories
                         : 0,
                     Price = e.Order.OrderItems
                         .Where(oi => oi.CourseId == e.Course.Id)
-                        .Sum(oi => (decimal?)oi.Price) ?? 0
+                        .Sum(oi => (decimal?)oi.Price) ?? 0,
+                    // Status = e.Course.Status.ToString()
+                })
+                .ToListAsync();
+
+            if (courseDTOs.Count == 0)
+                return new ApiResponse("Success", _localizer["NoData"].Value, null, true);
+
+            return new ApiResponse("Success", _localizer["Success"].Value, courseDTOs, true);
+        }
+
+        public async Task<ApiResponse> GetCoursesByInstructorAsync(string instructorId)
+        {
+            var courseDTOs = await _context.Courses
+                .AsNoTracking()
+                .Where(c => c.InstructorId == instructorId)
+                .OrderByDescending(c => c.CreateTime)
+                .Select(c => new InstructorCourseListDTO
+                {
+                    Id = c.Id,
+                    ImageUrl = c.ImageUrl,
+                    Name = c.Name,
+                    Rating = c.Enrollments
+                        .SelectMany(e => e.Comments)
+                        .Any()
+                            ? c.Enrollments
+                                .SelectMany(e => e.Comments)
+                                .Average(cm => cm.Rate)
+                            : 0,
+                    Price = c.Price,
+                    Status = c.Status.ToString()
                 })
                 .ToListAsync();
 
@@ -336,6 +372,7 @@ namespace CourseService.Infrastructure.Repositories
                 {
                     Id = c.Id,
                     Name = c.Name,
+                    // Status = c.Status.ToString(),
                     Lectures = c.Lectures.Select(l => new LectureContentDTO
                     {
                         Id = l.Id,

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CourseService.Application.DTOs;
 using CourseService.Application.Interfaces;
+using CourseService.Domain.Enums;
 using Data.Context;
 using Entities;
 using Lucene.Net.Analysis.Standard;
@@ -123,7 +124,7 @@ namespace CourseService.Application.Services
 
                 var coursesQuery = _context.Courses
                     .AsNoTracking()
-                    .Where(c => courseIds.Contains(c.Id))
+                    .Where(c => courseIds.Contains(c.Id) && c.Status == CourseStatus.Public)
                     .Include(c => c.Instructor)
                     .Include(c => c.Enrollments)
                         .ThenInclude(e => e.Comments);
@@ -210,7 +211,8 @@ namespace CourseService.Application.Services
                         OriginalPrice = course.Price,
                         Price = calculatedPrice,
                         IsBestseller = (course.Enrollments?.Count ?? 0) > 5,
-                        TotalHours = 25
+                        TotalHours = 25,
+                        // Status = course.Status.ToString()
                     };
 
                     if (dto.Price == dto.OriginalPrice)
