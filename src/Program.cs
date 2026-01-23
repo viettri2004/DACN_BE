@@ -15,6 +15,8 @@ using Data.Context;
 using Data.Seeding;
 using DotNetEnv;
 using Entities;
+using LectureService.Application.Interfaces;
+using LectureService.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
@@ -110,6 +112,7 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     services.AddScoped<IPaymentService, PaymentService.Application.Services.PaymentService>();
     //services.AddAutoMapper(typeof(Program));
     services.AddScoped<ICourseRepository, CourseRepository>();
+    services.AddScoped<ILectureRepository, LectureRepository>();
     services.AddScoped<ICartRepository, CartRepository>();
     services.AddScoped<ITagRepository, TagRepository>();
     services.AddScoped<ITokenService, TokenService>();
