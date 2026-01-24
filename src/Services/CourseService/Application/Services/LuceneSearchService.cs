@@ -124,7 +124,7 @@ namespace CourseService.Application.Services
 
                 var coursesQuery = _context.Courses
                     .AsNoTracking()
-                    .Where(c => courseIds.Contains(c.Id) && c.Status == CourseStatus.Public)
+                    .Where(c => courseIds.Contains(c.Id) && c.Status != CourseStatus.Private)
                     .Include(c => c.Instructor)
                     .Include(c => c.Enrollments)
                         .ThenInclude(e => e.Comments);

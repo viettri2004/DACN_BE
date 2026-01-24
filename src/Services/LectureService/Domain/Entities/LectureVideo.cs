@@ -9,7 +9,8 @@ namespace Entities
     {
         public string Id { get; set; } = null!;
         public string Name { get; set; } = null!;
-        public string VideoUrl { get; set; } = null!;
+        public string VideoUrl   { get; set; } = null!;
+        public string? PublicId { get; set; }
         public string LectureId { get; set; } = null!;
         public Lecture Lecture { get; set; } = null!;
     }

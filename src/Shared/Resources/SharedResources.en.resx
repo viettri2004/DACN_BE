@@ -361,4 +361,28 @@
     <value>Request rejected</value>
     <comment/>
   </data>
+  <data name="LectureUpdated" xml:space="preserve">
+    <value>Lecture updated successfully</value>
+    <comment/>
+  </data>
+  <data name="LectureDeleted" xml:space="preserve">
+    <value>Lecture deleted successfully</value>
+    <comment/>
+  </data>
+  <data name="VideoUpdated" xml:space="preserve">
+    <value>Video updated successfully</value>
+    <comment/>
+  </data>
+  <data name="VideoDeleted" xml:space="preserve">
+    <value>Video deleted successfully</value>
+    <comment/>
+  </data>
+  <data name="LectureCreated" xml:space="preserve">
+    <value>Lecture created successfully</value>
+    <comment/>
+  </data>
+  <data name="VideoAdded" xml:space="preserve">
+    <value>Video added successfully</value>
+    <comment/>
+  </data>
 </root>

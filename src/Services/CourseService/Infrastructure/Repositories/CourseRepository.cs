@@ -33,7 +33,7 @@ namespace CourseService.Infrastructure.Repositories
         public async Task<ApiResponse> GetCoursesAsync(CourseQueryParameters queryParams, string studentId)
         {
             var query = _context.Courses.AsNoTracking()
-                .Where(c => c.Status == CourseStatus.Public);
+                .Where(c => c.Status != CourseStatus.Private);      
 
             if (queryParams.TagIds != null && queryParams.TagIds.Any())
             {
@@ -378,7 +378,11 @@ namespace CourseService.Infrastructure.Repositories
                         Id = l.Id,
                         Name = l.Name,
                         Description = l.Description,
-                        VideoNames = l.LectureVideos.Select(v => v.Name).ToList(),
+                        Videos = l.LectureVideos.Select(v => new VideoContentDTO
+                        {
+                            Id = v.Id,
+                            Name = v.Name,
+                        }).ToList(),
                         DocumentNames = l.Documents.Select(d => d.Name).ToList(),
                         QuizNames = l.Quizzes.Select(q => q.Name).ToList()
                     }).ToList()

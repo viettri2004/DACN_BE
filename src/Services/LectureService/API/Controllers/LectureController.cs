@@ -32,10 +32,50 @@ namespace LectureService.API.Controllers
         }
 
         [Authorize(Policy = "Instructor")]
+        [HttpPut("update-lecture/{lectureId}")]
+        public async Task<ActionResult<ApiResponse>> UpdateLecture([FromRoute] string lectureId, [FromBody] UpdateLectureDTO updateLectureDTO)
+        {
+            var response = await _lectureRepository.UpdateLectureAsync(lectureId, updateLectureDTO);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpDelete("delete-lecture/{lectureId}")]
+        public async Task<ActionResult<ApiResponse>> DeleteLecture([FromRoute] string lectureId)
+        {
+            var response = await _lectureRepository.DeleteLectureAsync(lectureId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
         [HttpPost("add-video/{lectureId}")]
         public async Task<ActionResult<ApiResponse>> AddVideo([FromRoute] string lectureId, IFormFile videoFile)
         {
             var response = await _lectureRepository.AddVideoToLectureAsync(lectureId, videoFile);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpPut("update-video/{videoId}")]
+        public async Task<ActionResult<ApiResponse>> UpdateVideo([FromRoute] string videoId, [FromForm] string name, [FromForm] IFormFile? videoFile)
+        {
+            var response = await _lectureRepository.UpdateVideoAsync(videoId, name, videoFile);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpDelete("delete-video/{videoId}")]
+        public async Task<ActionResult<ApiResponse>> DeleteVideo([FromRoute] string videoId)
+        {
+            var response = await _lectureRepository.DeleteVideoAsync(videoId);
+            return response.ToActionResult();
+        }
+
+        [Authorize]
+        [HttpGet("get-video/{videoId}")]
+        public async Task<ActionResult<ApiResponse>> GetVideoById([FromRoute] string videoId)
+        {
+            var response = await _lectureRepository.GetVideoByIdAsync(videoId);
             return response.ToActionResult();
         }
     }

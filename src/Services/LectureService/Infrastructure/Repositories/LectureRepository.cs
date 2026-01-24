@@ -47,10 +47,7 @@ namespace LectureService.Infrastructure.Repositories
                     CourseId = createLectureDTO.CourseId
                 };
 
-                _context.Lectures.Add(lecture);
-                await _context.SaveChangesAsync();
-
-                return new ApiResponse("Success", _localizer["Success"].Value, null, true);
+                return new ApiResponse("Success", _localizer["LectureCreated"].Value, lecture.Id, true);
             }
             catch (Exception ex)
             {
@@ -80,13 +77,177 @@ namespace LectureService.Infrastructure.Repositories
                     Id = Guid.NewGuid().ToString(),
                     Name = videoFile.FileName,
                     VideoUrl = videoUrl,
+                    PublicId = publicId,
                     LectureId = lectureId
                 };
 
                 _context.LectureVideos.Add(lectureVideo);
                 await _context.SaveChangesAsync();
 
-                return new ApiResponse("Success", _localizer["Success"].Value, null, true);
+                return new ApiResponse("Success", _localizer["VideoAdded"].Value, lectureVideo.Id, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+        public async Task<ApiResponse> GetVideoByIdAsync(string videoId)
+        {
+            try
+            {
+                var lectureVideo = await _context.LectureVideos.AsNoTracking()
+                    .Where(v => v.Id == videoId)
+                    .Select(v => new LectureVideoDTO
+                    {
+                        Name = v.Name,
+                        VideoUrl = v.VideoUrl
+                    })
+                    .FirstOrDefaultAsync();
+                if (lectureVideo == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                return new ApiResponse("Success", _localizer["Success"].Value, lectureVideo, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> UpdateLectureAsync(string lectureId, UpdateLectureDTO updateLectureDTO)
+        {
+            try
+            {
+                var lecture = await _context.Lectures.FindAsync(lectureId);
+                if (lecture == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                lecture.Name = updateLectureDTO.Name;
+                lecture.Description = updateLectureDTO.Description;
+
+                _context.Lectures.Update(lecture);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse("Success", _localizer["LectureUpdated"].Value, lecture.Id, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> DeleteLectureAsync(string lectureId)
+        {
+            try
+            {
+                var lecture = await _context.Lectures
+                    .Include(l => l.LectureVideos)
+                    .FirstOrDefaultAsync(l => l.Id == lectureId);
+
+                if (lecture == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                foreach (var video in lecture.LectureVideos)
+                {
+                    if (!string.IsNullOrEmpty(video.PublicId))
+                    {
+                        try
+                        {
+                            await _cloudinaryService.DeleteVideoAsync(video.PublicId);
+                        }
+                        catch
+                        {
+                            // Continue deleting other videos and the lecture even if one video deletion fails
+                            // Ideally log this
+                        }
+                    }
+                }
+
+                _context.Lectures.Remove(lecture);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse("Success", _localizer["LectureDeleted"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> UpdateVideoAsync(string videoId, string name, IFormFile? videoFile)
+        {
+            try
+            {
+                var video = await _context.LectureVideos.FindAsync(videoId);
+                if (video == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                video.Name = name;
+
+                if (videoFile != null && videoFile.Length > 0)
+                {
+                    if (!string.IsNullOrEmpty(video.PublicId))
+                    {
+                        try
+                        {
+                            await _cloudinaryService.DeleteVideoAsync(video.PublicId);
+                        }
+                        catch
+                        {
+                            // Log and continue
+                        }
+                    }
+
+                    var (videoUrl, publicId) = await _cloudinaryService.UploadVideoAsync(videoFile);
+                    video.VideoUrl = videoUrl;
+                    video.PublicId = publicId;
+                }
+
+                _context.LectureVideos.Update(video);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse("Success", _localizer["VideoUpdated"].Value, video.Id, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> DeleteVideoAsync(string videoId)
+        {
+            try
+            {
+                var video = await _context.LectureVideos.FindAsync(videoId);
+                if (video == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                if (!string.IsNullOrEmpty(video.PublicId))
+                {
+                     try
+                     {
+                         await _cloudinaryService.DeleteVideoAsync(video.PublicId);
+                     }
+                     catch
+                     {
+                         // Log and continue
+                     }
+                }
+
+                _context.LectureVideos.Remove(video);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse("Success", _localizer["VideoDeleted"].Value, null, true);
             }
             catch (Exception ex)
             {

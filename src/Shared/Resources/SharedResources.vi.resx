@@ -361,4 +361,28 @@
     <value>Yêu cầu đã bị từ chối</value>
     <comment/>
   </data>
+  <data name="LectureUpdated" xml:space="preserve">
+    <value>Cập nhật bài giảng thành công</value>
+    <comment/>
+  </data>
+  <data name="LectureDeleted" xml:space="preserve">
+    <value>Xóa bài giảng thành công</value>
+    <comment/>
+  </data>
+  <data name="VideoUpdated" xml:space="preserve">
+    <value>Cập nhật video thành công</value>
+    <comment/>
+  </data>
+  <data name="VideoDeleted" xml:space="preserve">
+    <value>Xóa video thành công</value>
+    <comment/>
+  </data>
+  <data name="LectureCreated" xml:space="preserve">
+    <value>Tạo bài giảng thành công</value>
+    <comment/>
+  </data>
+  <data name="VideoAdded" xml:space="preserve">
+    <value>Thêm video thành công</value>
+    <comment/>
+  </data>
 </root>
