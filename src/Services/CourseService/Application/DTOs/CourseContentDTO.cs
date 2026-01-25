@@ -16,7 +16,7 @@ namespace CourseService.Application.DTOs
         public string Description { get; set; } = string.Empty;
         public int DisplayOrder { get; set; }
         public IEnumerable<VideoContentDTO> Videos { get; set; } = new List<VideoContentDTO>();
-        public IEnumerable<string> DocumentNames { get; set; } = new List<string>();
+        public IEnumerable<DocumentContentDTO> Documents { get; set; } = new List<DocumentContentDTO>();
         public IEnumerable<string> QuizNames { get; set; } = new List<string>();
     }
     public class VideoContentDTO
@@ -24,5 +24,11 @@ namespace CourseService.Application.DTOs
         public string Id { get; set; } = null!;
         public string Name { get; set; } = null!;
         public double Duration { get; set; }
+    }
+    public class DocumentContentDTO
+    {
+        public string Id { get; set; } = null!;
+        public int DisplayOrder { get; set; }
+        public string Name { get; set; } = null!;
     }
 }

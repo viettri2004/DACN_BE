@@ -12,7 +12,8 @@ namespace Entities
         public string Id { get; set; } = null!;
         public string LectureId { get; set; } = null!;
         public Lecture Lecture { get; set; } = null!;
-        public int DocumentNumber { get; set; } = 1;
+        public string Url { get; set; } = string.Empty;
+        public string PublicId { get; set; } = string.Empty;
 
         [Required]
         public string Name { get; set; } = null!; 

@@ -106,7 +106,18 @@ namespace LectureService.Infrastructure.Repositories
                     return new ApiResponse("BadRequest", _localizer["VideoFileEmpty"].Value, null, false);
                 }
 
+                var allowedExtensions = new[] { ".mp4", ".avi", ".mov", ".wmv", ".flv", ".mkv" };
+                var extension = System.IO.Path.GetExtension(videoFile.FileName).ToLowerInvariant();
+                if (!allowedExtensions.Contains(extension))
+                {
+                    return new ApiResponse("BadRequest", _localizer["InvalidFileType"].Value, null, false);
+                }
+
                 var (videoUrl, publicId, duration) = await _cloudinaryService.UploadVideoAsync(videoFile);
+
+                var maxDisplayOrder = await _context.LectureVideos
+                    .Where(v => v.LectureId == lectureId)
+                    .MaxAsync(v => (int?)v.DisplayOrder) ?? 0;
 
                 var lectureVideo = new LectureVideo
                 {
@@ -115,6 +126,7 @@ namespace LectureService.Infrastructure.Repositories
                     VideoUrl = videoUrl,
                     PublicId = publicId,
                     Duration = duration,
+                    DisplayOrder = maxDisplayOrder + 1,
                     LectureId = lectureId
                 };
 
@@ -128,11 +140,11 @@ namespace LectureService.Infrastructure.Repositories
                 return new ApiResponse("Error", ex.Message, null, false);
             }
         }
-        public async Task<ApiResponse> UpdateLectureOrdersAsync(List<LectureOrderDTO> lectureOrders, string instructorId)
+        public async Task<ApiResponse> UpdateLectureOrdersAsync(List<UpdateOrderDTO> lectureOrders, string instructorId)
         {
             try
             {
-                var lectureIds = lectureOrders.Select(x => x.LectureId).ToList();
+                var lectureIds = lectureOrders.Select(x => x.Id).ToList();
                 
                 var lectures = await _context.Lectures
                     .Include(l => l.Course)
@@ -151,7 +163,7 @@ namespace LectureService.Infrastructure.Repositories
                          return new ApiResponse("Forbidden", _localizer["ForbiddenUpdateLecture"].Value, null, false);
                     }
 
-                    var newOrder = lectureOrders.First(x => x.LectureId == lecture.Id).DisplayOrder;
+                    var newOrder = lectureOrders.First(x => x.Id == lecture.Id).DisplayOrder;
                     lecture.DisplayOrder = newOrder;
                 }
 
@@ -163,6 +175,45 @@ namespace LectureService.Infrastructure.Repositories
             catch (Exception ex)
             {
                  return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> UpdateVideoOrdersAsync(List<UpdateOrderDTO> videoOrders, string instructorId)
+        {
+            try
+            {
+                var videoIds = videoOrders.Select(x => x.Id).ToList();
+
+                var videos = await _context.LectureVideos
+                    .Include(v => v.Lecture)
+                    .ThenInclude(l => l.Course)
+                    .Where(v => videoIds.Contains(v.Id))
+                    .ToListAsync();
+
+                if (videos.Count != videoIds.Count)
+                {
+                    return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                foreach (var video in videos)
+                {
+                    if (video.Lecture.Course.InstructorId != instructorId)
+                    {
+                        return new ApiResponse("Forbidden", _localizer["ForbiddenUpdateVideo"].Value, null, false);
+                    }
+
+                    var newOrder = videoOrders.First(x => x.Id == video.Id).DisplayOrder;
+                    video.DisplayOrder = newOrder;
+                }
+
+                _context.LectureVideos.UpdateRange(videos);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse("Success", _localizer["VideoUpdated"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
             }
         }
 
@@ -185,6 +236,56 @@ namespace LectureService.Infrastructure.Repositories
                 }
 
                 return new ApiResponse("Success", _localizer["Success"].Value, lectureVideo, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> AddDocumentToLectureAsync(string lectureId, IFormFile documentFile, string instructorId)
+        {
+            try
+            {
+                var lecture = await _context.Lectures.Include(l => l.Course).FirstOrDefaultAsync(l => l.Id == lectureId);
+                if (lecture == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                if (lecture.Course.InstructorId != instructorId)
+                {
+                    return new ApiResponse("Forbidden", _localizer["ForbiddenUpdateLecture"].Value, null, false);
+                }
+
+                if (documentFile == null || documentFile.Length == 0)
+                {
+                    return new ApiResponse("BadRequest", _localizer["DocumentFileEmpty"].Value, null, false);
+                }
+
+                var allowedExtensions = new[] { ".pdf", ".doc", ".docx" };
+                var extension = System.IO.Path.GetExtension(documentFile.FileName).ToLowerInvariant();
+                if (!allowedExtensions.Contains(extension))
+                {
+                    return new ApiResponse("BadRequest", _localizer["InvalidFileType"].Value, null, false);
+                }
+
+                var (docUrl, publicId) = await _cloudinaryService.UploadDocumentAsync(documentFile);
+
+                var document = new Document
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Name = documentFile.FileName,
+                    Url = docUrl,
+                    PublicId = publicId,
+                    Type = System.IO.Path.GetExtension(documentFile.FileName),
+                    LectureId = lectureId
+                };
+
+                _context.Documents.Add(document);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse("Success", _localizer["DocumentAdded"].Value, document.Id, true);
             }
             catch (Exception ex)
             {
@@ -227,6 +328,7 @@ namespace LectureService.Infrastructure.Repositories
             {
                 var lecture = await _context.Lectures
                     .Include(l => l.LectureVideos)
+                    .Include(l => l.Documents)
                     .Include(l => l.Course)
                     .FirstOrDefaultAsync(l => l.Id == lectureId);
 
@@ -254,11 +356,126 @@ namespace LectureService.Infrastructure.Repositories
                         }
                     }
                 }
+                foreach (var document in lecture.Documents)
+                {
+                    if (!string.IsNullOrEmpty(document.PublicId))
+                    {
+                        try
+                        {
+                            await _cloudinaryService.DeleteDocumentAsync(document.PublicId);
+                        }
+                        catch
+                        {
+
+                        }
+                    }
+                }
 
                 _context.Lectures.Remove(lecture);
                 await _context.SaveChangesAsync();
 
                 return new ApiResponse("Success", _localizer["LectureDeleted"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> DeleteDocumentAsync(string documentId, string instructorId)
+        {
+            try
+            {
+                var document = await _context.Documents
+                    .Include(d => d.Lecture)
+                    .ThenInclude(l => l.Course)
+                    .FirstOrDefaultAsync(d => d.Id == documentId);
+
+                if (document == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                if (document.Lecture.Course.InstructorId != instructorId)
+                {
+                    return new ApiResponse("Forbidden", _localizer["ForbiddenUpdateLecture"].Value, null, false);
+                }
+
+                if (!string.IsNullOrEmpty(document.PublicId))
+                {
+                    try
+                    {
+                        await _cloudinaryService.DeleteDocumentAsync(document.PublicId);
+                    }
+                    catch
+                    {
+                        
+                    }
+                }
+
+                _context.Documents.Remove(document);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse("Success", _localizer["DocumentDeleted"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> UpdateDocumentAsync(string documentId, string name, IFormFile? documentFile, string instructorId)
+        {
+            try
+            {
+                var document = await _context.Documents
+                    .Include(d => d.Lecture)
+                    .ThenInclude(l => l.Course)
+                    .FirstOrDefaultAsync(d => d.Id == documentId);
+
+                if (document == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                if (document.Lecture.Course.InstructorId != instructorId)
+                {
+                    return new ApiResponse("Forbidden", _localizer["ForbiddenUpdateLecture"].Value, null, false);
+                }
+
+                document.Name = name;
+
+                if (documentFile != null && documentFile.Length > 0)
+                {
+                    var allowedExtensions = new[] { ".pdf", ".doc", ".docx" };
+                    var extension = System.IO.Path.GetExtension(documentFile.FileName).ToLowerInvariant();
+                    if (!allowedExtensions.Contains(extension))
+                    {
+                        return new ApiResponse("BadRequest", _localizer["InvalidFileType"].Value, null, false);
+                    }
+
+                    if (!string.IsNullOrEmpty(document.PublicId))
+                    {
+                        try
+                        {
+                            await _cloudinaryService.DeleteDocumentAsync(document.PublicId);
+                        }
+                        catch
+                        {
+                            
+                        }
+                    }
+
+                    var (docUrl, publicId) = await _cloudinaryService.UploadDocumentAsync(documentFile);
+                    document.Url = docUrl;
+                    document.PublicId = publicId;
+                    document.Type = extension;
+                }
+
+                _context.Documents.Update(document);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse("Success", _localizer["DocumentUpdated"].Value, document.Id, true);
             }
             catch (Exception ex)
             {
@@ -289,6 +506,13 @@ namespace LectureService.Infrastructure.Repositories
 
                 if (videoFile != null && videoFile.Length > 0)
                 {
+                    var allowedExtensions = new[] { ".mp4", ".avi", ".mov", ".wmv", ".flv", ".mkv" };
+                    var extension = System.IO.Path.GetExtension(videoFile.FileName).ToLowerInvariant();
+                    if (!allowedExtensions.Contains(extension))
+                    {
+                        return new ApiResponse("BadRequest", _localizer["InvalidFileType"].Value, null, false);
+                    }
+
                     if (!string.IsNullOrEmpty(video.PublicId))
                     {
                         try

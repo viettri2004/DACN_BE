@@ -55,7 +55,7 @@ namespace LectureService.API.Controllers
 
         [Authorize(Policy = "Instructor")]
         [HttpPatch("update-orders")]
-        public async Task<ActionResult<ApiResponse>> UpdateLectureOrders([FromBody] List<LectureOrderDTO> lectureOrders)
+        public async Task<ActionResult<ApiResponse>> UpdateLectureOrders([FromBody] List<UpdateOrderDTO> lectureOrders)
         {
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
@@ -93,6 +93,46 @@ namespace LectureService.API.Controllers
         }
 
         [Authorize(Policy = "Instructor")]
+        [HttpPut("update-document/{documentId}")]
+        public async Task<ActionResult<ApiResponse>> UpdateDocument([FromRoute] string documentId, [FromForm] UpdateLectureVideoDTO updateDocumentDTO)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            // Reusing UpdateLectureVideoDTO for name and file properties
+            var response = await _lectureRepository.UpdateDocumentAsync(documentId, updateDocumentDTO.Name, updateDocumentDTO.VideoFile, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpDelete("delete-document/{documentId}")]
+        public async Task<ActionResult<ApiResponse>> DeleteDocument([FromRoute] string documentId)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _lectureRepository.DeleteDocumentAsync(documentId, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpPut("update-video-orders")]
+        public async Task<ActionResult<ApiResponse>> UpdateVideoOrders([FromBody] List<UpdateOrderDTO> videoOrders)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _lectureRepository.UpdateVideoOrdersAsync(videoOrders, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
         [HttpPut("update-video/{videoId}")]
         public async Task<ActionResult<ApiResponse>> UpdateVideo([FromRoute] string videoId, [FromForm] UpdateLectureVideoDTO updateLectureVideoDTO)
         {
@@ -118,6 +158,19 @@ namespace LectureService.API.Controllers
             return response.ToActionResult();
         }
 
+        [Authorize(Policy = "Instructor")]
+        [HttpPost("add-document/{lectureId}")]
+        public async Task<ActionResult<ApiResponse>> AddDocument([FromRoute] string lectureId, IFormFile documentFile)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _lectureRepository.AddDocumentToLectureAsync(lectureId, documentFile, instructorId);
+            return response.ToActionResult();
+        }
+        
         [Authorize]
         [HttpGet("get-video/{videoId}")]
         public async Task<ActionResult<ApiResponse>> GetVideoById([FromRoute] string videoId)

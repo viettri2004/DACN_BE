@@ -421,4 +421,24 @@
     <value>Video file is empty</value>
     <comment/>
   </data>
+  <data name="DocumentFileEmpty" xml:space="preserve">
+    <value>Document file is empty</value>
+    <comment/>
+  </data>
+  <data name="DocumentAdded" xml:space="preserve">
+    <value>Document added successfully</value>
+    <comment/>
+  </data>
+  <data name="DocumentDeleted" xml:space="preserve">
+    <value>Document deleted successfully</value>
+    <comment/>
+  </data>
+  <data name="DocumentUpdated" xml:space="preserve">
+    <value>Document updated successfully</value>
+    <comment/>
+  </data>
+  <data name="InvalidFileType" xml:space="preserve">
+    <value>Invalid file type</value>
+    <comment/>
+  </data>
 </root>

@@ -421,4 +421,24 @@
     <value>File video trống</value>
     <comment/>
   </data>
+  <data name="DocumentFileEmpty" xml:space="preserve">
+    <value>File tài liệu trống</value>
+    <comment/>
+  </data>
+  <data name="DocumentAdded" xml:space="preserve">
+    <value>Thêm tài liệu thành công</value>
+    <comment/>
+  </data>
+  <data name="DocumentDeleted" xml:space="preserve">
+    <value>Xóa tài liệu thành công</value>
+    <comment/>
+  </data>
+  <data name="DocumentUpdated" xml:space="preserve">
+    <value>Cập nhật tài liệu thành công</value>
+    <comment/>
+  </data>
+  <data name="InvalidFileType" xml:space="preserve">
+    <value>Loại file không hợp lệ</value>
+    <comment/>
+  </data>
 </root>

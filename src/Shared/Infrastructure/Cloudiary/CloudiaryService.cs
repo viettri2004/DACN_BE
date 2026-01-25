@@ -75,5 +75,38 @@ namespace Shared.Infrastructure.cloudinaryService
             if (result.Result != "ok")
                 throw new Exception($"{result.Error?.Message}");
         }
+
+        public async Task<(string Url, string PublicId)> UploadDocumentAsync(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                throw new ArgumentException("Invalid file.");
+
+            using var stream = file.OpenReadStream();
+
+            var uploadParams = new RawUploadParams
+            {
+                File = new FileDescription(file.FileName, stream),
+                Folder = "documents"
+            };
+
+            var result = await _cloudinary.UploadAsync(uploadParams);
+
+            if (result.StatusCode == System.Net.HttpStatusCode.OK)
+                return (result.SecureUrl.ToString(), result.PublicId);
+
+            throw new Exception($"{result.Error?.Message}");
+        }
+
+        public async Task DeleteDocumentAsync(string publicId)
+        {
+            var deleteParams = new DeletionParams(publicId)
+            {
+                ResourceType = ResourceType.Raw
+            };
+            var result = await _cloudinary.DestroyAsync(deleteParams);
+
+            if (result.Result != "ok")
+                throw new Exception($"{result.Error?.Message}");
+        }
     }
 }

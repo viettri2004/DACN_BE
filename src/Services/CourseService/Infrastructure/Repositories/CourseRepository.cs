@@ -387,7 +387,11 @@ namespace CourseService.Infrastructure.Repositories
                             Name = v.Name,
                             Duration = v.Duration
                         }).ToList(),
-                        DocumentNames = l.Documents.Select(d => d.Name).ToList(),
+                        Documents = l.Documents.Select(d => new DocumentContentDTO
+                        {
+                            Id = d.Id,
+                            Name = d.Name
+                        }).ToList(),
                         QuizNames = l.Quizzes.Select(q => q.Name).ToList()
                     }).ToList()
                 })

@@ -478,7 +478,7 @@ namespace Data.Seeding
                             Name = $"Tài liệu tham khảo {k}",
                             LectureId = lecture.Id,
                             Type = "pdf",
-                            DocumentNumber = k
+                            
                         };
                         newDocuments.Add(document);
                     }
