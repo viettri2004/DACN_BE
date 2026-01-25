@@ -16,6 +16,7 @@ namespace LectureService.Application.Interfaces
         Task<ApiResponse> AddVideoToLectureAsync(string lectureId, IFormFile videoFile, string instructorId);
         Task<ApiResponse> UpdateVideoAsync(string videoId, string name, IFormFile? videoFile, string instructorId);
         Task<ApiResponse> DeleteVideoAsync(string videoId, string instructorId);
+        Task<ApiResponse> UpdateLectureOrdersAsync(List<LectureOrderDTO> lectureOrders, string instructorId);
         Task<ApiResponse> GetVideoByIdAsync(string videoId);
     }
 }

@@ -373,11 +373,14 @@ namespace CourseService.Infrastructure.Repositories
                     Id = c.Id,
                     Name = c.Name,
                     // Status = c.Status.ToString(),
-                    Lectures = c.Lectures.Select(l => new LectureContentDTO
+                    Lectures = c.Lectures
+                    .OrderBy(l => l.DisplayOrder)
+                    .Select(l => new LectureContentDTO
                     {
                         Id = l.Id,
                         Name = l.Name,
                         Description = l.Description,
+                        DisplayOrder = l.DisplayOrder,
                         Videos = l.LectureVideos.Select(v => new VideoContentDTO
                         {
                             Id = v.Id,

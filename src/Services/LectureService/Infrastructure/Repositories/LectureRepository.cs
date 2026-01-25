@@ -44,12 +44,35 @@ namespace LectureService.Infrastructure.Repositories
                     return new ApiResponse("Forbidden", _localizer["ForbiddenAddLecture"].Value, null, false);
                 }
 
+                int newDisplayOrder;
+
+                if (createLectureDTO.DisplayOrder.HasValue)
+                {
+                    newDisplayOrder = createLectureDTO.DisplayOrder.Value;
+                    var lecturesToShift = await _context.Lectures
+                        .Where(l => l.CourseId == createLectureDTO.CourseId && l.DisplayOrder >= newDisplayOrder)
+                        .ToListAsync();
+                    
+                    foreach (var l in lecturesToShift)
+                    {
+                        l.DisplayOrder++;
+                    }
+                }
+                else
+                {
+                    var maxDisplayOrder = await _context.Lectures
+                        .Where(l => l.CourseId == createLectureDTO.CourseId)
+                        .MaxAsync(l => (int?)l.DisplayOrder) ?? 0;
+                    newDisplayOrder = maxDisplayOrder + 1;
+                }
+
                 var lecture = new Lecture
                 {
                     Id = Guid.NewGuid().ToString(),
                     Name = createLectureDTO.Name,
                     Description = createLectureDTO.Description,
-                    CourseId = createLectureDTO.CourseId
+                    CourseId = createLectureDTO.CourseId,
+                    DisplayOrder = newDisplayOrder
                 };
                 
                 _context.Lectures.Add(lecture);
@@ -105,6 +128,44 @@ namespace LectureService.Infrastructure.Repositories
                 return new ApiResponse("Error", ex.Message, null, false);
             }
         }
+        public async Task<ApiResponse> UpdateLectureOrdersAsync(List<LectureOrderDTO> lectureOrders, string instructorId)
+        {
+            try
+            {
+                var lectureIds = lectureOrders.Select(x => x.LectureId).ToList();
+                
+                var lectures = await _context.Lectures
+                    .Include(l => l.Course)
+                    .Where(l => lectureIds.Contains(l.Id))
+                    .ToListAsync();
+
+                if (lectures.Count != lectureIds.Count)
+                {
+                     return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                foreach (var lecture in lectures)
+                {
+                    if (lecture.Course.InstructorId != instructorId)
+                    {
+                         return new ApiResponse("Forbidden", _localizer["ForbiddenUpdateLecture"].Value, null, false);
+                    }
+
+                    var newOrder = lectureOrders.First(x => x.LectureId == lecture.Id).DisplayOrder;
+                    lecture.DisplayOrder = newOrder;
+                }
+
+                _context.Lectures.UpdateRange(lectures);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse("Success", _localizer["LectureUpdated"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                 return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
         public async Task<ApiResponse> GetVideoByIdAsync(string videoId)
         {
             try

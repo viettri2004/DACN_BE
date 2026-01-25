@@ -14,6 +14,7 @@ namespace CourseService.Application.DTOs
         public string Id { get; set; } = null!;
         public string Name { get; set; } = null!;
         public string Description { get; set; } = string.Empty;
+        public int DisplayOrder { get; set; }
         public IEnumerable<VideoContentDTO> Videos { get; set; } = new List<VideoContentDTO>();
         public IEnumerable<string> DocumentNames { get; set; } = new List<string>();
         public IEnumerable<string> QuizNames { get; set; } = new List<string>();

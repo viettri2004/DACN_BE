@@ -54,6 +54,19 @@ namespace LectureService.API.Controllers
         }
 
         [Authorize(Policy = "Instructor")]
+        [HttpPatch("update-orders")]
+        public async Task<ActionResult<ApiResponse>> UpdateLectureOrders([FromBody] List<LectureOrderDTO> lectureOrders)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _lectureRepository.UpdateLectureOrdersAsync(lectureOrders, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
         [HttpDelete("delete-lecture/{lectureId}")]
         public async Task<ActionResult<ApiResponse>> DeleteLecture([FromRoute] string lectureId)
         {
