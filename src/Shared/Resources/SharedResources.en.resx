@@ -385,4 +385,40 @@
     <value>Video added successfully</value>
     <comment/>
   </data>
+  <data name="CourseCreationFailed" xml:space="preserve">
+    <value>Course creation failed</value>
+    <comment/>
+  </data>
+  <data name="TagDeleted" xml:space="preserve">
+    <value>Tag deleted successfully</value>
+    <comment/>
+  </data>
+  <data name="ForbiddenAddLecture" xml:space="preserve">
+    <value>You are not authorized to add lecture to this course</value>
+    <comment/>
+  </data>
+  <data name="ForbiddenAddVideo" xml:space="preserve">
+    <value>You are not authorized to add video to this lecture</value>
+    <comment/>
+  </data>
+  <data name="ForbiddenUpdateLecture" xml:space="preserve">
+    <value>You are not authorized to update this lecture</value>
+    <comment/>
+  </data>
+  <data name="ForbiddenDeleteLecture" xml:space="preserve">
+    <value>You are not authorized to delete this lecture</value>
+    <comment/>
+  </data>
+  <data name="ForbiddenUpdateVideo" xml:space="preserve">
+    <value>You are not authorized to update this video</value>
+    <comment/>
+  </data>
+  <data name="ForbiddenDeleteVideo" xml:space="preserve">
+    <value>You are not authorized to delete this video</value>
+    <comment/>
+  </data>
+  <data name="VideoFileEmpty" xml:space="preserve">
+    <value>Video file is empty</value>
+    <comment/>
+  </data>
 </root>

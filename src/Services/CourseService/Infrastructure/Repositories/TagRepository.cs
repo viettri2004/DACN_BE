@@ -64,7 +64,7 @@ namespace CourseService.Infrastructure.Repositories
             _context.Tags.Remove(tag);
             await _context.SaveChangesAsync();
 
-            return new ApiResponse("Success", _localizer["Success"].Value, null, true);
+            return new ApiResponse("Success", _localizer["TagDeleted"].Value, null, true);
         }
 
         public async Task<ApiResponse> AssignTagToCourseAsync(AssignTagToCourseDTO assignTagToCourseDTO)

@@ -29,14 +29,19 @@ namespace LectureService.Infrastructure.Repositories
             _localizer = localizer;
         }
 
-        public async Task<ApiResponse> CreateLectureAsync(CreateLectureDTO createLectureDTO)
+        public async Task<ApiResponse> CreateLectureAsync(CreateLectureDTO createLectureDTO, string instructorId)
         {
             try
             {
                 var course = await _context.Courses.FindAsync(createLectureDTO.CourseId);
                 if (course == null)
                 {
-                    return new ApiResponse("NotFound", "Course not found", null, false);
+                    return new ApiResponse("NotFound", _localizer["CourseNotFound"].Value, null, false);
+                }
+
+                if (course.InstructorId != instructorId)
+                {
+                    return new ApiResponse("Forbidden", _localizer["ForbiddenAddLecture"].Value, null, false);
                 }
 
                 var lecture = new Lecture
@@ -46,6 +51,9 @@ namespace LectureService.Infrastructure.Repositories
                     Description = createLectureDTO.Description,
                     CourseId = createLectureDTO.CourseId
                 };
+                
+                _context.Lectures.Add(lecture);
+                await _context.SaveChangesAsync();
 
                 return new ApiResponse("Success", _localizer["LectureCreated"].Value, lecture.Id, true);
             }
@@ -55,22 +63,27 @@ namespace LectureService.Infrastructure.Repositories
             }
         }
 
-        public async Task<ApiResponse> AddVideoToLectureAsync(string lectureId, IFormFile videoFile)
+        public async Task<ApiResponse> AddVideoToLectureAsync(string lectureId, IFormFile videoFile, string instructorId)
         {
             try
             {
-                var lecture = await _context.Lectures.FindAsync(lectureId);
+                var lecture = await _context.Lectures.Include(l => l.Course).FirstOrDefaultAsync(l => l.Id == lectureId);
                 if (lecture == null)
                 {
                     return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
                 }
 
-                if (videoFile == null || videoFile.Length == 0)
+                if (lecture.Course.InstructorId != instructorId)
                 {
-                    return new ApiResponse("BadRequest", "Video file is empty", null, false);
+                    return new ApiResponse("Forbidden", _localizer["ForbiddenAddVideo"].Value, null, false);
                 }
 
-                var (videoUrl, publicId) = await _cloudinaryService.UploadVideoAsync(videoFile);
+                if (videoFile == null || videoFile.Length == 0)
+                {
+                    return new ApiResponse("BadRequest", _localizer["VideoFileEmpty"].Value, null, false);
+                }
+
+                var (videoUrl, publicId, duration) = await _cloudinaryService.UploadVideoAsync(videoFile);
 
                 var lectureVideo = new LectureVideo
                 {
@@ -78,13 +91,14 @@ namespace LectureService.Infrastructure.Repositories
                     Name = videoFile.FileName,
                     VideoUrl = videoUrl,
                     PublicId = publicId,
+                    Duration = duration,
                     LectureId = lectureId
                 };
 
                 _context.LectureVideos.Add(lectureVideo);
                 await _context.SaveChangesAsync();
 
-                return new ApiResponse("Success", _localizer["VideoAdded"].Value, lectureVideo.Id, true);
+                return new ApiResponse("Success", _localizer["VideoAdded"].Value, new { VideoId = lectureVideo.Id, Duration = duration }, true);
             }
             catch (Exception ex)
             {
@@ -100,7 +114,8 @@ namespace LectureService.Infrastructure.Repositories
                     .Select(v => new LectureVideoDTO
                     {
                         Name = v.Name,
-                        VideoUrl = v.VideoUrl
+                        VideoUrl = v.VideoUrl,
+                        Duration = v.Duration
                     })
                     .FirstOrDefaultAsync();
                 if (lectureVideo == null)
@@ -116,14 +131,19 @@ namespace LectureService.Infrastructure.Repositories
             }
         }
 
-        public async Task<ApiResponse> UpdateLectureAsync(string lectureId, UpdateLectureDTO updateLectureDTO)
+        public async Task<ApiResponse> UpdateLectureAsync(string lectureId, UpdateLectureDTO updateLectureDTO, string instructorId)
         {
             try
             {
-                var lecture = await _context.Lectures.FindAsync(lectureId);
+                var lecture = await _context.Lectures.Include(l => l.Course).FirstOrDefaultAsync(l => l.Id == lectureId);
                 if (lecture == null)
                 {
                     return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                if (lecture.Course.InstructorId != instructorId)
+                {
+                    return new ApiResponse("Forbidden", _localizer["ForbiddenUpdateLecture"].Value, null, false);
                 }
 
                 lecture.Name = updateLectureDTO.Name;
@@ -140,17 +160,23 @@ namespace LectureService.Infrastructure.Repositories
             }
         }
 
-        public async Task<ApiResponse> DeleteLectureAsync(string lectureId)
+        public async Task<ApiResponse> DeleteLectureAsync(string lectureId, string instructorId)
         {
             try
             {
                 var lecture = await _context.Lectures
                     .Include(l => l.LectureVideos)
+                    .Include(l => l.Course)
                     .FirstOrDefaultAsync(l => l.Id == lectureId);
 
                 if (lecture == null)
                 {
                     return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                if (lecture.Course.InstructorId != instructorId)
+                {
+                    return new ApiResponse("Forbidden", _localizer["ForbiddenDeleteLecture"].Value, null, false);
                 }
 
                 foreach (var video in lecture.LectureVideos)
@@ -163,8 +189,7 @@ namespace LectureService.Infrastructure.Repositories
                         }
                         catch
                         {
-                            // Continue deleting other videos and the lecture even if one video deletion fails
-                            // Ideally log this
+                            
                         }
                     }
                 }
@@ -180,14 +205,23 @@ namespace LectureService.Infrastructure.Repositories
             }
         }
 
-        public async Task<ApiResponse> UpdateVideoAsync(string videoId, string name, IFormFile? videoFile)
+        public async Task<ApiResponse> UpdateVideoAsync(string videoId, string name, IFormFile? videoFile, string instructorId)
         {
             try
             {
-                var video = await _context.LectureVideos.FindAsync(videoId);
+                var video = await _context.LectureVideos
+                    .Include(v => v.Lecture)
+                    .ThenInclude(l => l.Course)
+                    .FirstOrDefaultAsync(v => v.Id == videoId);
+                    
                 if (video == null)
                 {
                     return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                if (video.Lecture.Course.InstructorId != instructorId)
+                {
+                    return new ApiResponse("Forbidden", _localizer["ForbiddenUpdateVideo"].Value, null, false);
                 }
 
                 video.Name = name;
@@ -202,13 +236,14 @@ namespace LectureService.Infrastructure.Repositories
                         }
                         catch
                         {
-                            // Log and continue
+                            
                         }
                     }
 
-                    var (videoUrl, publicId) = await _cloudinaryService.UploadVideoAsync(videoFile);
+                    var (videoUrl, publicId, duration) = await _cloudinaryService.UploadVideoAsync(videoFile);
                     video.VideoUrl = videoUrl;
                     video.PublicId = publicId;
+                    video.Duration = duration;
                 }
 
                 _context.LectureVideos.Update(video);
@@ -222,14 +257,23 @@ namespace LectureService.Infrastructure.Repositories
             }
         }
 
-        public async Task<ApiResponse> DeleteVideoAsync(string videoId)
+        public async Task<ApiResponse> DeleteVideoAsync(string videoId, string instructorId)
         {
             try
             {
-                var video = await _context.LectureVideos.FindAsync(videoId);
+                var video = await _context.LectureVideos
+                    .Include(v => v.Lecture)
+                    .ThenInclude(l => l.Course)
+                    .FirstOrDefaultAsync(v => v.Id == videoId);
+                
                 if (video == null)
                 {
                     return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                if (video.Lecture.Course.InstructorId != instructorId)
+                {
+                    return new ApiResponse("Forbidden", _localizer["ForbiddenDeleteVideo"].Value, null, false);
                 }
 
                 if (!string.IsNullOrEmpty(video.PublicId))
@@ -240,7 +284,7 @@ namespace LectureService.Infrastructure.Repositories
                      }
                      catch
                      {
-                         // Log and continue
+                         
                      }
                 }
 

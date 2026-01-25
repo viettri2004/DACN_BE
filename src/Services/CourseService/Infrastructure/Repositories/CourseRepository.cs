@@ -214,9 +214,9 @@ namespace CourseService.Infrastructure.Repositories
                     true
                 );
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return new ApiResponse("Error", $"Create course failed: {ex.Message}", null, false);
+                return new ApiResponse("Error", _localizer["CourseCreationFailed"].Value, null, false);
             }
         }
 
@@ -382,6 +382,7 @@ namespace CourseService.Infrastructure.Repositories
                         {
                             Id = v.Id,
                             Name = v.Name,
+                            Duration = v.Duration
                         }).ToList(),
                         DocumentNames = l.Documents.Select(d => d.Name).ToList(),
                         QuizNames = l.Quizzes.Select(q => q.Name).ToList()

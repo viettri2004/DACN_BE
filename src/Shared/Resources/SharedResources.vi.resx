@@ -385,4 +385,40 @@
     <value>Thêm video thành công</value>
     <comment/>
   </data>
+  <data name="CourseCreationFailed" xml:space="preserve">
+    <value>Tạo khóa học thất bại</value>
+    <comment/>
+  </data>
+  <data name="TagDeleted" xml:space="preserve">
+    <value>Xóa tag thành công</value>
+    <comment/>
+  </data>
+  <data name="ForbiddenAddLecture" xml:space="preserve">
+    <value>Bạn không có quyền thêm bài giảng vào khóa học này</value>
+    <comment/>
+  </data>
+  <data name="ForbiddenAddVideo" xml:space="preserve">
+    <value>Bạn không có quyền thêm video vào bài giảng này</value>
+    <comment/>
+  </data>
+  <data name="ForbiddenUpdateLecture" xml:space="preserve">
+    <value>Bạn không có quyền cập nhật bài giảng này</value>
+    <comment/>
+  </data>
+  <data name="ForbiddenDeleteLecture" xml:space="preserve">
+    <value>Bạn không có quyền xóa bài giảng này</value>
+    <comment/>
+  </data>
+  <data name="ForbiddenUpdateVideo" xml:space="preserve">
+    <value>Bạn không có quyền cập nhật video này</value>
+    <comment/>
+  </data>
+  <data name="ForbiddenDeleteVideo" xml:space="preserve">
+    <value>Bạn không có quyền xóa video này</value>
+    <comment/>
+  </data>
+  <data name="VideoFileEmpty" xml:space="preserve">
+    <value>File video trống</value>
+    <comment/>
+  </data>
 </root>

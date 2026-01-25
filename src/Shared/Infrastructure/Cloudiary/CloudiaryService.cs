@@ -43,7 +43,7 @@ namespace Shared.Infrastructure.cloudinaryService
                 throw new Exception($"{result.Error?.Message}");
         }
 
-        public async Task<(string Url, string PublicId)> UploadVideoAsync(IFormFile file)
+        public async Task<(string Url, string PublicId, double Duration)> UploadVideoAsync(IFormFile file)
         {
             if (file == null || file.Length == 0)
                 throw new ArgumentException("Invalid file.");
@@ -59,7 +59,7 @@ namespace Shared.Infrastructure.cloudinaryService
             var result = await _cloudinary.UploadAsync(uploadParams);
 
             if (result.StatusCode == System.Net.HttpStatusCode.OK)
-                return (result.SecureUrl.ToString(), result.PublicId);
+                return (result.SecureUrl.ToString(), result.PublicId, result.Duration);
 
             throw new Exception($"{result.Error?.Message}");
         }

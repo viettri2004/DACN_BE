@@ -9,5 +9,6 @@ namespace LectureService.Application.DTOs
     {
         public string Name { get; set; } = null!;
         public string VideoUrl { get; set; } = null!;
+        public double Duration { get; set; }
     }
 }
