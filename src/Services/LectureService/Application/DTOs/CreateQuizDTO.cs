@@ -23,10 +23,11 @@ namespace LectureService.Application.DTOs
         public List<CreateQuestionDTO> Questions { get; set; } = new List<CreateQuestionDTO>();
     }
 
-    public class UpdateQuizQuestionsDTO
+    public class UpdateQuizDTO
     {
-        [Required]
-        public string QuizId { get; set; } = null!;
-        public List<CreateQuestionDTO> Questions { get; set; } = new List<CreateQuestionDTO>();
+        public string? Name { get; set; }
+        public int? TestTime { get; set; }
+        public int? AttemptCount { get; set; }
+        public List<CreateQuestionDTO>? Questions { get; set; }
     }
 }

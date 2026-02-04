@@ -489,12 +489,24 @@
     <value>Failed to add questions</value>
     <comment/>
   </data>
-  <data name="QuizNotFound" xml:space="preserve">
-    <value>Quiz not found</value>
+  <data name="UpdateQuizSuccess" xml:space="preserve">
+    <value>Quiz updated successfully</value>
     <comment/>
   </data>
-  <data name="LectureNotFound" xml:space="preserve">
-    <value>Lecture not found</value>
+  <data name="UpdateQuizFailed" xml:space="preserve">
+    <value>Failed to update quiz</value>
+    <comment/>
+  </data>
+  <data name="DeleteQuizSuccess" xml:space="preserve">
+    <value>Quiz deleted successfully</value>
+    <comment/>
+  </data>
+  <data name="DeleteQuizFailed" xml:space="preserve">
+    <value>Failed to delete quiz</value>
+    <comment/>
+  </data>
+  <data name="QuizNotFound" xml:space="preserve">
+    <value>Quiz not found</value>
     <comment/>
   </data>
 </root>

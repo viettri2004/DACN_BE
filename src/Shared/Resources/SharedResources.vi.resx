@@ -489,12 +489,24 @@
     <value>Thêm câu hỏi thất bại</value>
     <comment/>
   </data>
-  <data name="QuizNotFound" xml:space="preserve">
-    <value>Không tìm thấy bài kiểm tra</value>
+  <data name="UpdateQuizSuccess" xml:space="preserve">
+    <value>Cập nhật bài kiểm tra thành công</value>
     <comment/>
   </data>
-  <data name="LectureNotFound" xml:space="preserve">
-    <value>Không tìm thấy bài giảng</value>
+  <data name="UpdateQuizFailed" xml:space="preserve">
+    <value>Cập nhật bài kiểm tra thất bại</value>
+    <comment/>
+  </data>
+  <data name="DeleteQuizSuccess" xml:space="preserve">
+    <value>Xóa bài kiểm tra thành công</value>
+    <comment/>
+  </data>
+  <data name="DeleteQuizFailed" xml:space="preserve">
+    <value>Xóa bài kiểm tra thất bại</value>
+    <comment/>
+  </data>
+  <data name="QuizNotFound" xml:space="preserve">
+    <value>Không tìm thấy bài kiểm tra</value>
     <comment/>
   </data>
 </root>

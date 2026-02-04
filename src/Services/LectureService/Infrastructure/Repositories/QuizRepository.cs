@@ -76,7 +76,7 @@ namespace LectureService.Infrastructure.Repositories
             }
         }
 
-        public async Task<ApiResponse> AddQuestionsToQuizAsync(UpdateQuizQuestionsDTO updateQuizQuestionsDTO, string instructorId)
+        public async Task<ApiResponse> UpdateQuizAsync(string quizId, UpdateQuizDTO updateQuizDTO, string instructorId)
         {
             try
             {
@@ -84,7 +84,7 @@ namespace LectureService.Infrastructure.Repositories
                     .Include(q => q.Lecture)
                         .ThenInclude(l => l.Course)
                     .Include(q => q.Questionnaires)
-                    .FirstOrDefaultAsync(q => q.Id == updateQuizQuestionsDTO.QuizId);
+                    .FirstOrDefaultAsync(q => q.Id == quizId);
 
                 if (quiz == null)
                     return new ApiResponse("NotFound", _localizer["QuizNotFound"].Value, null, false);
@@ -92,20 +92,28 @@ namespace LectureService.Infrastructure.Repositories
                 if (quiz.Lecture.Course.InstructorId != instructorId)
                     return new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false);
 
-                int nextQuestionNumber = 1;
-                if (quiz.Questionnaires.Any())
-                {
-                    nextQuestionNumber = quiz.Questionnaires.Max(q => q.QuestionNumber) + 1;
-                }
+                if (!string.IsNullOrEmpty(updateQuizDTO.Name))
+                    quiz.Name = updateQuizDTO.Name;
+                
+                if (updateQuizDTO.TestTime.HasValue)
+                    quiz.TestTime = updateQuizDTO.TestTime.Value;
 
-                if (updateQuizQuestionsDTO.Questions != null && updateQuizQuestionsDTO.Questions.Any())
+                if (updateQuizDTO.AttemptCount.HasValue)
+                    quiz.AttemptCount = updateQuizDTO.AttemptCount.Value;
+
+                if (updateQuizDTO.Questions != null)
                 {
-                    foreach (var q in updateQuizQuestionsDTO.Questions)
+                    // Remove existing questions
+                    _context.Set<Questionnaire>().RemoveRange(quiz.Questionnaires);
+                    
+                    // Add new questions
+                    int questionNumber = 1;
+                    foreach (var q in updateQuizDTO.Questions)
                     {
                         _context.Set<Questionnaire>().Add(new Questionnaire
                         {
                             QuizId = quiz.Id,
-                            QuestionNumber = nextQuestionNumber++,
+                            QuestionNumber = questionNumber++,
                             Question = q.Question,
                             Key = q.Key,
                             Description = q.Description
@@ -115,12 +123,39 @@ namespace LectureService.Infrastructure.Repositories
 
                 await _context.SaveChangesAsync();
 
-                return new ApiResponse("Success", _localizer["AddQuestionsSuccess"].Value, null, true);
+                return new ApiResponse("Success", _localizer["UpdateQuizSuccess"].Value, null, true);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error adding questions: {ex.Message}");
-                return new ApiResponse("Error", _localizer["AddQuestionsFailed"].Value, null, false);
+                Console.WriteLine($"Error updating quiz: {ex.Message}");
+                return new ApiResponse("Error", _localizer["UpdateQuizFailed"].Value, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> DeleteQuizAsync(string quizId, string instructorId)
+        {
+            try
+            {
+                var quiz = await _context.Quizzes
+                    .Include(q => q.Lecture)
+                        .ThenInclude(l => l.Course)
+                    .FirstOrDefaultAsync(q => q.Id == quizId);
+
+                if (quiz == null)
+                    return new ApiResponse("NotFound", _localizer["QuizNotFound"].Value, null, false);
+
+                if (quiz.Lecture.Course.InstructorId != instructorId)
+                    return new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false);
+
+                _context.Quizzes.Remove(quiz);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse("Success", _localizer["DeleteQuizSuccess"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                 Console.WriteLine($"Error deleting quiz: {ex.Message}");
+                return new ApiResponse("Error", _localizer["DeleteQuizFailed"].Value, null, false);
             }
         }
     }

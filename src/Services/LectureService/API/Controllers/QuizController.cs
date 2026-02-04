@@ -34,15 +34,28 @@ namespace LectureService.API.Controllers
         }
 
         [Authorize(Policy = "Instructor")]
-        [HttpPost("add-questions")]
-        public async Task<ActionResult<ApiResponse>> AddQuestionsToQuiz([FromBody] UpdateQuizQuestionsDTO updateQuizQuestionsDTO)
+        [HttpPut("{quizId}")]
+        public async Task<ActionResult<ApiResponse>> UpdateQuiz([FromRoute] string quizId, [FromBody] UpdateQuizDTO updateQuizDTO)
         {
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
             {
                 return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
             }
-            var response = await _quizRepository.AddQuestionsToQuizAsync(updateQuizQuestionsDTO, instructorId);
+            var response = await _quizRepository.UpdateQuizAsync(quizId, updateQuizDTO, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpDelete("{quizId}")]
+        public async Task<ActionResult<ApiResponse>> DeleteQuiz([FromRoute] string quizId)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            }
+            var response = await _quizRepository.DeleteQuizAsync(quizId, instructorId);
             return response.ToActionResult();
         }
     }
