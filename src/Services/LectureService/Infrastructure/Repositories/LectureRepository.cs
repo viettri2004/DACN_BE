@@ -371,6 +371,15 @@ namespace LectureService.Infrastructure.Repositories
                     }
                 }
 
+                var lecturesToShift = await _context.Lectures
+                    .Where(l => l.CourseId == lecture.CourseId && l.DisplayOrder > lecture.DisplayOrder)
+                    .ToListAsync();
+
+                foreach (var l in lecturesToShift)
+                {
+                    l.DisplayOrder--;
+                }
+
                 _context.Lectures.Remove(lecture);
                 await _context.SaveChangesAsync();
 
@@ -573,10 +582,44 @@ namespace LectureService.Infrastructure.Repositories
                      }
                 }
 
+                var videosToShift = await _context.LectureVideos
+                    .Where(v => v.LectureId == video.LectureId && v.DisplayOrder > video.DisplayOrder)
+                    .ToListAsync();
+
+                foreach (var v in videosToShift)
+                {
+                    v.DisplayOrder--;
+                }
+
                 _context.LectureVideos.Remove(video);
                 await _context.SaveChangesAsync();
 
                 return new ApiResponse("Success", _localizer["VideoDeleted"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> GetDocumentByIdAsync(string documentId)
+        {
+            try
+            {
+                var document = await _context.Documents.AsNoTracking()
+                    .Where(d => d.Id == documentId)
+                    .FirstOrDefaultAsync();
+                if (document == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                if (!document.Url.Contains("/fl_attachment/"))
+                {
+                    document.Url = document.Url.Replace("/upload/", "/upload/fl_attachment/");
+                }
+
+                return new ApiResponse("Success", _localizer["Success"].Value, document.Url, true);
             }
             catch (Exception ex)
             {

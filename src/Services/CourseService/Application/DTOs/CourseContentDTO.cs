@@ -22,13 +22,13 @@ namespace CourseService.Application.DTOs
     public class VideoContentDTO
     {
         public string Id { get; set; } = null!;
+        public int DisplayOrder { get; set; }
         public string Name { get; set; } = null!;
         public double Duration { get; set; }
     }
     public class DocumentContentDTO
     {
         public string Id { get; set; } = null!;
-        public int DisplayOrder { get; set; }
         public string Name { get; set; } = null!;
     }
 }

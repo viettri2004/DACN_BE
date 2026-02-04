@@ -3,10 +3,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace LectureService.Application.DTOs
 {
-    public class UpdateLectureVideoDTO
+    public class UpdateLectureFileDTO
     {
         [Required]
         public string Name { get; set; } = null!;
-        public IFormFile? VideoFile { get; set; }
+        public IFormFile? File { get; set; }
     }
 }

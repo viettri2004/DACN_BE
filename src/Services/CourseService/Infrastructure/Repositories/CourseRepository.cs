@@ -384,6 +384,7 @@ namespace CourseService.Infrastructure.Repositories
                         Videos = l.LectureVideos.Select(v => new VideoContentDTO
                         {
                             Id = v.Id,
+                            DisplayOrder = v.DisplayOrder,
                             Name = v.Name,
                             Duration = v.Duration
                         }).ToList(),

@@ -22,5 +22,6 @@ namespace LectureService.Application.Interfaces
         Task<ApiResponse> DeleteDocumentAsync(string documentId, string instructorId);
         Task<ApiResponse> UpdateDocumentAsync(string documentId, string name, IFormFile? documentFile, string instructorId);
         Task<ApiResponse> UpdateVideoOrdersAsync(List<UpdateOrderDTO> videoOrders, string instructorId);
+        Task<ApiResponse> GetDocumentByIdAsync(string documentId);
     }
 }
