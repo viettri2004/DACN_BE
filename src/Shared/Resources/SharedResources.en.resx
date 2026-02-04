@@ -473,4 +473,28 @@
     <value>Request already sent and is pending</value>
     <comment/>
   </data>
+  <data name="CreateQuizSuccess" xml:space="preserve">
+    <value>Quiz created successfully</value>
+    <comment/>
+  </data>
+  <data name="CreateQuizFailed" xml:space="preserve">
+    <value>Failed to create quiz</value>
+    <comment/>
+  </data>
+  <data name="AddQuestionsSuccess" xml:space="preserve">
+    <value>Questions added successfully</value>
+    <comment/>
+  </data>
+  <data name="AddQuestionsFailed" xml:space="preserve">
+    <value>Failed to add questions</value>
+    <comment/>
+  </data>
+  <data name="QuizNotFound" xml:space="preserve">
+    <value>Quiz not found</value>
+    <comment/>
+  </data>
+  <data name="LectureNotFound" xml:space="preserve">
+    <value>Lecture not found</value>
+    <comment/>
+  </data>
 </root>

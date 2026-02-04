@@ -473,4 +473,28 @@
     <value>Yêu cầu đã được gửi và đang chờ xử lý</value>
     <comment/>
   </data>
+  <data name="CreateQuizSuccess" xml:space="preserve">
+    <value>Tạo bài kiểm tra thành công</value>
+    <comment/>
+  </data>
+  <data name="CreateQuizFailed" xml:space="preserve">
+    <value>Tạo bài kiểm tra thất bại</value>
+    <comment/>
+  </data>
+  <data name="AddQuestionsSuccess" xml:space="preserve">
+    <value>Thêm câu hỏi thành công</value>
+    <comment/>
+  </data>
+  <data name="AddQuestionsFailed" xml:space="preserve">
+    <value>Thêm câu hỏi thất bại</value>
+    <comment/>
+  </data>
+  <data name="QuizNotFound" xml:space="preserve">
+    <value>Không tìm thấy bài kiểm tra</value>
+    <comment/>
+  </data>
+  <data name="LectureNotFound" xml:space="preserve">
+    <value>Không tìm thấy bài giảng</value>
+    <comment/>
+  </data>
 </root>

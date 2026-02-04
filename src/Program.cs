@@ -113,6 +113,7 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     //services.AddAutoMapper(typeof(Program));
     services.AddScoped<ICourseRepository, CourseRepository>();
     services.AddScoped<ILectureRepository, LectureRepository>();
+    services.AddScoped<IQuizRepository, QuizRepository>();
     services.AddScoped<ICartRepository, CartRepository>();
     services.AddScoped<ITagRepository, TagRepository>();
     services.AddScoped<ITokenService, TokenService>();
