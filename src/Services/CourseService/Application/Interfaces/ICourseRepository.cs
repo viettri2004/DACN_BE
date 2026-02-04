@@ -17,5 +17,10 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> GetCoursesAsync(CourseQueryParameters queryParams, string studentId);
         Task<ApiResponse> GetCourseContentAsync(string courseId);
         Task<ApiResponse> GetCoursesByInstructorAsync(string instructorId);
+        Task<ApiResponse> DeleteCourseAsync(string courseId, string instructorId);
+        Task<ApiResponse> CreateCourseRequestAsync(string courseId, string instructorId);
+        Task<ApiResponse> GetPendingCourseRequestsAsync();
+        Task<ApiResponse> ApproveCourseRequestAsync(string requestId);
+        Task<ApiResponse> RejectCourseRequestAsync(string requestId);
     }
 }

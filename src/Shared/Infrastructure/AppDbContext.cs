@@ -1,4 +1,5 @@
 using Entities;
+using CourseService.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,7 @@ namespace Data.Context
         public DbSet<Questionnaire> Questionnaires { get; set; } = null!;
         public DbSet<PaymentTransaction> PaymentTransactions { get; set; } = null!;
         public DbSet<InstructorRequest> InstructorRequests { get; set; } = null!;
+        public DbSet<CourseRequest> CourseRequests { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -282,6 +284,21 @@ namespace Data.Context
                 .WithMany(q => q.Questionnaires)
                 .HasForeignKey(qn => new { qn.QuizId })
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // CourseRequest
+            modelBuilder.Entity<CourseRequest>(entity =>
+            {
+                entity.HasKey(cr => cr.Id);
+
+                entity.HasOne(cr => cr.Course)
+                    .WithMany()
+                    .HasForeignKey(cr => cr.CourseId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.Property(cr => cr.Status)
+                    .HasConversion<string>() 
+                    .IsRequired();
+            });
 
             // modelBuilder.Entity<User>()
             //     .HasIndex(u => u.Email)

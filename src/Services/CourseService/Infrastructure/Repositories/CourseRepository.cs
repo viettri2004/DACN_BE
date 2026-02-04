@@ -6,6 +6,7 @@ using AutoMapper;
 using CourseService.Application.DTOs;
 using CourseService.Application.Interfaces;
 using CourseService.Domain.Enums;
+using CourseService.Domain.Entities;
 using Data.Context;
 using Entities;
 using Microsoft.EntityFrameworkCore;
@@ -381,7 +382,9 @@ namespace CourseService.Infrastructure.Repositories
                         Name = l.Name,
                         Description = l.Description,
                         DisplayOrder = l.DisplayOrder,
-                        Videos = l.LectureVideos.Select(v => new VideoContentDTO
+                        Videos = l.LectureVideos
+                        .OrderBy(v => v.DisplayOrder)
+                        .Select(v => new VideoContentDTO
                         {
                             Id = v.Id,
                             DisplayOrder = v.DisplayOrder,
@@ -404,6 +407,161 @@ namespace CourseService.Infrastructure.Repositories
             }
 
             return new ApiResponse("Success", _localizer["Success"].Value, courseContent, true);
+        }
+
+        public async Task<ApiResponse> DeleteCourseAsync(string courseId, string instructorId)
+        {
+            try
+            {
+                var course = await _context.Courses
+                    .FirstOrDefaultAsync(c => c.Id == courseId);
+
+                if (course == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["CourseNotFound"].Value, null, false);
+                }
+
+                if (course.InstructorId != instructorId)
+                {
+                    return new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false);
+                }
+
+                if (!string.IsNullOrEmpty(course.ImagePublicId))
+                {
+                    await _cloudinaryService.DeleteImageAsync(course.ImagePublicId);
+                }
+
+                _context.Courses.Remove(course);
+                await _context.SaveChangesAsync();
+
+                try 
+                {
+                    await _luceneSearchService.DeleteCourseFromIndexAsync(courseId);
+                }
+                catch (Exception ex)
+                {
+                   Console.WriteLine($"Failed to remove course from index: {ex.Message}");
+                }
+
+                return new ApiResponse("Success", _localizer["DeleteCourseSuccess"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting course: {ex.Message}");
+                return new ApiResponse("Error", _localizer["DeleteCourseFailed"].Value, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> CreateCourseRequestAsync(string courseId, string instructorId)
+        {
+            var course = await _context.Courses.FindAsync(courseId);
+            if (course == null)
+                return new ApiResponse("NotFound", _localizer["CourseNotFound"].Value, null, false);
+
+            if (course.InstructorId != instructorId)
+                return new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false);
+
+            if (course.Status == CourseStatus.Public)
+                return new ApiResponse("Error", _localizer["CourseAlreadyPublic"].Value, null, false);
+
+            var existingRequest = await _context.CourseRequests
+                .FirstOrDefaultAsync(r => r.CourseId == courseId && r.Status == RequestStatus.Pending);
+            
+            if (existingRequest != null)
+                return new ApiResponse("Error", _localizer["RequestAlreadySent"].Value, null, false);
+
+            var request = new CourseRequest
+            {
+                CourseId = courseId,
+                InstructorId = instructorId,
+                Status = RequestStatus.Pending
+            };
+
+            _context.CourseRequests.Add(request);
+            await _context.SaveChangesAsync();
+
+            return new ApiResponse("Success", _localizer["RequestSentSuccess"].Value, null, true);
+        }
+
+        public async Task<ApiResponse> GetPendingCourseRequestsAsync()
+        {
+            var requests = await _context.CourseRequests
+                .AsNoTracking()
+                .Where(r => r.Status == RequestStatus.Pending)
+                .Include(r => r.Course)
+                    .ThenInclude(c => c.Instructor)
+                .Select(r => new CourseRequestDTO
+                {
+                    Id = r.Id,
+                    CourseId = r.CourseId,
+                    CourseName = r.Course.Name,
+                    InstructorId = r.InstructorId,
+                    InstructorName = r.Course.Instructor.FullName,
+                    Status = r.Status.ToString(),
+                    CreatedAt = r.CreatedAt
+                })
+                .ToListAsync();
+
+            if (!requests.Any())
+                return new ApiResponse("Success", _localizer["NoData"].Value, null, true);
+
+            return new ApiResponse("Success", _localizer["Success"].Value, requests, true);
+        }
+
+        public async Task<ApiResponse> ApproveCourseRequestAsync(string requestId)
+        {
+            var request = await _context.CourseRequests
+                .Include(r => r.Course)
+                    .ThenInclude(c => c.Instructor)
+                .Include(r => r.Course.CourseTags)
+                .Include(r => r.Course.Enrollments)
+                    .ThenInclude(e => e.Comments)
+                .FirstOrDefaultAsync(r => r.Id == requestId);
+
+            if (request == null)
+                return new ApiResponse("NotFound", _localizer["RequestNotFound"].Value, null, false);
+
+            if (request.Status != RequestStatus.Pending)
+                return new ApiResponse("Error", _localizer["RequestNotPending"].Value, null, false);
+
+            request.Status = RequestStatus.Approved;
+            request.ProcessedAt = DateTime.UtcNow;
+            
+            if (request.Course != null)
+            {
+                request.Course.Status = CourseStatus.Public;
+                // Update Index
+                try 
+                {
+                    await _luceneSearchService.IndexCourseAsync(request.Course);
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine($"Indexing failed: {ex.Message}");
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return new ApiResponse("Success", _localizer["CourseRequestApproved"].Value, null, true);
+        }
+
+        public async Task<ApiResponse> RejectCourseRequestAsync(string requestId)
+        {
+            var request = await _context.CourseRequests.FindAsync(requestId);
+
+            if (request == null)
+                return new ApiResponse("NotFound", _localizer["RequestNotFound"].Value, null, false);
+
+            if (request.Status != RequestStatus.Pending)
+                return new ApiResponse("Error", _localizer["RequestNotPending"].Value, null, false);
+
+            request.Status = RequestStatus.Rejected;
+            request.ProcessedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return new ApiResponse("Success", _localizer["CourseRequestRejected"].Value, null, true);
         }
     }
 }

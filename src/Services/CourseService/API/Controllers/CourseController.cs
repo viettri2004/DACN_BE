@@ -134,5 +134,55 @@ namespace CourseService.API.Controllers
             var response = await _courseRepository.GetCourseContentAsync(courseId);
             return response.ToActionResult();
         }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpDelete("{courseId}")]
+        public async Task<ActionResult<ApiResponse>> DeleteCourse([FromRoute] string courseId)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            }
+            var response = await _courseRepository.DeleteCourseAsync(courseId, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpPost("request-publish/{courseId}")]
+        public async Task<ActionResult<ApiResponse>> RequestPublishCourse([FromRoute] string courseId)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            }
+            var response = await _courseRepository.CreateCourseRequestAsync(courseId, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Admin")]
+        [HttpGet("pending-requests")]
+        public async Task<ActionResult<ApiResponse>> GetPendingRequests()
+        {
+            var response = await _courseRepository.GetPendingCourseRequestsAsync();
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Admin")]
+        [HttpPost("approve-request/{requestId}")]
+        public async Task<ActionResult<ApiResponse>> ApproveRequest([FromRoute] string requestId)
+        {
+            var response = await _courseRepository.ApproveCourseRequestAsync(requestId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Admin")]
+        [HttpPost("reject-request/{requestId}")]
+        public async Task<ActionResult<ApiResponse>> RejectRequest([FromRoute] string requestId)
+        {
+            var response = await _courseRepository.RejectCourseRequestAsync(requestId);
+            return response.ToActionResult();
+        }
     }
 }

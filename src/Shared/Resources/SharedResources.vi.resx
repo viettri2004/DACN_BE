@@ -441,4 +441,36 @@
     <value>Loại file không hợp lệ</value>
     <comment/>
   </data>
+  <data name="DeleteCourseSuccess" xml:space="preserve">
+    <value>Xóa khóa học thành công</value>
+    <comment/>
+  </data>
+  <data name="DeleteCourseFailed" xml:space="preserve">
+    <value>Xóa khóa học thất bại</value>
+    <comment/>
+  </data>
+  <data name="RequestSentSuccess" xml:space="preserve">
+    <value>Gửi yêu cầu thành công</value>
+    <comment/>
+  </data>
+  <data name="RequestSentFailed" xml:space="preserve">
+    <value>Gửi yêu cầu thất bại</value>
+    <comment/>
+  </data>
+  <data name="CourseRequestApproved" xml:space="preserve">
+    <value>Yêu cầu khóa học đã được chấp nhận</value>
+    <comment/>
+  </data>
+  <data name="CourseRequestRejected" xml:space="preserve">
+    <value>Yêu cầu khóa học đã bị từ chối</value>
+    <comment/>
+  </data>
+  <data name="CourseAlreadyPublic" xml:space="preserve">
+    <value>Khóa học đã được công khai</value>
+    <comment/>
+  </data>
+  <data name="RequestAlreadySent" xml:space="preserve">
+    <value>Yêu cầu đã được gửi và đang chờ xử lý</value>
+    <comment/>
+  </data>
 </root>
