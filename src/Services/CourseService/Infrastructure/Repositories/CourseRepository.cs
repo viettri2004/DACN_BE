@@ -398,7 +398,11 @@ namespace CourseService.Infrastructure.Repositories
                             Id = d.Id,
                             Name = d.Name
                         }).ToList(),
-                        QuizNames = l.Quizzes.Select(q => q.Name).ToList()
+                        Quizzes = l.Quizzes.Select(q => new QuizContentDTO
+                        {
+                            Id = q.Id,
+                            Name = q.Name
+                        }).ToList()
                     }).ToList()
                 })
                 .FirstOrDefaultAsync();

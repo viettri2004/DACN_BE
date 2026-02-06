@@ -34,7 +34,7 @@ namespace LectureService.API.Controllers
         }
 
         [Authorize(Policy = "Instructor")]
-        [HttpPut("{quizId}")]
+        [HttpPatch("{quizId}")]
         public async Task<ActionResult<ApiResponse>> UpdateQuiz([FromRoute] string quizId, [FromBody] UpdateQuizDTO updateQuizDTO)
         {
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
@@ -56,6 +56,13 @@ namespace LectureService.API.Controllers
                 return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
             }
             var response = await _quizRepository.DeleteQuizAsync(quizId, instructorId);
+            return response.ToActionResult();
+        }
+
+        [HttpGet("{quizId}")]
+        public async Task<ActionResult<ApiResponse>> GetQuiz([FromRoute] string quizId)
+        {
+            var response = await _quizRepository.GetQuizByIdAsync(quizId);
             return response.ToActionResult();
         }
     }

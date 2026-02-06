@@ -189,5 +189,49 @@ namespace LectureService.Infrastructure.Repositories
                 return new ApiResponse("Error", _localizer["DeleteQuizFailed"].Value, null, false);
             }
         }
+
+        public async Task<ApiResponse> GetQuizByIdAsync(string quizId)
+        {
+            try
+            {
+                var quiz = await _context.Quizzes
+                    .Include(q => q.Questions)
+                        .ThenInclude(qs => qs.QuestionOptions)
+                    .FirstOrDefaultAsync(q => q.Id == quizId);
+
+                if (quiz == null)
+                    return new ApiResponse("NotFound", _localizer["QuizNotFound"].Value, null, false);
+
+                var quizDto = new QuizDTO
+                {
+                    Id = quiz.Id,
+                    Name = quiz.Name,
+                    LectureId = quiz.LectureId,
+                    TestTime = quiz.TestTime,
+                    AttemptCount = quiz.AttemptCount,
+                    Questions = quiz.Questions.Select(q => new QuestionDTO
+                    {
+                        Id = q.Id,
+                        Content = q.Content,
+                        DisplayOrder = q.DisplayOrder,
+                        Explanation = q.Explanation,
+                        Options = q.QuestionOptions.Select(o => new QuestionOptionDTO
+                        {
+                            Id = o.Id,
+                            Content = o.Content,
+                            IsCorrect = o.IsCorrect,
+                            DisplayOrder = o.DisplayOrder
+                        }).OrderBy(o => o.DisplayOrder).ToList()
+                    }).OrderBy(q => q.DisplayOrder).ToList()
+                };
+
+                return new ApiResponse("Success", _localizer["Success"].Value, quizDto, true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting quiz: {ex.Message}");
+                return new ApiResponse("Error", _localizer["Error"].Value, null, false);
+            }
+        }
     }
 }

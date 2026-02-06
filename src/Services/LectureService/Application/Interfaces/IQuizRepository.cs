@@ -9,5 +9,6 @@ namespace LectureService.Application.Interfaces
         Task<ApiResponse> CreateQuizAsync(CreateQuizDTO createQuizDTO, string instructorId);
         Task<ApiResponse> UpdateQuizAsync(string quizId, UpdateQuizDTO updateQuizDTO, string instructorId);
         Task<ApiResponse> DeleteQuizAsync(string quizId, string instructorId);
+        Task<ApiResponse> GetQuizByIdAsync(string quizId);
     }
 }
