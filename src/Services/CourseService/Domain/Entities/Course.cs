@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
+using CourseService.Domain.Entities;
 using CourseService.Domain.Enums;
 
 namespace Entities
@@ -26,5 +27,6 @@ namespace Entities
         public ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
         public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
+        public ICollection<CourseRequest> CourseRequests { get; set; } = new List<CourseRequest>();
     }
 }

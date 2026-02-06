@@ -3,6 +3,7 @@ using System;
 using Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace src.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260205100556_AddQuestionAndOptionEntities")]
+    partial class AddQuestionAndOptionEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -497,9 +500,6 @@ namespace src.Migrations
                     b.Property<int>("DisplayOrder")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Explanation")
-                        .HasColumnType("text");
-
                     b.Property<string>("QuizId")
                         .IsRequired()
                         .HasColumnType("text");
@@ -535,6 +535,30 @@ namespace src.Migrations
                     b.HasIndex("QuestionId");
 
                     b.ToTable("QuestionOptions");
+                });
+
+            modelBuilder.Entity("Entities.Questionnaire", b =>
+                {
+                    b.Property<string>("QuizId")
+                        .HasColumnType("text");
+
+                    b.Property<int>("QuestionNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("QuizId", "QuestionNumber");
+
+                    b.ToTable("Questionnaires");
                 });
 
             modelBuilder.Entity("Entities.Quiz", b =>
@@ -1093,6 +1117,17 @@ namespace src.Migrations
                     b.Navigation("Question");
                 });
 
+            modelBuilder.Entity("Entities.Questionnaire", b =>
+                {
+                    b.HasOne("Entities.Quiz", "Quiz")
+                        .WithMany("Questionnaires")
+                        .HasForeignKey("QuizId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Quiz");
+                });
+
             modelBuilder.Entity("Entities.Quiz", b =>
                 {
                     b.HasOne("Entities.Lecture", "Lecture")
@@ -1231,6 +1266,8 @@ namespace src.Migrations
 
             modelBuilder.Entity("Entities.Quiz", b =>
                 {
+                    b.Navigation("Questionnaires");
+
                     b.Navigation("Questions");
 
                     b.Navigation("QuizAttempts");

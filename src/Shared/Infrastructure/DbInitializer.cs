@@ -32,11 +32,9 @@ namespace Data.Seeding
             await _context.Database.MigrateAsync();
 
             // await SeedRolesAsync();
-            // // Bước 1: Chỉ tạo user cơ bản
             // await SeedInstructorsAsync();
             // await SeedStudentsAsync();
 
-            // Bước 2: Dùng hàm mới để cập nhật thông tin cho user có sẵn
             await SeedUserProfilesAsync();
 
             // await SeedCoursesAsync();

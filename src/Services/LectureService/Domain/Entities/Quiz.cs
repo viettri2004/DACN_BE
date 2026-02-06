@@ -16,7 +16,7 @@ namespace Entities
         public int TestTime { get; set; } = 0;
         public int AttemptCount { get; set; }   = 0;
 
-        public ICollection<Questionnaire> Questionnaires { get; set; } = new List<Questionnaire>();
+        public ICollection<Question> Questions { get; set; } = new List<Question>();
         public ICollection<QuizAttempt> QuizAttempts { get; set; } = new List<QuizAttempt>();
     }
 }

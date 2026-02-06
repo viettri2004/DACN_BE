@@ -45,22 +45,38 @@ namespace LectureService.Infrastructure.Repositories
                     LectureId = createQuizDTO.LectureId,
                     TestTime = createQuizDTO.TestTime,
                     AttemptCount = createQuizDTO.AttemptCount,
-                    Questionnaires = new List<Questionnaire>()
+                    Questions = new List<Question>()
                 };
 
                 if (createQuizDTO.Questions != null && createQuizDTO.Questions.Any())
                 {
-                    int questionNumber = 1;
-                    foreach (var q in createQuizDTO.Questions)
+                    foreach (var qDto in createQuizDTO.Questions)
                     {
-                        quiz.Questionnaires.Add(new Questionnaire
+                        var question = new Question
                         {
+                            Id = Guid.NewGuid().ToString(),
                             QuizId = quiz.Id,
-                            QuestionNumber = questionNumber++,
-                            Question = q.Question,
-                            Key = q.Key,
-                            Description = q.Description
-                        });
+                            Content = qDto.Content,
+                            DisplayOrder = qDto.DisplayOrder,
+                            Explanation = qDto.Explanation,
+                            QuestionOptions = new List<QuestionOption>()
+                        };
+
+                        if (qDto.Options != null)
+                        {
+                            foreach (var oDto in qDto.Options)
+                            {
+                                question.QuestionOptions.Add(new QuestionOption
+                                {
+                                    Id = Guid.NewGuid().ToString(),
+                                    QuestionId = question.Id,
+                                    Content = oDto.Content,
+                                    IsCorrect = oDto.IsCorrect,
+                                    DisplayOrder = oDto.DisplayOrder
+                                });
+                            }
+                        }
+                        quiz.Questions.Add(question);
                     }
                 }
 
@@ -83,7 +99,8 @@ namespace LectureService.Infrastructure.Repositories
                 var quiz = await _context.Quizzes
                     .Include(q => q.Lecture)
                         .ThenInclude(l => l.Course)
-                    .Include(q => q.Questionnaires)
+                    .Include(q => q.Questions)
+                        .ThenInclude(qs => qs.QuestionOptions)
                     .FirstOrDefaultAsync(q => q.Id == quizId);
 
                 if (quiz == null)
@@ -103,21 +120,35 @@ namespace LectureService.Infrastructure.Repositories
 
                 if (updateQuizDTO.Questions != null)
                 {
-                    // Remove existing questions
-                    _context.Set<Questionnaire>().RemoveRange(quiz.Questionnaires);
+                    _context.Questions.RemoveRange(quiz.Questions);
                     
-                    // Add new questions
-                    int questionNumber = 1;
-                    foreach (var q in updateQuizDTO.Questions)
+                    foreach (var qDto in updateQuizDTO.Questions)
                     {
-                        _context.Set<Questionnaire>().Add(new Questionnaire
+                        var question = new Question
                         {
+                            Id = Guid.NewGuid().ToString(),
                             QuizId = quiz.Id,
-                            QuestionNumber = questionNumber++,
-                            Question = q.Question,
-                            Key = q.Key,
-                            Description = q.Description
-                        });
+                            Content = qDto.Content,
+                            DisplayOrder = qDto.DisplayOrder,
+                            Explanation = qDto.Explanation,
+                            QuestionOptions = new List<QuestionOption>()
+                        };
+
+                        if (qDto.Options != null)
+                        {
+                            foreach (var oDto in qDto.Options)
+                            {
+                                question.QuestionOptions.Add(new QuestionOption
+                                {
+                                    Id = Guid.NewGuid().ToString(),
+                                    QuestionId = question.Id,
+                                    Content = oDto.Content,
+                                    IsCorrect = oDto.IsCorrect,
+                                    DisplayOrder = oDto.DisplayOrder
+                                });
+                            }
+                        }
+                        quiz.Questions.Add(question);
                     }
                 }
 

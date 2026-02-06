@@ -21,6 +21,6 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> CreateCourseRequestAsync(string courseId, string instructorId);
         Task<ApiResponse> GetPendingCourseRequestsAsync();
         Task<ApiResponse> ApproveCourseRequestAsync(string requestId);
-        Task<ApiResponse> RejectCourseRequestAsync(string requestId);
+        Task<ApiResponse> RejectCourseRequestAsync(string requestId, string reason);
     }
 }

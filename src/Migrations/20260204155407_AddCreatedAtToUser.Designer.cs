@@ -3,6 +3,7 @@ using System;
 using Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace src.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260204155407_AddCreatedAtToUser")]
+    partial class AddCreatedAtToUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -40,9 +43,6 @@ namespace src.Migrations
 
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Reason")
-                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -485,56 +485,28 @@ namespace src.Migrations
                     b.ToTable("PaymentTransactions");
                 });
 
-            modelBuilder.Entity("Entities.Question", b =>
+            modelBuilder.Entity("Entities.Questionnaire", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Explanation")
-                        .HasColumnType("text");
-
                     b.Property<string>("QuizId")
-                        .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
-
-                    b.HasIndex("QuizId");
-
-                    b.ToTable("Questions");
-                });
-
-            modelBuilder.Entity("Entities.QuestionOption", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("DisplayOrder")
+                    b.Property<int>("QuestionNumber")
                         .HasColumnType("integer");
 
-                    b.Property<bool>("IsCorrect")
-                        .HasColumnType("boolean");
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
 
-                    b.Property<string>("QuestionId")
+                    b.Property<string>("Key")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("Id");
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasColumnType("text");
 
-                    b.HasIndex("QuestionId");
+                    b.HasKey("QuizId", "QuestionNumber");
 
-                    b.ToTable("QuestionOptions");
+                    b.ToTable("Questionnaires");
                 });
 
             modelBuilder.Entity("Entities.Quiz", b =>
@@ -863,7 +835,7 @@ namespace src.Migrations
             modelBuilder.Entity("CourseService.Domain.Entities.CourseRequest", b =>
                 {
                     b.HasOne("Entities.Course", "Course")
-                        .WithMany("CourseRequests")
+                        .WithMany()
                         .HasForeignKey("CourseId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1071,26 +1043,15 @@ namespace src.Migrations
                     b.Navigation("Order");
                 });
 
-            modelBuilder.Entity("Entities.Question", b =>
+            modelBuilder.Entity("Entities.Questionnaire", b =>
                 {
                     b.HasOne("Entities.Quiz", "Quiz")
-                        .WithMany("Questions")
+                        .WithMany("Questionnaires")
                         .HasForeignKey("QuizId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Quiz");
-                });
-
-            modelBuilder.Entity("Entities.QuestionOption", b =>
-                {
-                    b.HasOne("Entities.Question", "Question")
-                        .WithMany("QuestionOptions")
-                        .HasForeignKey("QuestionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Question");
                 });
 
             modelBuilder.Entity("Entities.Quiz", b =>
@@ -1188,8 +1149,6 @@ namespace src.Migrations
                 {
                     b.Navigation("CartItems");
 
-                    b.Navigation("CourseRequests");
-
                     b.Navigation("CourseTags");
 
                     b.Navigation("Enrollments");
@@ -1224,14 +1183,9 @@ namespace src.Migrations
                     b.Navigation("PaymentTransactions");
                 });
 
-            modelBuilder.Entity("Entities.Question", b =>
-                {
-                    b.Navigation("QuestionOptions");
-                });
-
             modelBuilder.Entity("Entities.Quiz", b =>
                 {
-                    b.Navigation("Questions");
+                    b.Navigation("Questionnaires");
 
                     b.Navigation("QuizAttempts");
                 });

@@ -179,9 +179,9 @@ namespace CourseService.API.Controllers
 
         [Authorize(Policy = "Admin")]
         [HttpPost("reject-request/{requestId}")]
-        public async Task<ActionResult<ApiResponse>> RejectRequest([FromRoute] string requestId)
+        public async Task<ActionResult<ApiResponse>> RejectRequest([FromRoute] string requestId, [FromBody] RejectRequestDTO rejectRequestDTO)
         {
-            var response = await _courseRepository.RejectCourseRequestAsync(requestId);
+            var response = await _courseRepository.RejectCourseRequestAsync(requestId, rejectRequestDTO.Reason);
             return response.ToActionResult();
         }
     }

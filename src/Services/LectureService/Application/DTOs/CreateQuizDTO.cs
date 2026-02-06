@@ -3,13 +3,21 @@ using System.ComponentModel.DataAnnotations;
 
 namespace LectureService.Application.DTOs
 {
+    public class CreateQuestionOptionDTO
+    {
+        [Required]
+        public string Content { get; set; } = null!;
+        public bool IsCorrect { get; set; }
+        public int DisplayOrder { get; set; }
+    }
+
     public class CreateQuestionDTO
     {
         [Required]
-        public string Question { get; set; } = null!;
-        [Required]
-        public string Key { get; set; } = null!; 
-        public string? Description { get; set; } 
+        public string Content { get; set; } = null!;
+        public int DisplayOrder { get; set; }
+        public string? Explanation { get; set; }
+        public List<CreateQuestionOptionDTO> Options { get; set; } = new List<CreateQuestionOptionDTO>();
     }
 
     public class CreateQuizDTO

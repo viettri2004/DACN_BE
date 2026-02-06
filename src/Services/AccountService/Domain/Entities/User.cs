@@ -10,5 +10,6 @@ namespace Entities
         public string? Description { get; set; }
         public string? AvatarUrl { get; set; }
         public bool IsBanned { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

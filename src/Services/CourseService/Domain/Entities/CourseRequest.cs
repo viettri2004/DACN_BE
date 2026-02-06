@@ -25,5 +25,7 @@ namespace CourseService.Domain.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         
         public DateTime? ProcessedAt { get; set; }
+
+        public string? Reason { get; set; }
     }
 }

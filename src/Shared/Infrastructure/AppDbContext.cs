@@ -23,7 +23,8 @@ namespace Data.Context
         public DbSet<LectureVideo> LectureVideos { get; set; } = null!;
         public DbSet<Comment> Comments { get; set; } = null!;
         public DbSet<Quiz> Quizzes { get; set; } = null!;
-        public DbSet<Questionnaire> Questionnaires { get; set; } = null!;
+        public DbSet<Question> Questions { get; set; } = null!;
+        public DbSet<QuestionOption> QuestionOptions { get; set; } = null!;
         public DbSet<PaymentTransaction> PaymentTransactions { get; set; } = null!;
         public DbSet<InstructorRequest> InstructorRequests { get; set; } = null!;
         public DbSet<CourseRequest> CourseRequests { get; set; } = null!;
@@ -274,24 +275,36 @@ namespace Data.Context
                 .OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<Quiz>()
                 .HasIndex(q => q.LectureId);
+
+            // Question
+            modelBuilder.Entity<Question>(entity =>
+            {
+                entity.HasKey(q => q.Id);
+                entity.HasOne(q => q.Quiz)
+                    .WithMany(qz => qz.Questions)
+                    .HasForeignKey(q => q.QuizId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(q => q.QuizId);
+            });
+
+            // QuestionOption
+            modelBuilder.Entity<QuestionOption>(entity =>
+            {
+                entity.HasKey(qo => qo.Id);
+                entity.HasOne(qo => qo.Question)
+                    .WithMany(q => q.QuestionOptions)
+                    .HasForeignKey(qo => qo.QuestionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(qo => qo.QuestionId);
+            });
             
-            // Questionnaire composite key
-            modelBuilder.Entity<Questionnaire>()
-                .HasKey(qn => new { qn.QuizId, qn.QuestionNumber });
-
-            modelBuilder.Entity<Questionnaire>()
-                .HasOne(qn => qn.Quiz)
-                .WithMany(q => q.Questionnaires)
-                .HasForeignKey(qn => new { qn.QuizId })
-                .OnDelete(DeleteBehavior.Cascade);
-
             // CourseRequest
             modelBuilder.Entity<CourseRequest>(entity =>
             {
                 entity.HasKey(cr => cr.Id);
 
                 entity.HasOne(cr => cr.Course)
-                    .WithMany()
+                    .WithMany(c => c.CourseRequests)
                     .HasForeignKey(cr => cr.CourseId)
                     .OnDelete(DeleteBehavior.Cascade);
 

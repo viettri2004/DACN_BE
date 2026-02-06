@@ -354,7 +354,9 @@ namespace CourseService.Infrastructure.Repositories
                                 .Average(cm => cm.Rate)
                             : 0,
                     Price = c.Price,
-                    Status = c.Status.ToString()
+                    Status = c.CourseRequests.Any(r => r.Status == RequestStatus.Pending) 
+                             ? "Pending" 
+                             : c.Status.ToString()
                 })
                 .ToListAsync();
 
@@ -546,7 +548,7 @@ namespace CourseService.Infrastructure.Repositories
             return new ApiResponse("Success", _localizer["CourseRequestApproved"].Value, null, true);
         }
 
-        public async Task<ApiResponse> RejectCourseRequestAsync(string requestId)
+        public async Task<ApiResponse> RejectCourseRequestAsync(string requestId, string reason)
         {
             var request = await _context.CourseRequests.FindAsync(requestId);
 
@@ -558,6 +560,7 @@ namespace CourseService.Infrastructure.Repositories
 
             request.Status = RequestStatus.Rejected;
             request.ProcessedAt = DateTime.UtcNow;
+            request.Reason = reason;
 
             await _context.SaveChangesAsync();
 

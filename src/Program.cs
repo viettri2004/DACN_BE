@@ -5,6 +5,7 @@ using AccountService.Infrastructure.Email;
 using AccountService.Infrastructure.Google;
 using AccountService.Infrastructure.Otp;
 using AccountService.Infrastructure.Persistence.Repositories;
+using AccountService.Infrastructure.Repositories;
 using CartService.Application.Interfaces;
 using CartService.Infrastructure.Repositories;
 using CloudinaryDotNet;
@@ -118,6 +119,7 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     services.AddScoped<ITagRepository, TagRepository>();
     services.AddScoped<ITokenService, TokenService>();
     services.AddScoped<IAccountRepository, AccountRepository>();
+    services.AddScoped<IDashboardRepository, DashboardRepository>();
     services.AddScoped<IAuthService, AuthService>();
     services.AddScoped<IEmailService, EmailService>();
     services.AddScoped<IOtpService, OtpService>();
