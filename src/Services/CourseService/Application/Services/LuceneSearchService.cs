@@ -18,6 +18,7 @@ using Lucene.Net.Util;
 using Lucene.Net.QueryParsers.Classic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
+using Microsoft.Extensions.DependencyInjection;
 using Shared.Domain.Entities;
 using src.Shared.Domain.Entities;
 using src.Shared.Resources;
@@ -30,16 +31,16 @@ namespace CourseService.Application.Services
         private readonly FSDirectory _directory;
         private readonly StandardAnalyzer _analyzer;
         private readonly IndexWriter _writer;
-        private readonly AppDbContext _context;
+        private readonly IServiceScopeFactory _scopeFactory;
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly SearcherManager _searcherManager;
 
         public LuceneSearchService(
-            AppDbContext context,
+            IServiceScopeFactory scopeFactory,
             IStringLocalizer<SharedResources> localizer,
             IWebHostEnvironment env)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
             _localizer = localizer ?? throw new ArgumentNullException(nameof(localizer));
 
             var indexPath = Path.Combine(env.ContentRootPath, "lucene_index");
@@ -122,7 +123,10 @@ namespace CourseService.Application.Services
                     return new ApiResponse("Success", _localizer["Success"].Value, emptyResult, true);
                 }
 
-                var coursesQuery = _context.Courses
+                using var scope = _scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var coursesQuery = context.Courses
                     .AsNoTracking()
                     .Where(c => courseIds.Contains(c.Id) && c.Status != CourseStatus.Private)
                     .Include(c => c.Instructor)
@@ -133,7 +137,7 @@ namespace CourseService.Application.Services
 
                 if (!string.IsNullOrEmpty(studentId))
                 {
-                    var enrolledCourseIds = await _context.Enrollments
+                    var enrolledCourseIds = await context.Enrollments
                         .Where(e => e.StudentId == studentId && e.Status == true)
                         .Select(e => e.CourseId)
                         .ToListAsync();
@@ -294,16 +298,20 @@ namespace CourseService.Application.Services
 
                 do
                 {
-                    courses = await _context.Courses
-                        .Include(c => c.Instructor)
-                        .Include(c => c.CourseTags)
-                        .Include(c => c.Enrollments)
-                            .ThenInclude(e => e.Comments)
-                        .AsNoTracking()
-                        .OrderBy(c => c.Id)
-                        .Skip(page * batchSize)
-                        .Take(batchSize)
-                        .ToListAsync();
+                    using (var scope = _scopeFactory.CreateScope())
+                    {
+                        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                        courses = await context.Courses
+                            .Include(c => c.Instructor)
+                            .Include(c => c.CourseTags)
+                            .Include(c => c.Enrollments)
+                                .ThenInclude(e => e.Comments)
+                            .AsNoTracking()
+                            .OrderBy(c => c.Id)
+                            .Skip(page * batchSize)
+                            .Take(batchSize)
+                            .ToListAsync();
+                    }
 
                     if (courses.Count == 0) break;
 

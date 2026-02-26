@@ -68,14 +68,14 @@ ConfigureAuthentication(builder.Services, builder.Configuration);
 ConfigureAuthorization(builder.Services);
 ConfigureDbContext(builder.Services, builder.Configuration);
 
-builder.Host.UseSerilog((context, config) =>
-{
-    config.ReadFrom.Configuration(context.Configuration);
-});
+// builder.Host.UseSerilog((context, config) =>
+// {
+//     config.ReadFrom.Configuration(context.Configuration);
+// });
 
 var app = builder.Build();
 
-app.UseSerilogRequestLogging();
+// app.UseSerilogRequestLogging();
 // using (var scope = app.Services.CreateScope())
 //     {
 //         var seeder = scope.ServiceProvider.GetRequiredService<DbSeeder>();
@@ -105,7 +105,7 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     
     services.AddScoped<DbSeeder>();
     services.AddScoped<CloudinaryService>();
-    services.AddScoped<ILuceneSearchService, LuceneSearchService>();
+    services.AddSingleton<ILuceneSearchService, LuceneSearchService>();
     services.AddScoped<IMomoService, MoMoService>();
     services.AddScoped<ISepayService, SepayService>();
     services.AddScoped<IVnPayService, VnPayService>();
