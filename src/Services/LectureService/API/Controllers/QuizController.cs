@@ -65,5 +65,57 @@ namespace LectureService.API.Controllers
             var response = await _quizRepository.GetQuizByIdAsync(quizId);
             return response.ToActionResult();
         }
+
+        [Authorize(Policy = "Student")]
+        [HttpPost("{quizId}/attempt")]
+        public async Task<ActionResult<ApiResponse>> StartQuiz([FromRoute] string quizId)
+        {
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            } 
+
+            var response = await _quizRepository.StartQuizAttemptAsync(quizId, studentId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Student")]
+        [HttpPost("submit")]
+        public async Task<ActionResult<ApiResponse>> SubmitQuiz([FromBody] QuizSubmissionDTO submissionDTO)
+        {
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            }
+
+            var response = await _quizRepository.SubmitQuizAttemptAsync(submissionDTO, studentId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Student")]
+        [HttpGet("attempt/{attemptId}/result")]
+        public async Task<ActionResult<ApiResponse>> GetQuizResult([FromRoute] string attemptId)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+
+            var response = await _quizRepository.GetQuizResultAsync(attemptId, userId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Student")]
+        [HttpGet("{quizId}/attempts")]
+        public async Task<ActionResult<ApiResponse>> GetStudentAttempts([FromRoute] string quizId)
+        {
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(studentId))
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+
+            var response = await _quizRepository.GetStudentQuizAttemptsAsync(quizId, studentId);
+            return response.ToActionResult();
+        }
     }
 }

@@ -15,5 +15,7 @@ namespace Entities
         public DateTime AttemptedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
         public int Score { get; set; }
+
+        public ICollection<QuizAttemptAnswer> QuizAttemptAnswers { get; set; } = new List<QuizAttemptAnswer>();
     }
 }

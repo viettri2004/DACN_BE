@@ -509,4 +509,19 @@
     <value>Không tìm thấy bài kiểm tra</value>
     <comment/>
   </data>
+  <data name="NotEnrolled" xml:space="preserve">
+    <value>Bạn chưa đăng ký khóa học này.</value>
+  </data>
+  <data name="MaxAttemptsReached" xml:space="preserve">
+    <value>Bạn đã hết số lần làm bài cho bài trắc nghiệm này.</value>
+  </data>
+  <data name="AttemptNotFound" xml:space="preserve">
+    <value>Không tìm thấy lượt làm bài.</value>
+  </data>
+  <data name="AlreadySubmitted" xml:space="preserve">
+    <value>Lượt làm bài này đã được nộp.</value>
+  </data>
+  <data name="AttemptNotCompleted" xml:space="preserve">
+    <value>Lượt làm bài này chưa hoàn thành.</value>
+  </data>
 </root>

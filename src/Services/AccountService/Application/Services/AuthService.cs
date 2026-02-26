@@ -65,6 +65,7 @@ namespace AccountService.Application.Services
                 Email = RegisterDTO.Email,
                 FullName = RegisterDTO.FullName,
                 PhoneNumber = RegisterDTO.PhoneNumber,
+                CreatedAt = DateTime.UtcNow,
                 IsBanned = false
             };
 

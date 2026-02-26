@@ -25,6 +25,8 @@ namespace Data.Context
         public DbSet<Quiz> Quizzes { get; set; } = null!;
         public DbSet<Question> Questions { get; set; } = null!;
         public DbSet<QuestionOption> QuestionOptions { get; set; } = null!;
+        public DbSet<QuizAttempt> QuizAttempts { get; set; } = null!;
+        public DbSet<QuizAttemptAnswer> QuizAttemptAnswers { get; set; } = null!;
         public DbSet<PaymentTransaction> PaymentTransactions { get; set; } = null!;
         public DbSet<InstructorRequest> InstructorRequests { get; set; } = null!;
         public DbSet<CourseRequest> CourseRequests { get; set; } = null!;
@@ -296,6 +298,24 @@ namespace Data.Context
                     .HasForeignKey(qo => qo.QuestionId)
                     .OnDelete(DeleteBehavior.Cascade);
                 entity.HasIndex(qo => qo.QuestionId);
+            });
+
+            // QuizAttemptAnswer
+            modelBuilder.Entity<QuizAttemptAnswer>(entity =>
+            {
+                entity.HasKey(qaa => qaa.Id);
+                entity.HasOne(qaa => qaa.QuizAttempt)
+                    .WithMany(qa => qa.QuizAttemptAnswers)
+                    .HasForeignKey(qaa => qaa.QuizAttemptId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(qaa => qaa.Question)
+                    .WithMany()
+                    .HasForeignKey(qaa => qaa.QuestionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(qaa => qaa.SelectedOption)
+                    .WithMany()
+                    .HasForeignKey(qaa => qaa.SelectedOptionId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
             
             // CourseRequest

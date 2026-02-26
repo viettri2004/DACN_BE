@@ -509,4 +509,19 @@
     <value>Quiz not found</value>
     <comment/>
   </data>
+  <data name="NotEnrolled" xml:space="preserve">
+    <value>You are not enrolled in this course.</value>
+  </data>
+  <data name="MaxAttemptsReached" xml:space="preserve">
+    <value>You have reached the maximum number of attempts for this quiz.</value>
+  </data>
+  <data name="AttemptNotFound" xml:space="preserve">
+    <value>Quiz attempt not found.</value>
+  </data>
+  <data name="AlreadySubmitted" xml:space="preserve">
+    <value>This quiz attempt has already been submitted.</value>
+  </data>
+  <data name="AttemptNotCompleted" xml:space="preserve">
+    <value>This quiz attempt has not been completed yet.</value>
+  </data>
 </root>

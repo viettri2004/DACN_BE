@@ -233,5 +233,226 @@ namespace LectureService.Infrastructure.Repositories
                 return new ApiResponse("Error", _localizer["Error"].Value, null, false);
             }
         }
+
+        public async Task<ApiResponse> StartQuizAttemptAsync(string quizId, string studentId)
+        {
+            try
+            {
+                var quiz = await _context.Quizzes
+                    .Include(q => q.Lecture)
+                        .ThenInclude(l => l.Course)
+                    .Include(q => q.Questions)
+                        .ThenInclude(qs => qs.QuestionOptions)
+                    .FirstOrDefaultAsync(q => q.Id == quizId);
+
+                if (quiz == null)
+                    return new ApiResponse("NotFound", _localizer["QuizNotFound"].Value, null, false);
+
+                var enrollment = await _context.Enrollments
+                    .FirstOrDefaultAsync(e => e.StudentId == studentId && e.CourseId == quiz.Lecture.CourseId);
+
+                if (enrollment == null)
+                    return new ApiResponse("Forbidden", _localizer["NotEnrolled"].Value, null, false);
+
+                if (quiz.AttemptCount > 0)
+                {
+                    var attemptCount = await _context.QuizAttempts
+                        .CountAsync(qa => qa.QuizId == quizId && qa.EnrollmentId == enrollment.Id);
+
+                    if (attemptCount >= quiz.AttemptCount)
+                        return new ApiResponse("Forbidden", _localizer["MaxAttemptsReached"].Value, null, false);
+                }
+
+                var attempt = new QuizAttempt
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    QuizId = quizId,
+                    EnrollmentId = enrollment.Id,
+                    AttemptedAt = DateTime.UtcNow,
+                    Score = 0
+                };
+
+                _context.QuizAttempts.Add(attempt);
+                await _context.SaveChangesAsync();
+
+                var attemptDto = new QuizAttemptResponseDTO
+                {
+                    AttemptId = attempt.Id,
+                    QuizId = quiz.Id,
+                    QuizName = quiz.Name,
+                    TestTime = quiz.TestTime,
+                    Questions = quiz.Questions.Select(q => new QuestionDTO
+                    {
+                        Id = q.Id,
+                        Content = q.Content,
+                        DisplayOrder = q.DisplayOrder,
+                        Options = q.QuestionOptions.Select(o => new QuestionOptionDTO
+                        {
+                            Id = o.Id,
+                            Content = o.Content,
+                            DisplayOrder = o.DisplayOrder
+                        }).OrderBy(o => o.DisplayOrder).ToList()
+                    }).OrderBy(q => q.DisplayOrder).ToList()
+                };
+
+                return new ApiResponse("Success", _localizer["Success"].Value, attemptDto, true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error starting quiz attempt: {ex.Message}");
+                return new ApiResponse("Error", _localizer["Error"].Value, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> SubmitQuizAttemptAsync(QuizSubmissionDTO submissionDTO, string studentId)
+        {
+            try
+            {
+                var attempt = await _context.QuizAttempts
+                    .Include(qa => qa.Enrollment)
+                    .Include(qa => qa.Quiz)
+                        .ThenInclude(q => q.Questions)
+                            .ThenInclude(qs => qs.QuestionOptions)
+                    .FirstOrDefaultAsync(qa => qa.Id == submissionDTO.QuizAttemptId);
+
+                if (attempt == null)
+                    return new ApiResponse("NotFound", _localizer["AttemptNotFound"].Value, null, false);
+
+                if (attempt.Enrollment.StudentId != studentId)
+                    return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
+
+                if (attempt.CompletedAt.HasValue)
+                    return new ApiResponse("Forbidden", _localizer["AlreadySubmitted"].Value, null, false);
+
+                attempt.CompletedAt = DateTime.UtcNow;
+                var correctAnswersCount = 0;
+                var totalQuestions = attempt.Quiz.Questions.Count;
+
+                foreach (var ansDto in submissionDTO.Answers)
+                {
+                    var question = attempt.Quiz.Questions.FirstOrDefault(q => q.Id == ansDto.QuestionId);
+                    if (question == null) continue;
+
+                    var selectedOption = question.QuestionOptions.FirstOrDefault(o => o.Id == ansDto.SelectedOptionId);
+                    if (selectedOption == null) continue;
+
+                    var answer = new QuizAttemptAnswer
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        QuizAttemptId = attempt.Id,
+                        QuestionId = question.Id,
+                        SelectedOptionId = selectedOption.Id
+                    };
+
+                    if (selectedOption.IsCorrect)
+                        correctAnswersCount++;
+
+                    _context.QuizAttemptAnswers.Add(answer);
+                }
+
+                attempt.Score = totalQuestions > 0 ? (int)Math.Round((double)correctAnswersCount / totalQuestions * 100) : 0;
+
+                await _context.SaveChangesAsync();
+
+                return await GetQuizResultAsync(attempt.Id, studentId);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error submitting quiz: {ex.Message}");
+                return new ApiResponse("Error", _localizer["Error"].Value, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> GetQuizResultAsync(string attemptId, string studentId)
+        {
+            try
+            {
+                var attempt = await _context.QuizAttempts
+                    .Include(qa => qa.Enrollment)
+                    .Include(qa => qa.Quiz)
+                        .ThenInclude(q => q.Questions)
+                            .ThenInclude(qs => qs.QuestionOptions)
+                    .Include(qa => qa.QuizAttemptAnswers)
+                    .FirstOrDefaultAsync(qa => qa.Id == attemptId);
+
+                if (attempt == null)
+                    return new ApiResponse("NotFound", _localizer["AttemptNotFound"].Value, null, false);
+
+                // Allow instructor of the course to see it as well?
+                // For now just student
+                if (attempt.Enrollment.StudentId != studentId)
+                {
+                     // Check if instructor
+                     var course = await _context.Courses.FirstOrDefaultAsync(c => c.Id == attempt.Quiz.Lecture.CourseId);
+                     if (course == null || course.InstructorId != studentId)
+                         return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
+                }
+
+                if (!attempt.CompletedAt.HasValue)
+                    return new ApiResponse("Forbidden", _localizer["AttemptNotCompleted"].Value, null, false);
+
+                var resultDto = new QuizResultDTO
+                {
+                    QuizAttemptId = attempt.Id,
+                    QuizId = attempt.QuizId,
+                    QuizName = attempt.Quiz.Name,
+                    Score = attempt.Score,
+                    TotalQuestions = attempt.Quiz.Questions.Count,
+                    CorrectAnswersCount = attempt.QuizAttemptAnswers.Count(qaa => 
+                        attempt.Quiz.Questions.First(q => q.Id == qaa.QuestionId)
+                                .QuestionOptions.First(o => o.Id == qaa.SelectedOptionId).IsCorrect),
+                    AttemptedAt = attempt.AttemptedAt,
+                    CompletedAt = attempt.CompletedAt,
+                    DetailedResults = attempt.QuizAttemptAnswers.Select(qaa => {
+                        var question = attempt.Quiz.Questions.First(q => q.Id == qaa.QuestionId);
+                        var correctOption = question.QuestionOptions.First(o => o.IsCorrect);
+                        var selectedOption = question.QuestionOptions.First(o => o.Id == qaa.SelectedOptionId);
+                        
+                        return new QuizAttemptAnswerResultDTO
+                        {
+                            QuestionId = qaa.QuestionId,
+                            SelectedOptionId = qaa.SelectedOptionId,
+                            CorrectOptionId = correctOption.Id,
+                            IsCorrect = selectedOption.IsCorrect,
+                            Explanation = question.Explanation
+                        };
+                    }).ToList()
+                };
+
+                return new ApiResponse("Success", _localizer["Success"].Value, resultDto, true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting quiz result: {ex.Message}");
+                return new ApiResponse("Error", _localizer["Error"].Value, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> GetStudentQuizAttemptsAsync(string quizId, string studentId)
+        {
+            try
+            {
+                var enrollment = await _context.Enrollments
+                    .Include(e => e.Course)
+                        .ThenInclude(c => c.Lectures)
+                            .ThenInclude(l => l.Quizzes)
+                    .FirstOrDefaultAsync(e => e.StudentId == studentId && e.Course.Lectures.Any(l => l.Quizzes.Any(q => q.Id == quizId)));
+
+                if (enrollment == null)
+                    return new ApiResponse("Forbidden", _localizer["NotEnrolled"].Value, null, false);
+
+                var attempts = await _context.QuizAttempts
+                    .Where(qa => qa.QuizId == quizId && qa.EnrollmentId == enrollment.Id)
+                    .OrderByDescending(qa => qa.AttemptedAt)
+                    .ToListAsync();
+
+                return new ApiResponse("Success", _localizer["Success"].Value, attempts, true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting student quiz attempts: {ex.Message}");
+                return new ApiResponse("Error", _localizer["Error"].Value, null, false);
+            }
+        }
     }
 }
