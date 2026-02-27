@@ -449,7 +449,8 @@ namespace LectureService.Infrastructure.Repositories
                         Id = qa.Id,
                         AttemptedAt = qa.AttemptedAt,
                         CompletedAt = qa.CompletedAt,
-                        Score = qa.Score
+                        TotalQuestions = qa.Quiz.Questions.Count,
+                        CorrectAnswersCount = qa.QuizAttemptAnswers.Count(qaa => qaa.SelectedOption.IsCorrect)
                     })
                     .ToListAsync();
 

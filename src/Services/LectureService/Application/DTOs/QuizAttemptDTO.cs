@@ -22,6 +22,7 @@ namespace LectureService.Application.DTOs
         public string Id { get; set; } = null!;
         public DateTime AttemptedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
-        public int Score { get; set; }
+        public int TotalQuestions { get; set; }
+        public int CorrectAnswersCount { get; set; }
     }
 }
