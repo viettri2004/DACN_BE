@@ -16,4 +16,12 @@ namespace LectureService.Application.DTOs
         public int TestTime { get; set; }
         public List<QuestionDTO> Questions { get; set; } = new List<QuestionDTO>();
     }
+
+    public class QuizAttemptSummaryDTO
+    {
+        public string Id { get; set; } = null!;
+        public DateTime AttemptedAt { get; set; }
+        public DateTime? CompletedAt { get; set; }
+        public int Score { get; set; }
+    }
 }

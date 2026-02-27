@@ -444,6 +444,13 @@ namespace LectureService.Infrastructure.Repositories
                 var attempts = await _context.QuizAttempts
                     .Where(qa => qa.QuizId == quizId && qa.EnrollmentId == enrollment.Id)
                     .OrderByDescending(qa => qa.AttemptedAt)
+                    .Select(qa => new QuizAttemptSummaryDTO
+                    {
+                        Id = qa.Id,
+                        AttemptedAt = qa.AttemptedAt,
+                        CompletedAt = qa.CompletedAt,
+                        Score = qa.Score
+                    })
                     .ToListAsync();
 
                 return new ApiResponse("Success", _localizer["Success"].Value, attempts, true);

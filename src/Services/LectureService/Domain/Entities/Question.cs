@@ -6,7 +6,7 @@ namespace Entities
     public class Question
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
-        public string Content { get; set; } = null!; // The question text
+        public string Content { get; set; } = null!; 
         public int DisplayOrder { get; set; } 
         public string? Explanation { get; set; }
         
