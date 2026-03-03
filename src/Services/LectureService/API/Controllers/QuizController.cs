@@ -22,7 +22,7 @@ namespace LectureService.API.Controllers
 
         [Authorize(Policy = "Instructor")]
         [HttpPost("create")]
-        public async Task<ActionResult<ApiResponse>> CreateQuiz([FromBody] CreateQuizDTO createQuizDTO)
+        public async Task<ActionResult<ApiResponse>> CreateQuiz([FromForm] CreateQuizDTO createQuizDTO)
         {
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
@@ -35,7 +35,7 @@ namespace LectureService.API.Controllers
 
         [Authorize(Policy = "Instructor")]
         [HttpPatch("{quizId}")]
-        public async Task<ActionResult<ApiResponse>> UpdateQuiz([FromRoute] string quizId, [FromBody] UpdateQuizDTO updateQuizDTO)
+        public async Task<ActionResult<ApiResponse>> UpdateQuiz([FromRoute] string quizId, [FromForm] UpdateQuizDTO updateQuizDTO)
         {
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))

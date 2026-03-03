@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using src.Shared.Domain.Entities;
 using src.Shared.Resources;
+using Shared.Infrastructure.cloudinaryService;
 
 namespace LectureService.Infrastructure.Repositories
 {
@@ -17,11 +18,13 @@ namespace LectureService.Infrastructure.Repositories
     {
         private readonly AppDbContext _context;
         private readonly IStringLocalizer<SharedResources> _localizer;
+        private readonly CloudinaryService _cloudinaryService;
 
-        public QuizRepository(AppDbContext context, IStringLocalizer<SharedResources> localizer)
+        public QuizRepository(AppDbContext context, IStringLocalizer<SharedResources> localizer, CloudinaryService cloudinaryService)
         {
             _context = context;
             _localizer = localizer;
+            _cloudinaryService = cloudinaryService;
         }
 
         public async Task<ApiResponse> CreateQuizAsync(CreateQuizDTO createQuizDTO, string instructorId)
@@ -61,6 +64,13 @@ namespace LectureService.Infrastructure.Repositories
                             Explanation = qDto.Explanation,
                             QuestionOptions = new List<QuestionOption>()
                         };
+
+                        if (qDto.Image != null)
+                        {
+                            var uploadResult = await _cloudinaryService.UploadImageAsync(qDto.Image);
+                            question.ImageUrl = uploadResult.Url;
+                            question.ImagePublicId = uploadResult.PublicId;
+                        }
 
                         if (qDto.Options != null)
                         {
@@ -120,6 +130,24 @@ namespace LectureService.Infrastructure.Repositories
 
                 if (updateQuizDTO.Questions != null)
                 {
+                    // Track old public IDs to delete them if they are no longer used
+                    var oldPublicIds = quiz.Questions
+                        .Where(q => !string.IsNullOrEmpty(q.ImagePublicId))
+                        .Select(q => q.ImagePublicId!)
+                        .ToList();
+
+                    var newPublicIds = updateQuizDTO.Questions
+                        .Where(q => !string.IsNullOrEmpty(q.ImagePublicId) && q.Image == null)
+                        .Select(q => q.ImagePublicId!)
+                        .ToList();
+
+                    var idsToDelete = oldPublicIds.Except(newPublicIds).ToList();
+                    foreach (var publicId in idsToDelete)
+                    {
+                        try { await _cloudinaryService.DeleteImageAsync(publicId); }
+                        catch (Exception ex) { Console.WriteLine($"Error deleting image {publicId}: {ex.Message}"); }
+                    }
+
                     _context.Questions.RemoveRange(quiz.Questions);
                     
                     foreach (var qDto in updateQuizDTO.Questions)
@@ -131,8 +159,25 @@ namespace LectureService.Infrastructure.Repositories
                             Content = qDto.Content,
                             DisplayOrder = qDto.DisplayOrder,
                             Explanation = qDto.Explanation,
+                            ImageUrl = qDto.ImageUrl,
+                            ImagePublicId = qDto.ImagePublicId,
                             QuestionOptions = new List<QuestionOption>()
                         };
+
+                        if (qDto.Image != null)
+                        {
+                            // If there was an old image for this "updated" question, it should have been handled by idsToDelete
+                            // or if the user provided ImagePublicId AND a new Image, we should delete the old one explicitly here.
+                            if (!string.IsNullOrEmpty(qDto.ImagePublicId))
+                            {
+                                try { await _cloudinaryService.DeleteImageAsync(qDto.ImagePublicId); }
+                                catch (Exception ex) { Console.WriteLine($"Error deleting old image {qDto.ImagePublicId}: {ex.Message}"); }
+                            }
+
+                            var uploadResult = await _cloudinaryService.UploadImageAsync(qDto.Image);
+                            question.ImageUrl = uploadResult.Url;
+                            question.ImagePublicId = uploadResult.PublicId;
+                        }
 
                         if (qDto.Options != null)
                         {
@@ -170,6 +215,7 @@ namespace LectureService.Infrastructure.Repositories
                 var quiz = await _context.Quizzes
                     .Include(q => q.Lecture)
                         .ThenInclude(l => l.Course)
+                    .Include(q => q.Questions)
                     .FirstOrDefaultAsync(q => q.Id == quizId);
 
                 if (quiz == null)
@@ -177,6 +223,16 @@ namespace LectureService.Infrastructure.Repositories
 
                 if (quiz.Lecture.Course.InstructorId != instructorId)
                     return new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false);
+
+                // Delete images from Cloudinary
+                foreach (var question in quiz.Questions)
+                {
+                    if (!string.IsNullOrEmpty(question.ImagePublicId))
+                    {
+                        try { await _cloudinaryService.DeleteImageAsync(question.ImagePublicId); }
+                        catch (Exception ex) { Console.WriteLine($"Error deleting image {question.ImagePublicId} for quiz {quizId}: {ex.Message}"); }
+                    }
+                }
 
                 _context.Quizzes.Remove(quiz);
                 await _context.SaveChangesAsync();
@@ -215,6 +271,8 @@ namespace LectureService.Infrastructure.Repositories
                         Content = q.Content,
                         DisplayOrder = q.DisplayOrder,
                         Explanation = q.Explanation,
+                        ImageUrl = q.ImageUrl,
+                        ImagePublicId = q.ImagePublicId,
                         Options = q.QuestionOptions.Select(o => new QuestionOptionDTO
                         {
                             Id = o.Id,
@@ -277,6 +335,8 @@ namespace LectureService.Infrastructure.Repositories
                         Id = q.Id,
                         Content = q.Content,
                         DisplayOrder = q.DisplayOrder,
+                        ImageUrl = q.ImageUrl,
+                        ImagePublicId = q.ImagePublicId,
                         Options = q.QuestionOptions.Select(o => new QuestionOptionDTO
                         {
                             Id = o.Id,

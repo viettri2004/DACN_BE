@@ -9,6 +9,8 @@ namespace Entities
         public string Content { get; set; } = null!; 
         public int DisplayOrder { get; set; } 
         public string? Explanation { get; set; }
+        public string? ImageUrl { get; set; }
+        public string? ImagePublicId { get; set; }
         
         public string QuizId { get; set; } = null!;
         public Quiz Quiz { get; set; } = null!;

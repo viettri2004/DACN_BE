@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace LectureService.Application.DTOs
 {
@@ -17,6 +18,9 @@ namespace LectureService.Application.DTOs
         public string Content { get; set; } = null!;
         public int DisplayOrder { get; set; }
         public string? Explanation { get; set; }
+        public string? ImageUrl { get; set; }
+        public string? ImagePublicId { get; set; }
+        public IFormFile? Image { get; set; }
         public List<CreateQuestionOptionDTO> Options { get; set; } = new List<CreateQuestionOptionDTO>();
     }
 
