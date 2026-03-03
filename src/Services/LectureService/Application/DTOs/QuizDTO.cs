@@ -25,7 +25,7 @@ namespace LectureService.Application.DTOs
         public string Name { get; set; } = null!;
         public string LectureId { get; set; } = null!;
         public int TestTime { get; set; }
-        // public int AttemptCount { get; set; }
+        public int AttemptCount { get; set; }
         public List<QuestionDTO> Questions { get; set; } = new List<QuestionDTO>();
     }
 }
