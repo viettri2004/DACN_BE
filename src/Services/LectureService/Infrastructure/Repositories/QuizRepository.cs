@@ -130,25 +130,11 @@ namespace LectureService.Infrastructure.Repositories
 
                 if (updateQuizDTO.Questions != null)
                 {
-                    // Track old public IDs to delete them if they are no longer used
-                    var oldPublicIds = quiz.Questions
-                        .Where(q => !string.IsNullOrEmpty(q.ImagePublicId))
-                        .Select(q => q.ImagePublicId!)
-                        .ToList();
-
-                    var newPublicIds = updateQuizDTO.Questions
-                        .Where(q => !string.IsNullOrEmpty(q.ImagePublicId) && q.Image == null)
-                        .Select(q => q.ImagePublicId!)
-                        .ToList();
-
-                    var idsToDelete = oldPublicIds.Except(newPublicIds).ToList();
-                    foreach (var publicId in idsToDelete)
+                    // DETACH old questions instead of removing them to maintain historical integrity for QuizAttemptAnswers
+                    foreach (var oldQuestion in quiz.Questions.ToList())
                     {
-                        try { await _cloudinaryService.DeleteImageAsync(publicId); }
-                        catch (Exception ex) { Console.WriteLine($"Error deleting image {publicId}: {ex.Message}"); }
+                        oldQuestion.QuizId = null;
                     }
-
-                    _context.Questions.RemoveRange(quiz.Questions);
                     
                     foreach (var qDto in updateQuizDTO.Questions)
                     {
@@ -166,14 +152,6 @@ namespace LectureService.Infrastructure.Repositories
 
                         if (qDto.Image != null)
                         {
-                            // If there was an old image for this "updated" question, it should have been handled by idsToDelete
-                            // or if the user provided ImagePublicId AND a new Image, we should delete the old one explicitly here.
-                            if (!string.IsNullOrEmpty(qDto.ImagePublicId))
-                            {
-                                try { await _cloudinaryService.DeleteImageAsync(qDto.ImagePublicId); }
-                                catch (Exception ex) { Console.WriteLine($"Error deleting old image {qDto.ImagePublicId}: {ex.Message}"); }
-                            }
-
                             var uploadResult = await _cloudinaryService.UploadImageAsync(qDto.Image);
                             question.ImageUrl = uploadResult.Url;
                             question.ImagePublicId = uploadResult.PublicId;
@@ -193,7 +171,7 @@ namespace LectureService.Infrastructure.Repositories
                                 });
                             }
                         }
-                        quiz.Questions.Add(question);
+                        _context.Questions.Add(question);
                     }
                 }
 
@@ -203,7 +181,7 @@ namespace LectureService.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error updating quiz: {ex.Message}");
+                // Console.WriteLine($"Error updating quiz: {ex.Message}");
                 return new ApiResponse("Error", _localizer["UpdateQuizFailed"].Value, null, false);
             }
         }
@@ -224,14 +202,9 @@ namespace LectureService.Infrastructure.Repositories
                 if (quiz.Lecture.Course.InstructorId != instructorId)
                     return new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false);
 
-                // Delete images from Cloudinary
                 foreach (var question in quiz.Questions)
                 {
-                    if (!string.IsNullOrEmpty(question.ImagePublicId))
-                    {
-                        try { await _cloudinaryService.DeleteImageAsync(question.ImagePublicId); }
-                        catch (Exception ex) { Console.WriteLine($"Error deleting image {question.ImagePublicId} for quiz {quizId}: {ex.Message}"); }
-                    }
+                    question.QuizId = null;
                 }
 
                 _context.Quizzes.Remove(quiz);
@@ -241,7 +214,7 @@ namespace LectureService.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                 Console.WriteLine($"Error deleting quiz: {ex.Message}");
+                //  Console.WriteLine($"Error deleting quiz: {ex.Message}");
                 return new ApiResponse("Error", _localizer["DeleteQuizFailed"].Value, null, false);
             }
         }

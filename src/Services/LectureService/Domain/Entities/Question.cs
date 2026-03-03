@@ -12,8 +12,8 @@ namespace Entities
         public string? ImageUrl { get; set; }
         public string? ImagePublicId { get; set; }
         
-        public string QuizId { get; set; } = null!;
-        public Quiz Quiz { get; set; } = null!;
+        public string? QuizId { get; set; }
+        public Quiz? Quiz { get; set; }
 
         public ICollection<QuestionOption> QuestionOptions { get; set; } = new List<QuestionOption>();
     }
