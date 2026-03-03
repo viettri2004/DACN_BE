@@ -394,9 +394,11 @@ namespace LectureService.Infrastructure.Repositories
                 var attempt = await _context.QuizAttempts
                     .Include(qa => qa.Enrollment)
                     .Include(qa => qa.Quiz)
-                        .ThenInclude(q => q.Questions)
-                            .ThenInclude(qs => qs.QuestionOptions)
                     .Include(qa => qa.QuizAttemptAnswers)
+                        .ThenInclude(qaa => qaa.Question)
+                            .ThenInclude(q => q.QuestionOptions)
+                    .Include(qa => qa.QuizAttemptAnswers)
+                        .ThenInclude(qaa => qaa.SelectedOption)
                     .FirstOrDefaultAsync(qa => qa.Id == attemptId);
 
                 if (attempt == null)
@@ -416,26 +418,24 @@ namespace LectureService.Infrastructure.Repositories
                 {
                     QuizAttemptId = attempt.Id,
                     QuizId = attempt.QuizId,
-                    QuizName = attempt.Quiz.Name,
+                    QuizName = attempt.Quiz?.Name ?? "Deleted Quiz",
                     Score = attempt.Score,
-                    TotalQuestions = attempt.Quiz.Questions.Count,
-                    CorrectAnswersCount = attempt.QuizAttemptAnswers.Count(qaa => 
-                        attempt.Quiz.Questions.First(q => q.Id == qaa.QuestionId)
-                                .QuestionOptions.First(o => o.Id == qaa.SelectedOptionId).IsCorrect),
+                    TotalQuestions = attempt.QuizAttemptAnswers.Count,
+                    CorrectAnswersCount = attempt.QuizAttemptAnswers.Count(qaa => qaa.SelectedOption?.IsCorrect ?? false),
                     AttemptedAt = attempt.AttemptedAt,
                     CompletedAt = attempt.CompletedAt,
                     DetailedResults = attempt.QuizAttemptAnswers.Select(qaa => {
-                        var question = attempt.Quiz.Questions.First(q => q.Id == qaa.QuestionId);
-                        var correctOption = question.QuestionOptions.First(o => o.IsCorrect);
-                        var selectedOption = question.QuestionOptions.First(o => o.Id == qaa.SelectedOptionId);
+                        var question = qaa.Question;
+                        var selectedOption = qaa.SelectedOption;
+                        var correctOption = question?.QuestionOptions.FirstOrDefault(o => o.IsCorrect);
                         
                         return new QuizAttemptAnswerResultDTO
                         {
                             QuestionId = qaa.QuestionId,
                             SelectedOptionId = qaa.SelectedOptionId,
-                            CorrectOptionId = correctOption.Id,
-                            IsCorrect = selectedOption.IsCorrect,
-                            Explanation = question.Explanation
+                            CorrectOptionId = correctOption?.Id,
+                            IsCorrect = selectedOption?.IsCorrect ?? false,
+                            Explanation = question?.Explanation
                         };
                     }).ToList()
                 };
