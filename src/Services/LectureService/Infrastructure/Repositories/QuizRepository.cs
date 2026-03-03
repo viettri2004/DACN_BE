@@ -145,8 +145,6 @@ namespace LectureService.Infrastructure.Repositories
                             Content = qDto.Content,
                             DisplayOrder = qDto.DisplayOrder,
                             Explanation = qDto.Explanation,
-                            ImageUrl = qDto.ImageUrl,
-                            ImagePublicId = qDto.ImagePublicId,
                             QuestionOptions = new List<QuestionOption>()
                         };
 
@@ -181,7 +179,7 @@ namespace LectureService.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                // Console.WriteLine($"Error updating quiz: {ex.Message}");
+                Console.WriteLine($"Error updating quiz: {ex.Message}");
                 return new ApiResponse("Error", _localizer["UpdateQuizFailed"].Value, null, false);
             }
         }
@@ -218,7 +216,7 @@ namespace LectureService.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                //  Console.WriteLine($"Error deleting quiz: {ex.Message}");
+                Console.WriteLine($"Error deleting quiz: {ex.Message}");
                 return new ApiResponse("Error", _localizer["DeleteQuizFailed"].Value, null, false);
             }
         }
@@ -249,7 +247,6 @@ namespace LectureService.Infrastructure.Repositories
                         DisplayOrder = q.DisplayOrder,
                         Explanation = q.Explanation,
                         ImageUrl = q.ImageUrl,
-                        ImagePublicId = q.ImagePublicId,
                         Options = q.QuestionOptions.Select(o => new QuestionOptionDTO
                         {
                             Id = o.Id,
@@ -313,7 +310,6 @@ namespace LectureService.Infrastructure.Repositories
                         Content = q.Content,
                         DisplayOrder = q.DisplayOrder,
                         ImageUrl = q.ImageUrl,
-                        ImagePublicId = q.ImagePublicId,
                         Options = q.QuestionOptions.Select(o => new QuestionOptionDTO
                         {
                             Id = o.Id,
@@ -406,11 +402,8 @@ namespace LectureService.Infrastructure.Repositories
                 if (attempt == null)
                     return new ApiResponse("NotFound", _localizer["AttemptNotFound"].Value, null, false);
 
-                // Allow instructor of the course to see it as well?
-                // For now just student
                 if (attempt.Enrollment.StudentId != studentId)
                 {
-                     // Check if instructor
                      var course = await _context.Courses.FirstOrDefaultAsync(c => c.Id == attempt.Quiz.Lecture.CourseId);
                      if (course == null || course.InstructorId != studentId)
                          return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
