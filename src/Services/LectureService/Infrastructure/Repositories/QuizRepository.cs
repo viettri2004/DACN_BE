@@ -44,7 +44,7 @@ namespace LectureService.Infrastructure.Repositories
                     Name = createQuizDTO.Name,
                     LectureId = createQuizDTO.LectureId,
                     TestTime = createQuizDTO.TestTime,
-                    AttemptCount = createQuizDTO.AttemptCount,
+                    // AttemptCount = createQuizDTO.AttemptCount,
                     Questions = new List<Question>()
                 };
 
@@ -115,8 +115,8 @@ namespace LectureService.Infrastructure.Repositories
                 if (updateQuizDTO.TestTime.HasValue)
                     quiz.TestTime = updateQuizDTO.TestTime.Value;
 
-                if (updateQuizDTO.AttemptCount.HasValue)
-                    quiz.AttemptCount = updateQuizDTO.AttemptCount.Value;
+                // if (updateQuizDTO.AttemptCount.HasValue)
+                //     quiz.AttemptCount = updateQuizDTO.AttemptCount.Value;
 
                 if (updateQuizDTO.Questions != null)
                 {
@@ -208,7 +208,7 @@ namespace LectureService.Infrastructure.Repositories
                     Name = quiz.Name,
                     LectureId = quiz.LectureId,
                     TestTime = quiz.TestTime,
-                    AttemptCount = quiz.AttemptCount,
+                    // AttemptCount = quiz.AttemptCount,
                     Questions = quiz.Questions.Select(q => new QuestionDTO
                     {
                         Id = q.Id,
@@ -253,15 +253,6 @@ namespace LectureService.Infrastructure.Repositories
 
                 if (enrollment == null)
                     return new ApiResponse("Forbidden", _localizer["NotEnrolled"].Value, null, false);
-
-                if (quiz.AttemptCount > 0)
-                {
-                    var attemptCount = await _context.QuizAttempts
-                        .CountAsync(qa => qa.QuizId == quizId && qa.EnrollmentId == enrollment.Id);
-
-                    if (attemptCount >= quiz.AttemptCount)
-                        return new ApiResponse("Forbidden", _localizer["MaxAttemptsReached"].Value, null, false);
-                }
 
                 var attempt = new QuizAttempt
                 {

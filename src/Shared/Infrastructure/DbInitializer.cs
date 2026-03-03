@@ -487,7 +487,7 @@ namespace Data.Seeding
                         Name = $"Bài kiểm tra cuối chương {i}",
                         LectureId = lecture.Id,
                         TestTime = 15,
-                        AttemptCount = 3
+                        // AttemptCount = 3
                     };
                     newQuizzes.Add(quiz);
                 }
