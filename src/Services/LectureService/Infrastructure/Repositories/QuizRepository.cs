@@ -194,6 +194,7 @@ namespace LectureService.Infrastructure.Repositories
                     .Include(q => q.Lecture)
                         .ThenInclude(l => l.Course)
                     .Include(q => q.Questions)
+                    .Include(q => q.QuizAttempts)
                     .FirstOrDefaultAsync(q => q.Id == quizId);
 
                 if (quiz == null)
@@ -205,6 +206,11 @@ namespace LectureService.Infrastructure.Repositories
                 foreach (var question in quiz.Questions)
                 {
                     question.QuizId = null;
+                }
+
+                foreach (var attempt in quiz.QuizAttempts)
+                {
+                    attempt.QuizId = null;
                 }
 
                 _context.Quizzes.Remove(quiz);
