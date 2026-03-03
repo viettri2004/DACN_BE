@@ -208,10 +208,8 @@ namespace LectureService.Infrastructure.Repositories
                     question.QuizId = null;
                 }
 
-                foreach (var attempt in quiz.QuizAttempts)
-                {
-                    attempt.QuizId = null;
-                }
+                // Delete all attempts related to the quiz
+                _context.QuizAttempts.RemoveRange(quiz.QuizAttempts);
 
                 _context.Quizzes.Remove(quiz);
                 await _context.SaveChangesAsync();
