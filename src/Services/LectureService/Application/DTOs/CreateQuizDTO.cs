@@ -27,7 +27,7 @@ namespace LectureService.Application.DTOs
         [Required]
         public string LectureId { get; set; } = null!;
         public int TestTime { get; set; }
-        public int AttemptCount { get; set; }
+        // public int AttemptCount { get; set; }
         public List<CreateQuestionDTO> Questions { get; set; } = new List<CreateQuestionDTO>();
     }
 
@@ -35,7 +35,7 @@ namespace LectureService.Application.DTOs
     {
         public string? Name { get; set; }
         public int? TestTime { get; set; }
-        public int? AttemptCount { get; set; }
+        // public int? AttemptCount { get; set; }
         public List<CreateQuestionDTO>? Questions { get; set; }
     }
 }
