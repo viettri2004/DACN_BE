@@ -582,26 +582,55 @@ namespace CourseService.Infrastructure.Repositories
             return new ApiResponse("Success", _localizer["CourseRequestRejected"].Value, null, true);
         }
 
-        public async Task<ApiResponse> GetAllCoursesForAdminAsync()
+        public async Task<ApiResponse> GetAllCoursesForAdminAsync(CourseQueryParameters queryParams)
         {
-            var courses = await _context.Courses
+            var query = _context.Courses
                 .Include(c => c.Instructor)
                 .Include(c => c.Enrollments)
+                .Include(c => c.CourseTags)
+                    .ThenInclude(ct => ct.Tag)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(queryParams.SearchTerm))
+            {
+                query = query.Where(c => c.Name.Contains(queryParams.SearchTerm) || c.Instructor.FullName.Contains(queryParams.SearchTerm));
+            }
+
+            if (queryParams.TagIds != null && queryParams.TagIds.Any())
+            {
+                query = query.Where(c => c.CourseTags.Any(ct => queryParams.TagIds.Contains(ct.TagId)));
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var courses = await query
                 .OrderByDescending(c => c.CreateTime)
+                .Skip((queryParams.Page - 1) * queryParams.PageSize)
+                .Take(queryParams.PageSize)
                 .ToListAsync();
 
             var courseDtos = courses.Select(c => new AdminCourseListDTO
             {
                 Id = c.Id,
                 Name = c.Name,
+                ImageUrl = c.ImageUrl,
                 InstructorName = c.Instructor.FullName,
                 Status = c.Status.ToString(),
                 Price = c.Price,
                 CreateTime = c.CreateTime,
-                TotalStudents = c.Enrollments.Count
+                TotalStudents = c.Enrollments.Count,
+                TagNames = c.CourseTags.Select(ct => ct.Tag.Name).ToList()
             }).ToList();
 
-            return new ApiResponse("Success", _localizer["CoursesRetrieved"].Value, courseDtos, true);
+            var pagedResult = new PagedResult<AdminCourseListDTO>
+            {
+                Items = courseDtos,
+                Page = queryParams.Page,
+                PageSize = queryParams.PageSize,
+                TotalCount = totalCount
+            };
+
+            return new ApiResponse("Success", _localizer["CoursesRetrieved"].Value, pagedResult, true);
         }
 
         public async Task<ApiResponse> AddCommentAsync(AddCommentDTO addCommentDTO, string userId)
