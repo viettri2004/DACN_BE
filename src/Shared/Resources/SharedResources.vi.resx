@@ -522,6 +522,36 @@
     <value>Lượt làm bài này đã được nộp.</value>
   </data>
   <data name="AttemptNotCompleted" xml:space="preserve">
-    <value>Lượt làm bài này chưa hoàn thành.</value>
+    <value>Lượt làm bài tập này chưa được hoàn thành.</value>
   </data>
-</root>
+  <data name="UserBanned" xml:space="preserve">
+    <value>Người dùng đã bị khóa thành công.</value>
+  </data>
+  <data name="UserUnbanned" xml:space="preserve">
+    <value>Người dùng đã được mở khóa thành công.</value>
+  </data>
+  <data name="UsersRetrieved" xml:space="preserve">
+    <value>Lấy danh sách người dùng thành công.</value>
+  </data>
+  <data name="InstructorsRetrieved" xml:space="preserve">
+    <value>Lấy danh sách giảng viên thành công.</value>
+  </data>
+  <data name="CoursesRetrieved" xml:space="preserve">
+    <value>Lấy danh sách khóa học thành công.</value>
+  </data>
+  <data name="CommentAdded" xml:space="preserve">
+    <value>Đánh giá và bình luận đã được thêm thành công.</value>
+  </data>
+  <data name="ReplyAdded" xml:space="preserve">
+    <value>Phản hồi đã được thêm thành công.</value>
+  </data>
+  <data name="NotEnrolledInCourse" xml:space="preserve">
+    <value>Bạn chưa đăng ký khóa học này.</value>
+  </data>
+  <data name="ForbiddenReply" xml:space="preserve">
+    <value>Bạn không có quyền phản hồi bình luận này.</value>
+  </data>
+  <data name="ParentCommentNotFound" xml:space="preserve">
+    <value>Không tìm thấy bình luận gốc.</value>
+  </data>
+  </root>

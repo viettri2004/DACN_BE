@@ -184,5 +184,39 @@ namespace CourseService.API.Controllers
             var response = await _courseRepository.RejectCourseRequestAsync(requestId, rejectRequestDTO.Reason);
             return response.ToActionResult();
         }
+
+        [Authorize(Policy = "Admin")]
+        [HttpGet("admin/courses")]
+        public async Task<ActionResult<ApiResponse>> GetAllCoursesForAdmin()
+        {
+            var response = await _courseRepository.GetAllCoursesForAdminAsync();
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Student")]
+        [HttpPost("add-comment")]
+        public async Task<ActionResult<ApiResponse>> AddComment([FromBody] AddCommentDTO addCommentDTO)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            }
+            var response = await _courseRepository.AddCommentAsync(addCommentDTO, userId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpPost("reply-comment")]
+        public async Task<ActionResult<ApiResponse>> ReplyComment([FromBody] ReplyCommentDTO replyDTO)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            }
+            var response = await _courseRepository.ReplyToCommentAsync(replyDTO, userId);
+            return response.ToActionResult();
+        }
     }
 }

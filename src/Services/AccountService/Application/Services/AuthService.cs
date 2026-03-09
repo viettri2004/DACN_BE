@@ -401,5 +401,60 @@ namespace AccountService.Application.Services
 
             return new ApiResponse("Success", _localizer["LogoutSuccess"].Value, null, true);
         }
+
+        public async Task<ApiResponse> GetAllUsersAsync()
+        {
+            var users = await _accountRepository.GetAllUsersAsync();
+            var userViewDtos = new List<UserViewDTO>();
+
+            foreach (var user in users)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                userViewDtos.Add(new UserViewDTO
+                {
+                    Id = user.Id,
+                    UserName = user.UserName ?? "",
+                    Email = user.Email ?? "",
+                    FullName = user.FullName,
+                    AvatarUrl = user.AvatarUrl,
+                    Role = roles.FirstOrDefault() ?? "Student",
+                    IsBanned = user.IsBanned,
+                    CreatedAt = user.CreatedAt
+                });
+            }
+
+            return new ApiResponse("Success", _localizer["UsersRetrieved"].Value, userViewDtos, true);
+        }
+
+        public async Task<ApiResponse> GetAllInstructorsAsync()
+        {
+            var instructors = await _accountRepository.GetAllInstructorsAsync();
+            var instructorDtos = instructors.Select(i => new UserViewDTO
+            {
+                Id = i.Id,
+                UserName = i.UserName ?? "",
+                Email = i.Email ?? "",
+                FullName = i.FullName,
+                AvatarUrl = i.AvatarUrl,
+                Role = "Instructor",
+                IsBanned = i.IsBanned,
+                CreatedAt = i.CreatedAt
+            }).ToList();
+
+            return new ApiResponse("Success", _localizer["InstructorsRetrieved"].Value, instructorDtos, true);
+        }
+
+        public async Task<ApiResponse> BanUserAsync(BanUserDTO dto)
+        {
+            var user = await _accountRepository.GetUserByIdAsync(dto.UserId);
+            if (user == null)
+                return new ApiResponse("NotFound", _localizer["UserNotFound"].Value, null, false);
+
+            user.IsBanned = dto.IsBanned;
+            await _accountRepository.UpdateUserAsync(user);
+
+            var message = dto.IsBanned ? _localizer["UserBanned"].Value : _localizer["UserUnbanned"].Value;
+            return new ApiResponse("Success", message, null, true);
+        }
     }
 }

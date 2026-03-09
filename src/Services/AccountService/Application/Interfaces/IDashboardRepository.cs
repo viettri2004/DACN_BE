@@ -7,5 +7,6 @@ namespace AccountService.Application.Interfaces
     public interface IDashboardRepository
     {
         Task<ApiResponse> GetDashboardDataAsync();
+        Task<ApiResponse> GetAdminNotificationsAsync();
     }
 }

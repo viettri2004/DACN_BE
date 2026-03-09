@@ -132,5 +132,31 @@ namespace AccountService.Infrastructure.Persistence.Repositories
             var sql = "UPDATE \"AspNetUsers\" SET \"UserType\" = 'Instructor' WHERE \"Id\" = {0}";
             await _context.Database.ExecuteSqlRawAsync(sql, userId);
         }
+
+        public async Task<List<User>> GetAllUsersAsync()
+        {
+            return await _context.Users
+                .OrderByDescending(u => u.CreatedAt)
+                .ToListAsync();
+        }
+
+        public async Task<List<User>> GetAllInstructorsAsync()
+        {
+            return await _context.Users
+                .OfType<Instructor>()
+                .OrderByDescending(u => u.CreatedAt)
+                .ToListAsync();
+        }
+
+        public async Task<User?> GetUserByIdAsync(string userId)
+        {
+            return await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        }
+
+        public async Task UpdateUserAsync(User user)
+        {
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+        }
     }
 }

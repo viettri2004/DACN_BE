@@ -216,7 +216,7 @@ namespace src.Services.AccountService.API.Controllers
         }
 
         [HttpGet("instructor-requests")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Policy = "Admin")]
         public async Task<ActionResult<ApiResponse>> GetInstructorRequests()
         {
             var response = await _authservice.GetInstructorRequests();
@@ -224,7 +224,7 @@ namespace src.Services.AccountService.API.Controllers
         }
 
         [HttpPost("approve-instructor-request")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Policy = "Admin")]
         public async Task<ActionResult<ApiResponse>> ApproveInstructorRequest([FromBody] ApproveRequestDTO dto)
         {
             var adminId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
@@ -249,6 +249,30 @@ namespace src.Services.AccountService.API.Controllers
 
             Response.Cookies.Delete("refreshToken");
 
+            return response.ToActionResult();
+        }
+
+        [HttpGet("users")]
+        [Authorize(Policy = "Admin")]
+        public async Task<ActionResult<ApiResponse>> GetAllUsers()
+        {
+            var response = await _authservice.GetAllUsersAsync();
+            return response.ToActionResult();
+        }
+
+        [HttpGet("instructors")]
+        [Authorize(Policy = "Admin")]
+        public async Task<ActionResult<ApiResponse>> GetAllInstructors()
+        {
+            var response = await _authservice.GetAllInstructorsAsync();
+            return response.ToActionResult();
+        }
+
+        [HttpPost("ban-user")]
+        [Authorize(Policy = "Admin")]
+        public async Task<ActionResult<ApiResponse>> BanUser([FromBody] BanUserDTO dto)
+        {
+            var response = await _authservice.BanUserAsync(dto);
             return response.ToActionResult();
         }
     }

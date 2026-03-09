@@ -143,5 +143,66 @@ namespace AccountService.Infrastructure.Repositories
                 return new ApiResponse("Error", ex.Message, null, false);
             }
         }
+
+        public async Task<ApiResponse> GetAdminNotificationsAsync()
+        {
+            try
+            {
+                var recentInstructorRequests = await _context.Set<InstructorRequest>()
+                    .Include(r => r.User)
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Take(5)
+                    .ToListAsync();
+
+                var recentCourseRequests = await _context.CourseRequests
+                    .Include(r => r.Course)
+                    .Include(r => r.Course.Instructor)
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Take(5)
+                    .ToListAsync();
+
+                var notifications = new List<AdminNotificationItemDTO>();
+
+                foreach (var ir in recentInstructorRequests)
+                {
+                    notifications.Add(new AdminNotificationItemDTO
+                    {
+                        Id = ir.Id.ToString(),
+                        Type = "InstructorRequest",
+                        Title = "New Instructor Request",
+                        Message = $"{ir.User.FullName} has requested to become an instructor.",
+                        CreatedAt = ir.CreatedAt
+                    });
+                }
+
+                foreach (var cr in recentCourseRequests)
+                {
+                    notifications.Add(new AdminNotificationItemDTO
+                    {
+                        Id = cr.Id,
+                        Type = "CourseRequest",
+                        Title = "New Course Approval Request",
+                        Message = $"Instructor {cr.Course.Instructor.FullName} has submitted a new course: {cr.Course.Name}",
+                        CreatedAt = cr.CreatedAt
+                    });
+                }
+
+                var sortedNotifications = notifications
+                    .OrderByDescending(n => n.CreatedAt)
+                    .Take(10)
+                    .ToList();
+
+                var result = new AdminNotificationDTO
+                {
+                    Notifications = sortedNotifications
+                };
+
+                return new ApiResponse("Success", _localizer["Success"].Value, result, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
     }
 }

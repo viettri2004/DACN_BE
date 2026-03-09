@@ -524,4 +524,34 @@
   <data name="AttemptNotCompleted" xml:space="preserve">
     <value>This quiz attempt has not been completed yet.</value>
   </data>
+  <data name="UserBanned" xml:space="preserve">
+    <value>User has been banned successfully.</value>
+  </data>
+  <data name="UserUnbanned" xml:space="preserve">
+    <value>User has been unbanned successfully.</value>
+  </data>
+  <data name="UsersRetrieved" xml:space="preserve">
+    <value>Users list retrieved successfully.</value>
+  </data>
+  <data name="InstructorsRetrieved" xml:space="preserve">
+    <value>Instructors list retrieved successfully.</value>
+  </data>
+  <data name="CoursesRetrieved" xml:space="preserve">
+    <value>Courses list retrieved successfully.</value>
+  </data>
+  <data name="CommentAdded" xml:space="preserve">
+    <value>Comment and rating added successfully.</value>
+  </data>
+  <data name="ReplyAdded" xml:space="preserve">
+    <value>Reply added successfully.</value>
+  </data>
+  <data name="NotEnrolledInCourse" xml:space="preserve">
+    <value>You are not enrolled in this course.</value>
+  </data>
+  <data name="ForbiddenReply" xml:space="preserve">
+    <value>You are not authorized to reply to this comment.</value>
+  </data>
+  <data name="ParentCommentNotFound" xml:space="preserve">
+    <value>Parent comment not found.</value>
+  </data>
 </root>

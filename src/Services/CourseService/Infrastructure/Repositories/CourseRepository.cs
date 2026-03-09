@@ -259,22 +259,33 @@ namespace CourseService.Infrastructure.Repositories
         {
             var comments = await _context.Comments
                 .AsNoTracking()
-                .Where(c => c.Enrollment.CourseId == courseId)
+                .Include(c => c.Enrollment.Student)
+                .Include(c => c.Replies)
+                    .ThenInclude(r => r.Enrollment.Student)
+                .Where(c => c.Enrollment.CourseId == courseId && c.ReplyId == null)
                 .OrderByDescending(c => c.CreatedAt)
-                .Select(c => new CommentDTO
-                {
-                    CommentId = c.Id,
-                    StudentName = c.Enrollment.Student.FullName,
-                    Rate = c.Rate,
-                    Content = c.Content,
-                    Timestamp = c.CreatedAt
-                })
                 .ToListAsync();
 
-            if (comments.Count.Equals(0))
-                return new ApiResponse("Success", _localizer["NoData"].Value, null, false);
+            var commentDTOs = comments.Select(MapToCommentDTO).ToList();
 
-            return new ApiResponse("Success", _localizer["Success"].Value, comments, true);
+            if (commentDTOs.Count == 0)
+                return new ApiResponse("Success", _localizer["NoData"].Value, null, true);
+
+            return new ApiResponse("Success", _localizer["Success"].Value, commentDTOs, true);
+        }
+
+        private CommentDTO MapToCommentDTO(Comment comment)
+        {
+            return new CommentDTO
+            {
+                CommentId = comment.Id,
+                UserName = comment.Enrollment.Student?.FullName ?? "Unknown",
+                AvatarUrl = comment.Enrollment.Student?.AvatarUrl,
+                Rate = comment.Rate,
+                Content = comment.Content,
+                Timestamp = comment.CreatedAt,
+                Replies = comment.Replies?.Select(MapToCommentDTO).ToList() ?? new List<CommentDTO>()
+            };
         }
 
         public async Task<ApiResponse> GetRecommendedCoursesAsync()
@@ -569,6 +580,87 @@ namespace CourseService.Infrastructure.Repositories
             await _context.SaveChangesAsync();
 
             return new ApiResponse("Success", _localizer["CourseRequestRejected"].Value, null, true);
+        }
+
+        public async Task<ApiResponse> GetAllCoursesForAdminAsync()
+        {
+            var courses = await _context.Courses
+                .Include(c => c.Instructor)
+                .Include(c => c.Enrollments)
+                .OrderByDescending(c => c.CreateTime)
+                .ToListAsync();
+
+            var courseDtos = courses.Select(c => new AdminCourseListDTO
+            {
+                Id = c.Id,
+                Name = c.Name,
+                InstructorName = c.Instructor.FullName,
+                Status = c.Status.ToString(),
+                Price = c.Price,
+                CreateTime = c.CreateTime,
+                TotalStudents = c.Enrollments.Count
+            }).ToList();
+
+            return new ApiResponse("Success", _localizer["CoursesRetrieved"].Value, courseDtos, true);
+        }
+
+        public async Task<ApiResponse> AddCommentAsync(AddCommentDTO addCommentDTO, string userId)
+        {
+            var enrollment = await _context.Enrollments
+                .FirstOrDefaultAsync(e => e.CourseId == addCommentDTO.CourseId && e.StudentId == userId && e.Status == true);
+
+            if (enrollment == null)
+            {
+                return new ApiResponse("Forbidden", _localizer["NotEnrolledInCourse"].Value, null, false);
+            }
+
+            var comment = new Comment
+            {
+                Id = Guid.NewGuid().ToString(),
+                Content = addCommentDTO.Content,
+                Rate = addCommentDTO.Rate,
+                EnrollmentId = enrollment.Id,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Comments.Add(comment);
+            await _context.SaveChangesAsync();
+
+            return new ApiResponse("Created", _localizer["CommentAdded"].Value, null, true);
+        }
+
+        public async Task<ApiResponse> ReplyToCommentAsync(ReplyCommentDTO replyDTO, string userId)
+        {
+            var parentComment = await _context.Comments
+                .Include(c => c.Enrollment.Course)
+                .FirstOrDefaultAsync(c => c.Id == replyDTO.ParentCommentId);
+
+            if (parentComment == null)
+            {
+                return new ApiResponse("NotFound", _localizer["ParentCommentNotFound"].Value, null, false);
+            }
+
+            // Only course instructor can reply
+            if (parentComment.Enrollment.Course.InstructorId != userId)
+            {
+                return new ApiResponse("Forbidden", _localizer["ForbiddenReply"].Value, null, false);
+            }
+
+            // Use the parent's EnrollmentId since instructors don't have one
+            var reply = new Comment
+            {
+                Id = Guid.NewGuid().ToString(),
+                Content = replyDTO.Content,
+                Rate = 0,
+                EnrollmentId = parentComment.EnrollmentId, 
+                ReplyId = parentComment.Id,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Comments.Add(reply);
+            await _context.SaveChangesAsync();
+
+            return new ApiResponse("Created", _localizer["ReplyAdded"].Value, null, true);
         }
     }
 }
