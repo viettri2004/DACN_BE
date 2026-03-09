@@ -144,6 +144,7 @@ namespace AccountService.Infrastructure.Persistence.Repositories
         {
             return await _context.Users
                 .OfType<Instructor>()
+                .Cast<User>()
                 .OrderByDescending(u => u.CreatedAt)
                 .ToListAsync();
         }
