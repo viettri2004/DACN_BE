@@ -16,6 +16,7 @@ namespace CourseService.Application.DTOs
             set => _pageSize = (value > MaxPageSize) ? MaxPageSize : value;
         }
         public string? SortBy { get; set; }
+        public string? SearchTerm { get; set; }
         public List<string>? TagIds { get; set; }
         public decimal? MinPrice { get; set; }
         public decimal? MaxPrice { get; set; }
