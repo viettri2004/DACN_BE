@@ -151,6 +151,7 @@ namespace AccountService.Infrastructure.Repositories
                 var recentInstructorRequests = await _context.Set<InstructorRequest>()
                     .Include(r => r.User)
                     .OrderByDescending(r => r.CreatedAt)
+                    .Where(r => r.Status == RequestStatus.Pending.ToString())
                     .Take(5)
                     .ToListAsync();
 
@@ -158,6 +159,7 @@ namespace AccountService.Infrastructure.Repositories
                     .Include(r => r.Course)
                     .Include(r => r.Course.Instructor)
                     .OrderByDescending(r => r.CreatedAt)
+                    .Where(r => r.Status == RequestStatus.Pending)
                     .Take(5)
                     .ToListAsync();
 
