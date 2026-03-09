@@ -169,8 +169,10 @@ namespace AccountService.Infrastructure.Repositories
                     {
                         Id = ir.Id.ToString(),
                         Type = "InstructorRequest",
-                        Title = "New Instructor Request",
-                        Message = $"{ir.User.FullName} has requested to become an instructor.",
+                        // Title = "New Instructor Request",
+                        // Message = $"{ir.User.FullName} has requested to become an instructor.",
+                        Sender = ir.User.FullName,
+                        CourseName = string.Empty,
                         CreatedAt = ir.CreatedAt
                     });
                 }
@@ -181,8 +183,10 @@ namespace AccountService.Infrastructure.Repositories
                     {
                         Id = cr.Id,
                         Type = "CourseRequest",
-                        Title = "New Course Approval Request",
-                        Message = $"Instructor {cr.Course.Instructor.FullName} has submitted a new course: {cr.Course.Name}",
+                        // Title = "New Course Approval Request",
+                        // Message = $"Instructor {cr.Course.Instructor.FullName} has submitted a new course: {cr.Course.Name}",
+                        Sender = cr.Course.Instructor.FullName,
+                        CourseName = cr.Course.Name,
                         CreatedAt = cr.CreatedAt
                     });
                 }

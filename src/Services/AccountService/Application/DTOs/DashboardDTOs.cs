@@ -57,9 +57,11 @@ namespace AccountService.Application.DTOs
     public class AdminNotificationItemDTO
     {
         public string Id { get; set; } = null!;
-        public string Type { get; set; } = null!; // "InstructorRequest" or "CourseRequest"
-        public string Title { get; set; } = null!;
-        public string Message { get; set; } = null!;
+        public string Type { get; set; } = null!;
+        // public string Title { get; set; } = null!;
+        // public string Message { get; set; } = null!;
+        public string Sender { get; set; } = null!;
+        public string CourseName { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
     }
 }
