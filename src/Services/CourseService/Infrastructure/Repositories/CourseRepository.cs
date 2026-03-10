@@ -469,6 +469,7 @@ namespace CourseService.Infrastructure.Repositories
                                 .Average(cm => cm.Rate)
                             : 0,
                     Price = c.Price,
+                    TotalStudents = c.Enrollments.Count,
                     Status = c.CourseRequests.Any(r => r.Status == RequestStatus.Pending) 
                              ? "Pending" 
                              : c.Status.ToString()

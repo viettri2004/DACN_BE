@@ -83,7 +83,7 @@ namespace CourseService.API.Controllers
             var studentId = User.Claims.FirstOrDefault(c =>
                 c.Type == "id")?.Value;
 
-            var response = await _courseRepository.GetCourseDetailAsync(courseId, studentId);
+            var response = await _courseRepository.GetCourseDetailAsync(courseId, studentId ?? string.Empty);
 
             return response.ToActionResult();
         }
