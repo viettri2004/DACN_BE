@@ -24,8 +24,9 @@ namespace AccountService.API.Controllers
         public async Task<ActionResult<ApiResponse>> GetMyNotifications()
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            // Check for both "role" and the standard ClaimTypes.Role URI
             var roles = User.Claims
-                .Where(c => c.Type == "role")
+                .Where(c => c.Type == "role" || c.Type == "http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
                 .Select(c => c.Value)
                 .ToList();
 

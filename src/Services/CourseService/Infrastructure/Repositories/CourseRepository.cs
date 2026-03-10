@@ -476,6 +476,7 @@ namespace CourseService.Infrastructure.Repositories
 
         public async Task<ApiResponse> GetCourseContentAsync(string courseId, string userId, List<string> roles)
         {
+            // Console.WriteLine($"Getting content for course {courseId} by user {userId} with roles: {string.Join(", ", roles)}");
             var course = await _context.Courses
                 .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.Id == courseId);
