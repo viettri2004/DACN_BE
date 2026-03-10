@@ -474,9 +474,12 @@ namespace CourseService.Infrastructure.Repositories
             return new ApiResponse("Success", _localizer["Success"].Value, courseDTOs, true);
         }
 
-        public async Task<ApiResponse> GetCourseContentAsync(string courseId, string userId, List<string> roles)
+        public async Task<ApiResponse> GetCourseContentAsync(string courseId, string userId)
         {
-            // Console.WriteLine($"Getting content for course {courseId} by user {userId} with roles: {string.Join(", ", roles)}");
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                return new ApiResponse("NotFound", _localizer["UserNotFound"].Value, null, false);
+
             var course = await _context.Courses
                 .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.Id == courseId);
@@ -489,11 +492,11 @@ namespace CourseService.Infrastructure.Repositories
             // Authorization check
             bool isAuthorized = false;
 
-            if (roles.Contains("Admin"))
+            if (user is Admin)
             {
                 isAuthorized = true;
             }
-            else if (roles.Contains("Instructor") && course.InstructorId == userId)
+            else if (user is Instructor && course.InstructorId == userId)
             {
                 isAuthorized = true;
             }

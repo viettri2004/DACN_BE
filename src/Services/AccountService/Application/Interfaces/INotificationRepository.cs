@@ -8,7 +8,7 @@ namespace AccountService.Application.Interfaces
     public interface INotificationRepository
     {
         Task<ApiResponse> CreateNotificationAsync(Notification notification);
-        Task<ApiResponse> GetUserNotificationsAsync(string userId, List<string> roles);
+        Task<ApiResponse> GetUserNotificationsAsync(string userId);
         Task<ApiResponse> MarkAsReadAsync(string notificationId);
         Task<ApiResponse> MarkAllAsReadAsync(string userId);
     }

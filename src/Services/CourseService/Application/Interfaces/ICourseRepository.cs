@@ -16,7 +16,7 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> GetRecommendedCoursesAsync();
         Task<ApiResponse> GetCoursesByStudentIdAsync(string instructorId);
         Task<ApiResponse> GetCoursesAsync(CourseQueryParameters queryParams, string studentId);
-        Task<ApiResponse> GetCourseContentAsync(string courseId, string userId, List<string> roles);
+        Task<ApiResponse> GetCourseContentAsync(string courseId, string userId);
         Task<ApiResponse> GetCoursesByInstructorAsync(string instructorId);
         Task<ApiResponse> DeleteCourseAsync(string courseId, string instructorId);
         Task<ApiResponse> CreateCourseRequestAsync(string courseId, string instructorId);
