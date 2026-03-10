@@ -133,8 +133,6 @@ namespace AccountService.Infrastructure.Persistence.Repositories
 
         public async Task UpdateUserDiscriminatorToInstructor(string userId)
         {
-            // Assuming table name is AspNetUsers and discriminator column is UserType
-            // Using parameterized query for safety
             var sql = "UPDATE \"AspNetUsers\" SET \"UserType\" = 'Instructor' WHERE \"Id\" = {0}";
             await _context.Database.ExecuteSqlRawAsync(sql, userId);
         }

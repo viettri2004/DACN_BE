@@ -26,6 +26,7 @@ namespace Entities
         [ForeignKey("AdminId")]
         public User? Admin { get; set; } 
         
+        public string? AdminComment { get; set; }
         public DateTime? ProcessedAt { get; set; }
     }
 }

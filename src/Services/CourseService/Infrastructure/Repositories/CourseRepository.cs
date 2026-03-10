@@ -15,6 +15,7 @@ using Shared.Domain.Entities;
 using Shared.Infrastructure.cloudinaryService;
 using src.Shared.Domain.Entities;
 using src.Shared.Resources;
+using Shared.Application.Interfaces;
 
 namespace CourseService.Infrastructure.Repositories
 {
@@ -24,12 +25,19 @@ namespace CourseService.Infrastructure.Repositories
         private readonly CloudinaryService _cloudinaryService;
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly ILuceneSearchService _luceneSearchService;
-        public CourseRepository(AppDbContext context, CloudinaryService cloudinaryService, IStringLocalizer<SharedResources> localizer, ILuceneSearchService luceneSearchService)
+        private readonly INotificationRepository _notificationRepository;
+
+        public CourseRepository(AppDbContext context, 
+                               CloudinaryService cloudinaryService, 
+                               IStringLocalizer<SharedResources> localizer, 
+                               ILuceneSearchService luceneSearchService,
+                               INotificationRepository notificationRepository)
         {
             _context = context;
             _luceneSearchService = luceneSearchService;
             _cloudinaryService = cloudinaryService;
             _localizer = localizer;
+            _notificationRepository = notificationRepository;
         }
         public async Task<ApiResponse> GetCoursesAsync(CourseQueryParameters queryParams, string studentId)
         {
@@ -592,7 +600,7 @@ namespace CourseService.Infrastructure.Repositories
 
         public async Task<ApiResponse> CreateCourseRequestAsync(string courseId, string instructorId)
         {
-            var course = await _context.Courses.FindAsync(courseId);
+            var course = await _context.Courses.Include(c => c.Instructor).FirstOrDefaultAsync(c => c.Id == courseId);
             if (course == null)
                 return new ApiResponse("NotFound", _localizer["CourseNotFound"].Value, null, false);
 
@@ -617,6 +625,17 @@ namespace CourseService.Infrastructure.Repositories
 
             _context.CourseRequests.Add(request);
             await _context.SaveChangesAsync();
+
+            // Create notification for Admins
+            var notification = new Notification
+            {
+                Title = "New Course Approval Request",
+                Message = $"Instructor {course.Instructor.FullName} has submitted a new course: {course.Name}",
+                Type = "CourseRequest",
+                Role = "Admin",
+                CreatedAt = DateTime.UtcNow
+            };
+            await _notificationRepository.CreateNotificationAsync(notification);
 
             return new ApiResponse("Success", _localizer["RequestSentSuccess"].Value, null, true);
         }
@@ -682,12 +701,25 @@ namespace CourseService.Infrastructure.Repositories
 
             await _context.SaveChangesAsync();
 
+            // Create notification for Instructor
+            var notification = new Notification
+            {
+                UserId = request.InstructorId,
+                Title = "Course Approved",
+                Message = $"Your course '{request.Course?.Name}' has been approved and is now public.",
+                Type = "CourseRequestResult",
+                CreatedAt = DateTime.UtcNow
+            };
+            await _notificationRepository.CreateNotificationAsync(notification);
+
             return new ApiResponse("Success", _localizer["CourseRequestApproved"].Value, null, true);
         }
 
         public async Task<ApiResponse> RejectCourseRequestAsync(string requestId, string reason)
         {
-            var request = await _context.CourseRequests.FindAsync(requestId);
+            var request = await _context.CourseRequests
+                .Include(r => r.Course)
+                .FirstOrDefaultAsync(r => r.Id == requestId);
 
             if (request == null)
                 return new ApiResponse("NotFound", _localizer["RequestNotFound"].Value, null, false);
@@ -701,35 +733,28 @@ namespace CourseService.Infrastructure.Repositories
 
             await _context.SaveChangesAsync();
 
+            // Create notification for Instructor
+            var notification = new Notification
+            {
+                UserId = request.InstructorId,
+                Title = "Course Rejected",
+                Message = $"Your course '{request.Course?.Name}' has been rejected. Reason: {reason}",
+                Type = "CourseRequestResult",
+                CreatedAt = DateTime.UtcNow
+            };
+            await _notificationRepository.CreateNotificationAsync(notification);
+
             return new ApiResponse("Success", _localizer["CourseRequestRejected"].Value, null, true);
         }
 
-        public async Task<ApiResponse> GetAllCoursesForAdminAsync(CourseQueryParameters queryParams)
+        public async Task<ApiResponse> GetAllCoursesForAdminAsync()
         {
-            var query = _context.Courses
+            var courses = await _context.Courses
                 .Include(c => c.Instructor)
                 .Include(c => c.Enrollments)
-                .Include(c => c.CourseTags)
-                    .ThenInclude(ct => ct.Tag)
+                    .ThenInclude(e => e.Comments)
                 .Where(c => c.Status == CourseStatus.Public)
-                .AsQueryable();
-
-            if (!string.IsNullOrEmpty(queryParams.SearchTerm))
-            {
-                query = query.Where(c => c.Name.Contains(queryParams.SearchTerm) || c.Instructor.FullName.Contains(queryParams.SearchTerm));
-            }
-
-            if (queryParams.TagIds != null && queryParams.TagIds.Any())
-            {
-                query = query.Where(c => c.CourseTags.Any(ct => queryParams.TagIds.Contains(ct.TagId)));
-            }
-
-            var totalCount = await query.CountAsync();
-
-            var courses = await query
                 .OrderByDescending(c => c.CreateTime)
-                .Skip((queryParams.Page - 1) * queryParams.PageSize)
-                .Take(queryParams.PageSize)
                 .ToListAsync();
 
             var courseDtos = courses.Select(c => new AdminCourseListDTO
@@ -738,23 +763,15 @@ namespace CourseService.Infrastructure.Repositories
                 Name = c.Name,
                 ImageUrl = c.ImageUrl,
                 InstructorName = c.Instructor.FullName,
-                AverageRating = c.Enrollments.Average(e => e.Comments.Any() ? e.Comments.Average(cm => cm.Rate) : 0),
-                // Status = c.Status.ToString(),
+                AverageRating = c.Enrollments.Any(e => e.Comments.Any()) 
+                                ? c.Enrollments.SelectMany(e => e.Comments).Average(cm => cm.Rate) 
+                                : 0,
                 Price = c.Price,
                 CreateTime = c.CreateTime,
-                TotalStudents = c.Enrollments.Count,
-                // TagNames = c.CourseTags.Select(ct => ct.Tag.Name).ToList()
+                TotalStudents = c.Enrollments.Count
             }).ToList();
 
-            var pagedResult = new PagedResult<AdminCourseListDTO>
-            {
-                Items = courseDtos,
-                Page = queryParams.Page,
-                PageSize = queryParams.PageSize,
-                TotalCount = totalCount
-            };
-
-            return new ApiResponse("Success", _localizer["CoursesRetrieved"].Value, pagedResult, true);
+            return new ApiResponse("Success", _localizer["CoursesRetrieved"].Value, courseDtos, true);
         }
 
         public async Task<ApiResponse> AddCommentAsync(AddCommentDTO addCommentDTO, string userId)

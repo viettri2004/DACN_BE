@@ -23,7 +23,7 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> GetPendingCourseRequestsAsync();
         Task<ApiResponse> ApproveCourseRequestAsync(string requestId);
         Task<ApiResponse> RejectCourseRequestAsync(string requestId, string reason);
-        Task<ApiResponse> GetAllCoursesForAdminAsync(CourseQueryParameters queryParams);
+        Task<ApiResponse> GetAllCoursesForAdminAsync();
         Task<ApiResponse> AddCommentAsync(AddCommentDTO addCommentDTO, string userId);
         Task<ApiResponse> ReplyToCommentAsync(ReplyCommentDTO replyDTO, string userId);
     }

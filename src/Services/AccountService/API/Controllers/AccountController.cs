@@ -231,7 +231,7 @@ namespace src.Services.AccountService.API.Controllers
              if (string.IsNullOrEmpty(adminId))
                 return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
 
-            var response = await _authservice.ApproveInstructorRequest(dto.RequestId, adminId, dto.IsApproved);
+            var response = await _authservice.ApproveInstructorRequest(dto, adminId);
             return response.ToActionResult();
         }
 

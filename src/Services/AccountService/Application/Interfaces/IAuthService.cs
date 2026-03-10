@@ -17,7 +17,7 @@ namespace AccountService.Application.Interfaces
         Task<(ApiResponse response, string refreshToken, string redirectUrl)> GoogleCallbackAsync(string code, string? state, string? savedState);
         Task<ApiResponse> RequestInstructor(string userId, InstructorRequestDTO requestDTO);
         Task<ApiResponse> GetInstructorRequests();
-        Task<ApiResponse> ApproveInstructorRequest(int requestId, string adminId, bool isApproved);
+        Task<ApiResponse> ApproveInstructorRequest(ApproveRequestDTO dto, string adminId);
         Task<ApiResponse> LogoutAsync(string userId);
         Task<ApiResponse> GetAllUsersAsync();
         Task<ApiResponse> GetAllInstructorsAsync();

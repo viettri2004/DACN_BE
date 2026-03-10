@@ -212,9 +212,9 @@ namespace CourseService.API.Controllers
 
         [Authorize(Policy = "Admin")]
         [HttpGet("admin/courses")]
-        public async Task<ActionResult<ApiResponse>> GetAllCoursesForAdmin([FromQuery] CourseQueryParameters queryParams)
+        public async Task<ActionResult<ApiResponse>> GetAllCoursesForAdmin()
         {
-            var response = await _courseRepository.GetAllCoursesForAdminAsync(queryParams);
+            var response = await _courseRepository.GetAllCoursesForAdminAsync();
             return response.ToActionResult();
         }
 

@@ -4,5 +4,6 @@ namespace AccountService.Application.DTOs
     {
         public int RequestId { get; set; }
         public bool IsApproved { get; set; }
+        public string? Reason { get; set; }
     }
 }

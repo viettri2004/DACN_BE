@@ -30,6 +30,9 @@ using PaymentService.Infrastructure.Services;
 using Serilog;
 using Shared.Infrastructure.cloudinaryService;
 using src.Shared.Domain.Entities;
+// using src.Shared.Application.Hubs;
+using Shared.Application.Interfaces;
+using Shared.Infrastructure.Repositories;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 const string BearerScheme = "Bearer";
@@ -123,6 +126,7 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     services.AddScoped<IAuthService, AuthService>();
     services.AddScoped<IEmailService, EmailService>();
     services.AddScoped<IOtpService, OtpService>();
+    services.AddScoped<INotificationRepository, NotificationRepository>();
 }
 static void ConfigureLocalization(IServiceCollection services, IConfiguration configuration)
 {
@@ -229,32 +233,6 @@ static void ConfigureAuthentication(IServiceCollection services, IConfiguration 
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
         };
-
-        // options.Events = new JwtBearerEvents
-        // {
-        //     OnMessageReceived = context =>
-        //     {
-        //         try
-        //         {
-        //             var accessToken = context.Request.Query["access_token"];
-        //             var path = context.HttpContext.Request.Path;
-        //             if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments(NotificationHubPath))
-        //             {
-        //                 context.Token = accessToken;
-        //             }
-        //         }
-        //         catch (Exception ex)
-        //         {
-        //             Console.WriteLine($"Error in JWT OnMessageReceived: {ex.Message}");
-        //         }
-        //         return Task.CompletedTask;
-        //     },
-        //     OnAuthenticationFailed = context =>
-        //     {
-        //         Console.WriteLine($"JWT Authentication failed: {context.Exception.Message}");
-        //         return Task.CompletedTask;
-        //     }
-        // };
     });
 }
 

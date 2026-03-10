@@ -5,12 +5,13 @@ using System.Threading.Tasks;
 using AccountService.Application.DTOs;
 using AccountService.Application.Interfaces;
 using CourseService.Domain.Enums;
+using Shared.Application.Interfaces;
 using Data.Context;
 using Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
-using src.Shared.Domain.Entities;
 using src.Shared.Resources;
+using src.Shared.Domain.Entities;
 
 namespace AccountService.Infrastructure.Repositories
 {
@@ -18,11 +19,15 @@ namespace AccountService.Infrastructure.Repositories
     {
         private readonly AppDbContext _context;
         private readonly IStringLocalizer<SharedResources> _localizer;
+        private readonly INotificationRepository _notificationRepository;
 
-        public DashboardRepository(AppDbContext context, IStringLocalizer<SharedResources> localizer)
+        public DashboardRepository(AppDbContext context, 
+                                  IStringLocalizer<SharedResources> localizer,
+                                  INotificationRepository notificationRepository)
         {
             _context = context;
             _localizer = localizer;
+            _notificationRepository = notificationRepository;
         }
 
         public async Task<ApiResponse> GetDashboardDataAsync()
@@ -148,59 +153,22 @@ namespace AccountService.Infrastructure.Repositories
         {
             try
             {
-                var recentInstructorRequests = await _context.Set<InstructorRequest>()
-                    .Include(r => r.User)
-                    .OrderByDescending(r => r.CreatedAt)
-                    .Where(r => r.Status == RequestStatus.Pending.ToString())
-                    .Take(5)
-                    .ToListAsync();
-
-                var recentCourseRequests = await _context.CourseRequests
-                    .Include(r => r.Course)
-                    .Include(r => r.Course.Instructor)
-                    .OrderByDescending(r => r.CreatedAt)
-                    .Where(r => r.Status == RequestStatus.Pending)
-                    .Take(5)
-                    .ToListAsync();
-
-                var notifications = new List<AdminNotificationItemDTO>();
-
-                foreach (var ir in recentInstructorRequests)
+                var notifications = await _notificationRepository.GetAdminNotificationsAsync();
+                
+                var notificationDtos = notifications.Take(10).Select(n => new AdminNotificationItemDTO
                 {
-                    notifications.Add(new AdminNotificationItemDTO
-                    {
-                        Id = ir.Id.ToString(),
-                        Type = "InstructorRequest",
-                        // Title = "New Instructor Request",
-                        // Message = $"{ir.User.FullName} has requested to become an instructor.",
-                        Sender = ir.User.FullName,
-                        CourseName = string.Empty,
-                        CreatedAt = ir.CreatedAt
-                    });
-                }
-
-                foreach (var cr in recentCourseRequests)
-                {
-                    notifications.Add(new AdminNotificationItemDTO
-                    {
-                        Id = cr.Id,
-                        Type = "CourseRequest",
-                        // Title = "New Course Approval Request",
-                        // Message = $"Instructor {cr.Course.Instructor.FullName} has submitted a new course: {cr.Course.Name}",
-                        Sender = cr.Course.Instructor.FullName,
-                        CourseName = cr.Course.Name,
-                        CreatedAt = cr.CreatedAt
-                    });
-                }
-
-                var sortedNotifications = notifications
-                    .OrderByDescending(n => n.CreatedAt)
-                    .Take(10)
-                    .ToList();
+                    Id = n.Id,
+                    Type = n.Type,
+                    Title = n.Title,
+                    Message = n.Message,
+                    Sender = string.Empty,
+                    CourseName = string.Empty,
+                    CreatedAt = n.CreatedAt
+                }).ToList();
 
                 var result = new AdminNotificationDTO
                 {
-                    Notifications = sortedNotifications
+                    Notifications = notificationDtos
                 };
 
                 return new ApiResponse("Success", _localizer["Success"].Value, result, true);

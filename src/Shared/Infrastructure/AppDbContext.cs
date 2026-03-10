@@ -3,6 +3,7 @@ using CourseService.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using src.Shared.Domain.Entities;
 
 namespace Data.Context
 {
@@ -30,6 +31,7 @@ namespace Data.Context
         public DbSet<PaymentTransaction> PaymentTransactions { get; set; } = null!;
         public DbSet<InstructorRequest> InstructorRequests { get; set; } = null!;
         public DbSet<CourseRequest> CourseRequests { get; set; } = null!;
+        public DbSet<Notification> Notifications { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

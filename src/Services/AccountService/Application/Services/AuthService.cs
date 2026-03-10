@@ -10,8 +10,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using src.Shared.Resources;
 using src.Shared.Domain.Entities;
-
 using Microsoft.Extensions.Options;
+using Shared.Application.Interfaces;
 
 namespace AccountService.Application.Services
 {
@@ -24,6 +24,7 @@ namespace AccountService.Application.Services
         private readonly IAccountRepository _accountRepository;
         private readonly IGoogleAuthService _googleAuthService;
         private readonly GoogleConfig _googleConfig;
+        private readonly INotificationRepository _notificationRepository;
 
         public AuthService(
             IAccountRepository accountRepository,
@@ -32,7 +33,8 @@ namespace AccountService.Application.Services
             ITokenService tokenService,
             IStringLocalizer<SharedResources> localizer,
             IGoogleAuthService googleAuthService,
-            IOptions<GoogleConfig> googleConfig)
+            IOptions<GoogleConfig> googleConfig,
+            INotificationRepository notificationRepository)
         {
             _accountRepository = accountRepository;
             _userManager = userManager;
@@ -41,15 +43,11 @@ namespace AccountService.Application.Services
             _localizer = localizer;
             _googleAuthService = googleAuthService;
             _googleConfig = googleConfig.Value;
+            _notificationRepository = notificationRepository;
         }
+
         public async Task<ApiResponse> Register(RegisterDTO RegisterDTO)
         {
-            // var testMessage = _localizer["UsernameAlreadyExists"];
-            // Console.WriteLine($"Key: UsernameAlreadyExists");
-            // Console.WriteLine($"Value: {testMessage.Value}");
-            // Console.WriteLine($"ResourceNotFound: {testMessage.ResourceNotFound}");
-            // Console.WriteLine($"SearchedLocation: {testMessage.SearchedLocation}");
-
             if (await _userManager.FindByNameAsync(RegisterDTO.UserName) != null)
                 return new ApiResponse("Conflict", _localizer["UsernameAlreadyExists"].Value, null, false);
 
@@ -69,46 +67,9 @@ namespace AccountService.Application.Services
                 IsBanned = false
             };
 
-
-            // if (RegisterDTO.Role == "Student")
-            //     user = new Student
-            //     {
-            //         UserName = RegisterDTO.UserName,
-            //         Email = RegisterDTO.Email,
-            //         FullName = RegisterDTO.FullName,
-            //         PhoneNumber = RegisterDTO.PhoneNumber,
-            //         IsBanned = false
-            //     };
-            // else if (RegisterDTO.Role == "Instructor")
-            //     user = new Instructor
-            //     {
-            //         UserName = RegisterDTO.UserName,
-            //         Email = RegisterDTO.Email,
-            //         FullName = RegisterDTO.FullName,
-            //         PhoneNumber = RegisterDTO.PhoneNumber,
-            //         IsBanned = false
-            //     };
-            // else if (RegisterDTO.Role == "Admin")
-            //     user = new Admin
-            //     {
-            //         UserName = RegisterDTO.UserName,
-            //         Email = RegisterDTO.Email,
-            //         FullName = RegisterDTO.FullName,
-            //         PhoneNumber = RegisterDTO.PhoneNumber,
-            //         IsBanned = false
-            //     };
-            // else
-            // {
-            //     return new ApiResponse("BadRequest", _localizer["InvalidRole"].Value, null, false);
-            // }
-            // ;
-
             var result = await _userManager.CreateAsync(user, RegisterDTO.Password);
             if (!result.Succeeded)
                 return new ApiResponse("BadRequest", string.Join("; ", result.Errors.Select(e => e.Description)), null, false);
-
-            // if (!await _roleManager.RoleExistsAsync("Student"))
-            //     await _roleManager.CreateAsync(new IdentityRole("Student"));
 
             await _userManager.AddToRoleAsync(user, "Student");
 
@@ -187,30 +148,6 @@ namespace AccountService.Application.Services
                     EmailConfirmed = googleUserInfo.EmailVerified,
                     IsBanned = false
                 };
-                // if (role == "Instructor")
-                // {
-                //     newUser = new Instructor
-                //     {
-                //         UserName = googleUserInfo.Email,
-                //         Email = googleUserInfo.Email,
-                //         FullName = googleUserInfo.Name,
-                //         AvatarUrl = googleUserInfo.Picture,
-                //         EmailConfirmed = googleUserInfo.EmailVerified,
-                //         IsBanned = false
-                //     };
-                // }
-                // else
-                // {
-                //     newUser = new Student
-                //     {
-                //         UserName = googleUserInfo.Email,
-                //         Email = googleUserInfo.Email,
-                //         FullName = googleUserInfo.Name,
-                //         AvatarUrl = googleUserInfo.Picture,
-                //         EmailConfirmed = googleUserInfo.EmailVerified,
-                //         IsBanned = false
-                //     };
-                // }
 
                 var createResult = await _userManager.CreateAsync(newUser);
                 if (!createResult.Succeeded)
@@ -268,7 +205,6 @@ namespace AccountService.Application.Services
             }
 
             return new ApiResponse("Error", _localizer["PasswordResetFailed"].Value, result.Errors, false);
-
         }
 
         public async Task<(ApiResponse response, string refreshToken, string redirectUrl)> GoogleCallbackAsync(string code, string? state, string? savedState)
@@ -333,7 +269,19 @@ namespace AccountService.Application.Services
 
             var result = await _accountRepository.CreateInstructorRequestAsync(request);
             if (result)
+            {
+                var notification = new Notification
+                {
+                    Title = "New Instructor Request",
+                    Message = $"{user.FullName} has requested to become an instructor.",
+                    Type = "InstructorRequest",
+                    Role = "Admin",
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _notificationRepository.CreateNotificationAsync(notification);
+
                 return new ApiResponse("Created", _localizer["RequestSubmittedSuccess"].Value, null, true);
+            }
             
             return new ApiResponse("Error", _localizer["RequestSubmitFailed"].Value, null, false);
         }
@@ -360,9 +308,9 @@ namespace AccountService.Application.Services
             return new ApiResponse("Success", _localizer["PendingRequestsRetrieved"].Value, dtos, true);
         }
 
-        public async Task<ApiResponse> ApproveInstructorRequest(int requestId, string adminId, bool isApproved)
+        public async Task<ApiResponse> ApproveInstructorRequest(ApproveRequestDTO dto, string adminId)
         {
-            var request = await _accountRepository.GetInstructorRequestByIdAsync(requestId);
+            var request = await _accountRepository.GetInstructorRequestByIdAsync(dto.RequestId);
             if (request == null)
                 return new ApiResponse("NotFound", _localizer["RequestNotFound"].Value, null, false);
             
@@ -370,9 +318,13 @@ namespace AccountService.Application.Services
                  return new ApiResponse("Conflict", _localizer["RequestNotPending"].Value, null, false);
 
             request.AdminId = adminId;
+            request.AdminComment = dto.Reason;
             request.ProcessedAt = DateTime.UtcNow;
             
-            if (isApproved)
+            string title = "";
+            string message = "";
+
+            if (dto.IsApproved)
             {
                 request.Status = "Approved";
                 
@@ -382,15 +334,30 @@ namespace AccountService.Application.Services
                 
                 await _userManager.AddToRoleAsync(user, "Instructor");
                 await _accountRepository.UpdateUserDiscriminatorToInstructor(user.Id);
+                
+                title = "Instructor Request Approved";
+                message = "Congratulations! Your request to become an instructor has been approved.";
             }
             else
             {
                 request.Status = "Rejected";
+                title = "Instructor Request Rejected";
+                message = $"Sorry, your request to become an instructor has been rejected. Reason: {dto.Reason}";
             }
 
             await _accountRepository.UpdateInstructorRequestAsync(request);
+
+            var notification = new Notification
+            {
+                UserId = request.UserId,
+                Title = title,
+                Message = message,
+                Type = "InstructorRequestResult",
+                CreatedAt = DateTime.UtcNow
+            };
+            await _notificationRepository.CreateNotificationAsync(notification);
             
-            return new ApiResponse("Success", isApproved ? _localizer["RequestApproved"].Value : _localizer["RequestRejected"].Value, null, true);
+            return new ApiResponse("Success", dto.IsApproved ? _localizer["RequestApproved"].Value : _localizer["RequestRejected"].Value, null, true);
         }
 
         public async Task<ApiResponse> LogoutAsync(string userId)
