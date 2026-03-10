@@ -221,6 +221,94 @@ namespace CourseService.Infrastructure.Repositories
             }
         }
 
+        public async Task<ApiResponse> UpdateCourseAsync(string courseId, UpdateCourseDTO updateCourseDTO, string instructorId)
+        {
+            try
+            {
+                var course = await _context.Courses
+                    .Include(c => c.CourseTags)
+                    .FirstOrDefaultAsync(c => c.Id == courseId);
+
+                if (course == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["CourseNotFound"].Value, null, false);
+                }
+
+                if (course.InstructorId != instructorId)
+                {
+                    return new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false);
+                }
+
+                course.Name = updateCourseDTO.name;
+                course.Price = updateCourseDTO.price;
+                course.Description = updateCourseDTO.description ?? string.Empty;
+
+                if (updateCourseDTO.image != null)
+                {
+                    // Delete old image if exists
+                    if (!string.IsNullOrEmpty(course.ImagePublicId))
+                    {
+                        await _cloudinaryService.DeleteImageAsync(course.ImagePublicId);
+                    }
+
+                    // Upload new image
+                    var (imageUrl, imagePublicId) = await _cloudinaryService.UploadImageAsync(updateCourseDTO.image);
+                    course.ImageUrl = imageUrl;
+                    course.ImagePublicId = imagePublicId;
+                }
+
+                // Update tags
+                if (updateCourseDTO.TagIds != null)
+                {
+                    // Remove old tags
+                    _context.CourseTags.RemoveRange(course.CourseTags);
+
+                    // Add new tags
+                    foreach (var tagId in updateCourseDTO.TagIds)
+                    {
+                        var tag = await _context.Tags.FindAsync(tagId);
+                        if (tag != null)
+                        {
+                            course.CourseTags.Add(new CourseTag
+                            {
+                                CourseId = course.Id,
+                                TagId = tagId
+                            });
+                        }
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                // Re-index
+                try
+                {
+                    var courseForIndex = await _context.Courses
+                        .AsNoTracking()
+                        .Include(c => c.Instructor)
+                        .Include(c => c.CourseTags)
+                        .Include(c => c.Enrollments)
+                            .ThenInclude(e => e.Comments)
+                        .FirstOrDefaultAsync(c => c.Id == course.Id);
+
+                    if (courseForIndex != null)
+                    {
+                        await _luceneSearchService.IndexCourseAsync(courseForIndex);
+                    }
+                }
+                catch (Exception indexEx)
+                {
+                    Console.WriteLine($"Indexing course failed: {indexEx.Message}");
+                }
+
+                return new ApiResponse("Success", _localizer["CourseUpdated"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
         public async Task<ApiResponse> GetCourseDetailAsync(string courseId, string studentId)
         {
             var course = await _context.Courses
@@ -377,8 +465,45 @@ namespace CourseService.Infrastructure.Repositories
             return new ApiResponse("Success", _localizer["Success"].Value, courseDTOs, true);
         }
 
-        public async Task<ApiResponse> GetCourseContentAsync(string courseId)
+        public async Task<ApiResponse> GetCourseContentAsync(string courseId, string userId, List<string> roles)
         {
+            var course = await _context.Courses
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == courseId);
+
+            if (course == null)
+            {
+                return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+            }
+
+            // Authorization check
+            bool isAuthorized = false;
+
+            if (roles.Contains("Admin"))
+            {
+                isAuthorized = true;
+            }
+            else if (roles.Contains("Instructor") && course.InstructorId == userId)
+            {
+                isAuthorized = true;
+            }
+            else
+            {
+                // Check enrollment for students
+                var isEnrolled = await _context.Enrollments
+                    .AnyAsync(e => e.CourseId == courseId && e.StudentId == userId && e.Status == true);
+                
+                if (isEnrolled)
+                {
+                    isAuthorized = true;
+                }
+            }
+
+            if (!isAuthorized)
+            {
+                return new ApiResponse("Forbidden", _localizer["ForbiddenCourseContent"].Value, null, false);
+            }
+
             var courseContent = await _context.Courses
                 .AsNoTracking()
                 .Where(c => c.Id == courseId)
@@ -418,11 +543,6 @@ namespace CourseService.Infrastructure.Repositories
                     }).ToList()
                 })
                 .FirstOrDefaultAsync();
-
-            if (courseContent == null)
-            {
-                return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
-            }
 
             return new ApiResponse("Success", _localizer["Success"].Value, courseContent, true);
         }
@@ -591,7 +711,7 @@ namespace CourseService.Infrastructure.Repositories
                 .Include(c => c.Enrollments)
                 .Include(c => c.CourseTags)
                     .ThenInclude(ct => ct.Tag)
-                .Where(c => c.Status != CourseStatus.Private)
+                .Where(c => c.Status == CourseStatus.Public)
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(queryParams.SearchTerm))
@@ -618,6 +738,7 @@ namespace CourseService.Infrastructure.Repositories
                 Name = c.Name,
                 ImageUrl = c.ImageUrl,
                 InstructorName = c.Instructor.FullName,
+                AverageRating = c.Enrollments.Average(e => e.Comments.Any() ? e.Comments.Average(cm => cm.Rate) : 0),
                 // Status = c.Status.ToString(),
                 Price = c.Price,
                 CreateTime = c.CreateTime,

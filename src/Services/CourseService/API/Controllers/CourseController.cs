@@ -52,6 +52,19 @@ namespace CourseService.API.Controllers
         }
 
         [Authorize(Policy = "Instructor")]
+        [HttpPut("{courseId}")]
+        public async Task<ActionResult<ApiResponse>> UpdateCourse([FromRoute] string courseId, [FromForm] UpdateCourseDTO updateCourseDTO)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            }
+            var response = await _courseRepository.UpdateCourseAsync(courseId, updateCourseDTO, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
         [HttpGet("instructor-courses")]
         public async Task<ActionResult<ApiResponse>> GetInstructorCourses()
         {
@@ -128,10 +141,22 @@ namespace CourseService.API.Controllers
         }
 
         
+        [Authorize]
         [HttpGet("course-content/{courseId}")]
         public async Task<ActionResult<ApiResponse>> GetCourseContent([FromRoute] string courseId)
         {
-            var response = await _courseRepository.GetCourseContentAsync(courseId);
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            var roles = User.Claims
+                .Where(c => c.Type == "role")
+                .Select(c => c.Value)
+                .ToList();
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            }
+
+            var response = await _courseRepository.GetCourseContentAsync(courseId, userId, roles);
             return response.ToActionResult();
         }
 

@@ -13,6 +13,7 @@ namespace CourseService.Application.DTOs
         public decimal Price { get; set; }
         public DateTime CreateTime { get; set; }
         public int TotalStudents { get; set; }
+        public double AverageRating { get; set; }
         // public List<string> TagNames { get; set; } = new List<string>();
     }
 }

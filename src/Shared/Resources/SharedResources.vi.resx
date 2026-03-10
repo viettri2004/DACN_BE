@@ -389,6 +389,10 @@
     <value>Tạo khóa học thất bại</value>
     <comment/>
   </data>
+  <data name="CourseUpdated" xml:space="preserve">
+    <value>Cập nhật khóa học thành công</value>
+    <comment/>
+  </data>
   <data name="TagDeleted" xml:space="preserve">
     <value>Xóa tag thành công</value>
     <comment/>
@@ -415,6 +419,10 @@
   </data>
   <data name="ForbiddenDeleteVideo" xml:space="preserve">
     <value>Bạn không có quyền xóa video này</value>
+    <comment/>
+  </data>
+  <data name="ForbiddenCourseContent" xml:space="preserve">
+    <value>Bạn không có quyền xem nội dung khóa học này. Bạn phải đăng ký khóa học hoặc là giảng viên của khóa học.</value>
     <comment/>
   </data>
   <data name="VideoFileEmpty" xml:space="preserve">

@@ -389,6 +389,10 @@
     <value>Course creation failed</value>
     <comment/>
   </data>
+  <data name="CourseUpdated" xml:space="preserve">
+    <value>Course updated successfully</value>
+    <comment/>
+  </data>
   <data name="TagDeleted" xml:space="preserve">
     <value>Tag deleted successfully</value>
     <comment/>
@@ -415,6 +419,10 @@
   </data>
   <data name="ForbiddenDeleteVideo" xml:space="preserve">
     <value>You are not authorized to delete this video</value>
+    <comment/>
+  </data>
+  <data name="ForbiddenCourseContent" xml:space="preserve">
+    <value>You are not authorized to view this course content. You must be enrolled or be the course instructor.</value>
     <comment/>
   </data>
   <data name="VideoFileEmpty" xml:space="preserve">
