@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Entities;
 
 namespace CourseService.Application.DTOs
 {
@@ -6,6 +7,7 @@ namespace CourseService.Application.DTOs
     {
         public string Id { get; set; } = null!;
         public string Name { get; set; } = null!;
+        public IEnumerable<string> Tags { get; set; } = new List<string>();
         public IEnumerable<LectureContentDTO> Lectures { get; set; } = new List<LectureContentDTO>();
     }
 

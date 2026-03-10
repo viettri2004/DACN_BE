@@ -410,6 +410,10 @@ namespace AccountService.Application.Services
             foreach (var user in users)
             {
                 var roles = await _userManager.GetRolesAsync(user);
+                var role = roles.FirstOrDefault() ?? "Student";
+
+                if (role == "Admin") continue;
+
                 userViewDtos.Add(new UserViewDTO
                 {
                     Id = user.Id,
@@ -417,7 +421,7 @@ namespace AccountService.Application.Services
                     Email = user.Email ?? "",
                     FullName = user.FullName,
                     AvatarUrl = user.AvatarUrl,
-                    Role = roles.FirstOrDefault() ?? "Student",
+                    Role = role,
                     IsBanned = user.IsBanned,
                     CreatedAt = user.CreatedAt
                 });

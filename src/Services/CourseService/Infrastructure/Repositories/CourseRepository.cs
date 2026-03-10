@@ -387,6 +387,7 @@ namespace CourseService.Infrastructure.Repositories
                     Id = c.Id,
                     Name = c.Name,
                     // Status = c.Status.ToString(),
+                    Tags = c.CourseTags.Select(t => t.Tag.Name).ToList(),
                     Lectures = c.Lectures
                     .OrderBy(l => l.DisplayOrder)
                     .Select(l => new LectureContentDTO
