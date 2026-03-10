@@ -786,6 +786,13 @@ namespace CourseService.Infrastructure.Repositories
             {
                 return new ApiResponse("Forbidden", _localizer["NotEnrolledInCourse"].Value, null, false);
             }
+            var existingComment = await _context.Comments
+                .FirstOrDefaultAsync(c => c.EnrollmentId == enrollment.Id);
+
+            if (existingComment != null)
+            {
+                return new ApiResponse("Conflict", _localizer["CommentAlreadyExists"].Value, null, false);
+            }
 
             var comment = new Comment
             {

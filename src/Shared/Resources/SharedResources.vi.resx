@@ -562,4 +562,7 @@
   <data name="ParentCommentNotFound" xml:space="preserve">
     <value>Không tìm thấy bình luận gốc.</value>
   </data>
-  </root>
+  <data name="CommentAlreadyExists" xml:space="preserve">
+    <value>Bạn đã đánh giá và bình luận cho khóa học này.</value>
+  </data>
+</root>

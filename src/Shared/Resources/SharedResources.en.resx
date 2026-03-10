@@ -562,4 +562,7 @@
   <data name="ParentCommentNotFound" xml:space="preserve">
     <value>Parent comment not found.</value>
   </data>
+  <data name="CommentAlreadyExists" xml:space="preserve">
+    <value>You have already commented on this course.</value>
+  </data>  
 </root>
