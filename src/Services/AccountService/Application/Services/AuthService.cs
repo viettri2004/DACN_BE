@@ -314,6 +314,10 @@ namespace AccountService.Application.Services
             
             if (await _userManager.IsInRoleAsync(user, "Instructor"))
                  return new ApiResponse("Conflict", _localizer["UserAlreadyInstructor"].Value, null, false);
+
+            var existingRequest = await _accountRepository.GetInstructorRequestByUserIdAsync(userId);
+            if (existingRequest != null)
+                return new ApiResponse("Conflict", _localizer["RequestAlreadySent"].Value, null, false);
             
             var request = new InstructorRequest
             {

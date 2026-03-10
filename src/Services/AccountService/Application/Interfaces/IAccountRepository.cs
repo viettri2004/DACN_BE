@@ -17,6 +17,7 @@ namespace AccountService.Application.Interfaces
         Task<bool> CreateInstructorRequestAsync(InstructorRequest request);
         Task<List<InstructorRequest>> GetPendingInstructorRequestsAsync();
         Task<InstructorRequest?> GetInstructorRequestByIdAsync(int id);
+        Task<InstructorRequest?> GetInstructorRequestByUserIdAsync(string userId);
         Task UpdateInstructorRequestAsync(InstructorRequest request);
         Task UpdateUserDiscriminatorToInstructor(string userId);
         Task<List<User>> GetAllUsersAsync();

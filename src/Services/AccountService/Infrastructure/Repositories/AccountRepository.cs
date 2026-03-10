@@ -119,6 +119,12 @@ namespace AccountService.Infrastructure.Persistence.Repositories
                 .FirstOrDefaultAsync(r => r.Id == id);
         }
 
+        public async Task<InstructorRequest?> GetInstructorRequestByUserIdAsync(string userId)
+        {
+            return await _context.InstructorRequests
+                .FirstOrDefaultAsync(r => r.UserId == userId && r.Status == "Pending");
+        }
+
         public async Task UpdateInstructorRequestAsync(InstructorRequest request)
         {
             _context.InstructorRequests.Update(request);
