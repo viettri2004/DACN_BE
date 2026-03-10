@@ -26,6 +26,6 @@ namespace CourseService.Domain.Entities
         
         public DateTime? ProcessedAt { get; set; }
 
-        public string? Reason { get; set; }
+        // public string? Reason { get; set; }
     }
 }

@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using AccountService.Application.DTOs;
 using AccountService.Application.Interfaces;
 using CourseService.Domain.Enums;
-using Shared.Application.Interfaces;
+// using Shared.Application.Interfaces;
 using Data.Context;
 using Entities;
 using Microsoft.EntityFrameworkCore;
@@ -142,36 +142,6 @@ namespace AccountService.Infrastructure.Repositories
                 };
 
                 return new ApiResponse("Success", _localizer["Success"].Value, data, true);
-            }
-            catch (Exception ex)
-            {
-                return new ApiResponse("Error", ex.Message, null, false);
-            }
-        }
-
-        public async Task<ApiResponse> GetAdminNotificationsAsync()
-        {
-            try
-            {
-                var notifications = await _notificationRepository.GetAdminNotificationsAsync();
-                
-                var notificationDtos = notifications.Take(10).Select(n => new AdminNotificationItemDTO
-                {
-                    Id = n.Id,
-                    Type = n.Type,
-                    Title = n.Title,
-                    Message = n.Message,
-                    Sender = string.Empty,
-                    CourseName = string.Empty,
-                    CreatedAt = n.CreatedAt
-                }).ToList();
-
-                var result = new AdminNotificationDTO
-                {
-                    Notifications = notificationDtos
-                };
-
-                return new ApiResponse("Success", _localizer["Success"].Value, result, true);
             }
             catch (Exception ex)
             {

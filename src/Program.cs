@@ -30,9 +30,8 @@ using PaymentService.Infrastructure.Services;
 using Serilog;
 using Shared.Infrastructure.cloudinaryService;
 using src.Shared.Domain.Entities;
-// using src.Shared.Application.Hubs;
-using Shared.Application.Interfaces;
-using Shared.Infrastructure.Repositories;
+using AccountService.Application.Interfaces;
+using AccountService.Infrastructure.Repositories;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 const string BearerScheme = "Bearer";

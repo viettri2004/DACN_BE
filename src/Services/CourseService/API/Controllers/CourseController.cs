@@ -196,17 +196,17 @@ namespace CourseService.API.Controllers
 
         [Authorize(Policy = "Admin")]
         [HttpPost("approve-request/{requestId}")]
-        public async Task<ActionResult<ApiResponse>> ApproveRequest([FromRoute] string requestId)
+        public async Task<ActionResult<ApiResponse>> ApproveRequest([FromRoute] string requestId, [FromBody] ResponseRequestDTO responseRequestDTO)
         {
-            var response = await _courseRepository.ApproveCourseRequestAsync(requestId);
+            var response = await _courseRepository.ApproveCourseRequestAsync(requestId, responseRequestDTO);
             return response.ToActionResult();
         }
 
         [Authorize(Policy = "Admin")]
         [HttpPost("reject-request/{requestId}")]
-        public async Task<ActionResult<ApiResponse>> RejectRequest([FromRoute] string requestId, [FromBody] RejectRequestDTO rejectRequestDTO)
+        public async Task<ActionResult<ApiResponse>> RejectRequest([FromRoute] string requestId, [FromBody] ResponseRequestDTO responseRequestDTO)
         {
-            var response = await _courseRepository.RejectCourseRequestAsync(requestId, rejectRequestDTO.Reason);
+            var response = await _courseRepository.RejectCourseRequestAsync(requestId, responseRequestDTO);
             return response.ToActionResult();
         }
 

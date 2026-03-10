@@ -48,20 +48,4 @@ namespace AccountService.Application.DTOs
         public List<TrendingCourseDTO> TrendingCourses { get; set; } = new();
         public List<TrendingTagDTO> TrendingTags { get; set; } = new();
     }
-
-    public class AdminNotificationDTO
-    {
-        public List<AdminNotificationItemDTO> Notifications { get; set; } = new();
-    }
-
-    public class AdminNotificationItemDTO
-    {
-        public string Id { get; set; } = null!;
-        public string Type { get; set; } = null!;
-        public string Title { get; set; } = null!;
-        public string Message { get; set; } = null!;
-        public string Sender { get; set; } = null!;
-        public string CourseName { get; set; } = null!;
-        public DateTime CreatedAt { get; set; }
-    }
 }

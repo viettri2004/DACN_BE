@@ -25,13 +25,5 @@ namespace AccountService.API.Controllers
             var response = await _dashboardRepository.GetDashboardDataAsync();
             return response.ToActionResult();
         }
-
-        [Authorize(Policy = "Admin")]
-        [HttpGet("notifications")]
-        public async Task<ActionResult<ApiResponse>> GetAdminNotifications()
-        {
-            var response = await _dashboardRepository.GetAdminNotificationsAsync();
-            return response.ToActionResult();
-        }
     }
 }

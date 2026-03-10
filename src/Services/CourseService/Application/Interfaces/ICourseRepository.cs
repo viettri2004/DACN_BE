@@ -21,8 +21,8 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> DeleteCourseAsync(string courseId, string instructorId);
         Task<ApiResponse> CreateCourseRequestAsync(string courseId, string instructorId);
         Task<ApiResponse> GetPendingCourseRequestsAsync();
-        Task<ApiResponse> ApproveCourseRequestAsync(string requestId);
-        Task<ApiResponse> RejectCourseRequestAsync(string requestId, string reason);
+        Task<ApiResponse> ApproveCourseRequestAsync(string requestId, ResponseRequestDTO responseRequestDTO);
+        Task<ApiResponse> RejectCourseRequestAsync(string requestId, ResponseRequestDTO responseRequestDTO);
         Task<ApiResponse> GetAllCoursesForAdminAsync();
         Task<ApiResponse> AddCommentAsync(AddCommentDTO addCommentDTO, string userId);
         Task<ApiResponse> ReplyToCommentAsync(ReplyCommentDTO replyDTO, string userId);

@@ -15,7 +15,8 @@ using Shared.Domain.Entities;
 using Shared.Infrastructure.cloudinaryService;
 using src.Shared.Domain.Entities;
 using src.Shared.Resources;
-using Shared.Application.Interfaces;
+using AccountService.Application.Interfaces;
+using AccountService.Domain.Enums;
 
 namespace CourseService.Infrastructure.Repositories
 {
@@ -631,8 +632,8 @@ namespace CourseService.Infrastructure.Repositories
             {
                 Title = "New Course Approval Request",
                 Message = $"Instructor {course.Instructor.FullName} has submitted a new course: {course.Name}",
-                Type = "CourseRequest",
-                Role = "Admin",
+                Type = NotificationType.CourseRequest,
+                Role = NotificationRole.Admin,
                 CreatedAt = DateTime.UtcNow
             };
             await _notificationRepository.CreateNotificationAsync(notification);
@@ -666,7 +667,7 @@ namespace CourseService.Infrastructure.Repositories
             return new ApiResponse("Success", _localizer["Success"].Value, requests, true);
         }
 
-        public async Task<ApiResponse> ApproveCourseRequestAsync(string requestId)
+        public async Task<ApiResponse> ApproveCourseRequestAsync(string requestId, ResponseRequestDTO responseRequestDTO)
         {
             var request = await _context.CourseRequests
                 .Include(r => r.Course)
@@ -705,9 +706,9 @@ namespace CourseService.Infrastructure.Repositories
             var notification = new Notification
             {
                 UserId = request.InstructorId,
-                Title = "Course Approved",
-                Message = $"Your course '{request.Course?.Name}' has been approved and is now public.",
-                Type = "CourseRequestResult",
+                Title = responseRequestDTO.Title,
+                Message = responseRequestDTO.Message,
+                Type = NotificationType.CourseRequestResult,
                 CreatedAt = DateTime.UtcNow
             };
             await _notificationRepository.CreateNotificationAsync(notification);
@@ -715,7 +716,7 @@ namespace CourseService.Infrastructure.Repositories
             return new ApiResponse("Success", _localizer["CourseRequestApproved"].Value, null, true);
         }
 
-        public async Task<ApiResponse> RejectCourseRequestAsync(string requestId, string reason)
+        public async Task<ApiResponse> RejectCourseRequestAsync(string requestId, ResponseRequestDTO responseRequestDTO)
         {
             var request = await _context.CourseRequests
                 .Include(r => r.Course)
@@ -729,17 +730,15 @@ namespace CourseService.Infrastructure.Repositories
 
             request.Status = RequestStatus.Rejected;
             request.ProcessedAt = DateTime.UtcNow;
-            request.Reason = reason;
 
             await _context.SaveChangesAsync();
 
-            // Create notification for Instructor
             var notification = new Notification
             {
                 UserId = request.InstructorId,
-                Title = "Course Rejected",
-                Message = $"Your course '{request.Course?.Name}' has been rejected. Reason: {reason}",
-                Type = "CourseRequestResult",
+                Title = responseRequestDTO.Title,
+                Message = responseRequestDTO.Message,
+                Type = NotificationType.CourseRequestResult,
                 CreatedAt = DateTime.UtcNow
             };
             await _notificationRepository.CreateNotificationAsync(notification);

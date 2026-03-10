@@ -11,7 +11,7 @@ using Microsoft.Extensions.Localization;
 using src.Shared.Resources;
 using src.Shared.Domain.Entities;
 using Microsoft.Extensions.Options;
-using Shared.Application.Interfaces;
+using AccountService.Domain.Enums;
 
 namespace AccountService.Application.Services
 {
@@ -274,8 +274,8 @@ namespace AccountService.Application.Services
                 {
                     Title = "New Instructor Request",
                     Message = $"{user.FullName} has requested to become an instructor.",
-                    Type = "InstructorRequest",
-                    Role = "Admin",
+                    Type = NotificationType.InstructorRequest,
+                    Role = NotificationRole.Admin,
                     CreatedAt = DateTime.UtcNow
                 };
                 await _notificationRepository.CreateNotificationAsync(notification);
@@ -318,11 +318,9 @@ namespace AccountService.Application.Services
                  return new ApiResponse("Conflict", _localizer["RequestNotPending"].Value, null, false);
 
             request.AdminId = adminId;
-            request.AdminComment = dto.Reason;
             request.ProcessedAt = DateTime.UtcNow;
             
-            string title = "";
-            string message = "";
+            NotificationType type = NotificationType.Other;
 
             if (dto.IsApproved)
             {
@@ -335,14 +333,12 @@ namespace AccountService.Application.Services
                 await _userManager.AddToRoleAsync(user, "Instructor");
                 await _accountRepository.UpdateUserDiscriminatorToInstructor(user.Id);
                 
-                title = "Instructor Request Approved";
-                message = "Congratulations! Your request to become an instructor has been approved.";
+                type = NotificationType.InstructorRequestResult;
             }
             else
             {
                 request.Status = "Rejected";
-                title = "Instructor Request Rejected";
-                message = $"Sorry, your request to become an instructor has been rejected. Reason: {dto.Reason}";
+                type = NotificationType.InstructorRequestResult;
             }
 
             await _accountRepository.UpdateInstructorRequestAsync(request);
@@ -350,9 +346,9 @@ namespace AccountService.Application.Services
             var notification = new Notification
             {
                 UserId = request.UserId,
-                Title = title,
-                Message = message,
-                Type = "InstructorRequestResult",
+                Title = dto.Title,
+                Message = dto.Message,
+                Type = type,
                 CreatedAt = DateTime.UtcNow
             };
             await _notificationRepository.CreateNotificationAsync(notification);
