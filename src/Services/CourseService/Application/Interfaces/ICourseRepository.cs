@@ -12,7 +12,7 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> CreateCourseAsync(CreateCourseDTO createCourseDTO, string instructorId);
         Task<ApiResponse> UpdateCourseAsync(string courseId, UpdateCourseDTO updateCourseDTO, string instructorId);
         Task<ApiResponse> GetCourseDetailAsync(string courseId, string studentId);
-        Task<ApiResponse> GetCourseCommentsAsync(string courseId);
+        Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId);
         Task<ApiResponse> GetRecommendedCoursesAsync();
         Task<ApiResponse> GetCoursesByStudentIdAsync(string instructorId);
         Task<ApiResponse> GetCoursesAsync(CourseQueryParameters queryParams, string studentId);
@@ -25,6 +25,7 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> RejectCourseRequestAsync(string requestId, ResponseRequestDTO responseRequestDTO);
         Task<ApiResponse> GetAllCoursesForAdminAsync();
         Task<ApiResponse> AddCommentAsync(AddCommentDTO addCommentDTO, string userId);
+        Task<ApiResponse> UpdateCommentAsync(string commentId, UpdateCommentDTO updateCommentDTO, string userId);
         Task<ApiResponse> ReplyToCommentAsync(ReplyCommentDTO replyDTO, string userId);
     }
 }

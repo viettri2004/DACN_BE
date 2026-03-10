@@ -564,5 +564,11 @@
   </data>
   <data name="CommentAlreadyExists" xml:space="preserve">
     <value>You have already commented on this course.</value>
-  </data>  
+  </data>
+  <data name="CommentUpdated" xml:space="preserve">
+    <value>Comment updated successfully.</value>
+  </data>
+  <data name="CommentNotFound" xml:space="preserve">
+    <value>Comment not found.</value>
+  </data>
 </root>

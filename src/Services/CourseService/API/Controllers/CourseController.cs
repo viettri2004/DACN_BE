@@ -87,16 +87,30 @@ namespace CourseService.API.Controllers
 
             return response.ToActionResult();
         }
-
         [HttpGet("course-comments/{courseId}")]
         public async Task<ActionResult<ApiResponse>> GetComments([FromRoute] string courseId)
         {
-            var response = await _courseRepository.GetCourseCommentsAsync(courseId);
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            var response = await _courseRepository.GetCourseCommentsAsync(courseId, userId);
 
             return response.ToActionResult();
         }
 
         [Authorize(Policy = "Student")]
+        [HttpPut("update-comment/{commentId}")]
+        public async Task<ActionResult<ApiResponse>> UpdateComment([FromRoute] string commentId, [FromBody] UpdateCommentDTO updateCommentDTO)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            }
+            var response = await _courseRepository.UpdateCommentAsync(commentId, updateCommentDTO, userId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+
         [HttpGet("recommended-courses")]
         public async Task<ActionResult<ApiResponse>> GetRecommendedCourses()
         {
@@ -130,7 +144,7 @@ namespace CourseService.API.Controllers
             }
             var response = await _searchService.SearchCoursesAsync(queryParams, studentId);
             return response.ToActionResult();
-        }   
+        }
 
         [Authorize(Policy = "Admin")]
         [HttpPost("re-index")]
@@ -140,7 +154,7 @@ namespace CourseService.API.Controllers
             return Ok(new { message = "Re-indexing process started." });
         }
 
-        
+
         [Authorize]
         [HttpGet("course-content/{courseId}")]
         public async Task<ActionResult<ApiResponse>> GetCourseContent([FromRoute] string courseId)

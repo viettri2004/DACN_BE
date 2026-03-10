@@ -352,37 +352,44 @@ namespace CourseService.Infrastructure.Repositories
             return new ApiResponse("Success", _localizer["Success"].Value, course, true);
         }
 
-        public async Task<ApiResponse> GetCourseCommentsAsync(string courseId)
+        public async Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId)
         {
-            var comments = await _context.Comments
+            var allComments = await _context.Comments
                 .AsNoTracking()
                 .Include(c => c.Enrollment.Student)
                 .Include(c => c.Replies)
                     .ThenInclude(r => r.Enrollment.Student)
                 .Where(c => c.Enrollment.CourseId == courseId && c.ReplyId == null)
                 .OrderByDescending(c => c.CreatedAt)
+                .Select(c => new CommentDTO
+                {
+                    CommentId = c.Id,
+                    UserName = c.Enrollment.Student.FullName,
+                    AvatarUrl = c.Enrollment.Student.AvatarUrl,
+                    Rate = c.Rate,
+                    Content = c.Content,
+                    IsMyComment = userId != null && c.Enrollment.StudentId == userId,
+                    Timestamp = c.CreatedAt,
+                    Replies = c.Replies.Select(r => new CommentDTO
+                    {
+                        CommentId = r.Id,
+                        UserName = r.Enrollment.Student.FullName,
+                        AvatarUrl = r.Enrollment.Student.AvatarUrl,
+                        Rate = r.Rate,
+                        Content = r.Content,
+                        IsMyComment = userId != null && r.Enrollment.StudentId == userId,
+                        Timestamp = r.CreatedAt
+                    }).OrderBy(r => r.Timestamp).ToList()
+                })
                 .ToListAsync();
 
-            var commentDTOs = comments.Select(MapToCommentDTO).ToList();
-
-            if (commentDTOs.Count == 0)
-                return new ApiResponse("Success", _localizer["NoData"].Value, null, true);
-
-            return new ApiResponse("Success", _localizer["Success"].Value, commentDTOs, true);
-        }
-
-        private CommentDTO MapToCommentDTO(Comment comment)
-        {
-            return new CommentDTO
+            var response = new CourseCommentsResponseDTO
             {
-                CommentId = comment.Id,
-                UserName = comment.Enrollment.Student?.FullName ?? "Unknown",
-                AvatarUrl = comment.Enrollment.Student?.AvatarUrl,
-                Rate = comment.Rate,
-                Content = comment.Content,
-                Timestamp = comment.CreatedAt,
-                Replies = comment.Replies?.Select(MapToCommentDTO).ToList() ?? new List<CommentDTO>()
+                MyComment = allComments.FirstOrDefault(c => c.IsMyComment),
+                AllComments = allComments.Where(c => !c.IsMyComment).ToList()
             };
+
+            return new ApiResponse("Success", _localizer["Success"].Value, response, true);
         }
 
         public async Task<ApiResponse> GetRecommendedCoursesAsync()
@@ -807,6 +814,31 @@ namespace CourseService.Infrastructure.Repositories
             await _context.SaveChangesAsync();
 
             return new ApiResponse("Created", _localizer["CommentAdded"].Value, null, true);
+        }
+
+        public async Task<ApiResponse> UpdateCommentAsync(string commentId, UpdateCommentDTO updateCommentDTO, string userId)
+        {
+            var comment = await _context.Comments
+                .Include(c => c.Enrollment)
+                .FirstOrDefaultAsync(c => c.Id == commentId);
+
+            if (comment == null)
+            {
+                return new ApiResponse("NotFound", _localizer["CommentNotFound"].Value, null, false);
+            }
+
+            if (comment.Enrollment.StudentId != userId)
+            {
+                return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
+            }
+
+            comment.Content = updateCommentDTO.Content;
+            comment.Rate = updateCommentDTO.Rate;
+            comment.CreatedAt = DateTime.UtcNow; 
+
+            await _context.SaveChangesAsync();
+
+            return new ApiResponse("Success", _localizer["CommentUpdated"].Value, null, true);
         }
 
         public async Task<ApiResponse> ReplyToCommentAsync(ReplyCommentDTO replyDTO, string userId)
