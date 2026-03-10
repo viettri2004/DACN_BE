@@ -618,11 +618,11 @@ namespace CourseService.Infrastructure.Repositories
                 Name = c.Name,
                 ImageUrl = c.ImageUrl,
                 InstructorName = c.Instructor.FullName,
-                Status = c.Status.ToString(),
+                // Status = c.Status.ToString(),
                 Price = c.Price,
                 CreateTime = c.CreateTime,
                 TotalStudents = c.Enrollments.Count,
-                TagNames = c.CourseTags.Select(ct => ct.Tag.Name).ToList()
+                // TagNames = c.CourseTags.Select(ct => ct.Tag.Name).ToList()
             }).ToList();
 
             var pagedResult = new PagedResult<AdminCourseListDTO>
