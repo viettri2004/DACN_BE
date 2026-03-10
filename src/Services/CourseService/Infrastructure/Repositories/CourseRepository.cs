@@ -514,6 +514,7 @@ namespace CourseService.Infrastructure.Repositories
                     CourseName = r.Course.Name,
                     InstructorId = r.InstructorId,
                     InstructorName = r.Course.Instructor.FullName,
+                    CoursePrice = r.Course.Price,
                     Status = r.Status.ToString(),
                     CreatedAt = r.CreatedAt
                 })
@@ -589,6 +590,7 @@ namespace CourseService.Infrastructure.Repositories
                 .Include(c => c.Enrollments)
                 .Include(c => c.CourseTags)
                     .ThenInclude(ct => ct.Tag)
+                .Where(c => c.Status != CourseStatus.Private)
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(queryParams.SearchTerm))
