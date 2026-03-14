@@ -12,7 +12,13 @@ namespace CourseService.Application.DTOs
         public string Content { get; set; } = null!;
         public bool IsMyComment { get; set; }
         public DateTime Timestamp { get; set; }
-        public List<CommentDTO> Replies { get; set; } = new List<CommentDTO>();
+        public List<ReplyDTO> Replies { get; set; } = new List<ReplyDTO>();
+    }
+    public class ReplyDTO
+    {
+        public string CommentId { get; set; } = null!;
+        public string Content { get; set; } = null!;
+        public DateTime Timestamp { get; set; }
     }
 
     public class CourseCommentsResponseDTO
@@ -34,7 +40,7 @@ namespace CourseService.Application.DTOs
         public string Content { get; set; } = null!;
     }
 
-    public class ReplyCommentDTO
+    public class AddReplyCommentDTO
     {
         public string ParentCommentId { get; set; } = null!;
         public string Content { get; set; } = null!;

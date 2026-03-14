@@ -26,6 +26,6 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> GetAllCoursesForAdminAsync();
         Task<ApiResponse> AddCommentAsync(AddCommentDTO addCommentDTO, string userId);
         Task<ApiResponse> UpdateCommentAsync(string commentId, UpdateCommentDTO updateCommentDTO, string userId);
-        Task<ApiResponse> ReplyToCommentAsync(ReplyCommentDTO replyDTO, string userId);
+        Task<ApiResponse> ReplyToCommentAsync(AddReplyCommentDTO replyDTO, string userId);
     }
 }

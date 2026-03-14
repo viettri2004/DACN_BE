@@ -243,7 +243,7 @@ namespace CourseService.API.Controllers
 
         [Authorize(Policy = "Instructor")]
         [HttpPost("reply-comment")]
-        public async Task<ActionResult<ApiResponse>> ReplyComment([FromBody] ReplyCommentDTO replyDTO)
+        public async Task<ActionResult<ApiResponse>> ReplyComment([FromBody] AddReplyCommentDTO replyDTO)
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(userId))

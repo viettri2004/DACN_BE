@@ -370,14 +370,10 @@ namespace CourseService.Infrastructure.Repositories
                     Content = c.Content,
                     IsMyComment = userId != null && c.Enrollment.StudentId == userId,
                     Timestamp = c.CreatedAt,
-                    Replies = c.Replies.Select(r => new CommentDTO
+                    Replies = c.Replies.Select(r => new ReplyDTO
                     {
                         CommentId = r.Id,
-                        UserName = r.Enrollment.Student.FullName,
-                        AvatarUrl = r.Enrollment.Student.AvatarUrl,
-                        Rate = r.Rate,
                         Content = r.Content,
-                        IsMyComment = userId != null && r.Enrollment.StudentId == userId,
                         Timestamp = r.CreatedAt
                     }).OrderBy(r => r.Timestamp).ToList()
                 })
@@ -842,7 +838,7 @@ namespace CourseService.Infrastructure.Repositories
             return new ApiResponse("Success", _localizer["CommentUpdated"].Value, null, true);
         }
 
-        public async Task<ApiResponse> ReplyToCommentAsync(ReplyCommentDTO replyDTO, string userId)
+        public async Task<ApiResponse> ReplyToCommentAsync(AddReplyCommentDTO replyDTO, string userId)
         {
             var parentComment = await _context.Comments
                 .Include(c => c.Enrollment.Course)
