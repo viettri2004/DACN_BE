@@ -30,8 +30,7 @@ using PaymentService.Infrastructure.Services;
 using Serilog;
 using Shared.Infrastructure.cloudinaryService;
 using src.Shared.Domain.Entities;
-using AccountService.Application.Interfaces;
-using AccountService.Infrastructure.Repositories;
+using CourseService.Infrastructure;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 const string BearerScheme = "Bearer";
@@ -126,6 +125,7 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     services.AddScoped<IEmailService, EmailService>();
     services.AddScoped<IOtpService, OtpService>();
     services.AddScoped<INotificationRepository, NotificationRepository>();
+    services.AddScoped<IAiService, LmsAiService>();
 }
 static void ConfigureLocalization(IServiceCollection services, IConfiguration configuration)
 {

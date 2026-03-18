@@ -382,7 +382,7 @@ namespace LectureService.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error submitting quiz: {ex.Message}");
+                // Console.WriteLine($"Error submitting quiz: {ex.Message}");
                 return new ApiResponse("Error", _localizer["Error"].Value, null, false);
             }
         }

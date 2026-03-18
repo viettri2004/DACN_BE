@@ -173,11 +173,14 @@ namespace Data.Context
                 .HasForeignKey(d => d.LectureId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<LectureVideo>()
-                .HasOne(v => v.Lecture)
-                .WithMany(l => l.LectureVideos)
-                .HasForeignKey(v => v.LectureId)
-                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<LectureVideo>(entity =>
+            {
+                entity.HasOne(v => v.Lecture)
+                    .WithMany(l => l.LectureVideos)
+                    .HasForeignKey(v => v.LectureId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.Property(v => v.AnalysisResult).HasColumnType("jsonb");
+            });
 
             modelBuilder.Entity<QuizAttempt>(entity =>
             {

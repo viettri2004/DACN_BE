@@ -13,6 +13,8 @@ using Shared.Domain.Entities;
 using Shared.Infrastructure.cloudinaryService;
 using src.Shared.Domain.Entities;
 using src.Shared.Resources;
+using CourseService.Application.Interfaces;
+using Newtonsoft.Json;
 
 namespace LectureService.Infrastructure.Repositories
 {
@@ -21,12 +23,14 @@ namespace LectureService.Infrastructure.Repositories
         private readonly AppDbContext _context;
         private readonly CloudinaryService _cloudinaryService;
         private readonly IStringLocalizer<SharedResources> _localizer;
+        private readonly IAiService _aiService;
 
-        public LectureRepository(AppDbContext context, CloudinaryService cloudinaryService, IStringLocalizer<SharedResources> localizer)
+        public LectureRepository(AppDbContext context, CloudinaryService cloudinaryService, IStringLocalizer<SharedResources> localizer, IAiService aiService)
         {
             _context = context;
             _cloudinaryService = cloudinaryService;
             _localizer = localizer;
+            _aiService = aiService;
         }
 
         public async Task<ApiResponse> CreateLectureAsync(CreateLectureDTO createLectureDTO, string instructorId)
@@ -115,6 +119,17 @@ namespace LectureService.Infrastructure.Repositories
 
                 var (videoUrl, publicId, duration) = await _cloudinaryService.UploadVideoAsync(videoFile);
 
+                // string? analysisJson = null;
+                // try
+                // {
+                //     var aiResult = await _aiService.ProcessVideo(videoUrl);
+                //     analysisJson = JsonConvert.SerializeObject(aiResult);
+                // }
+                // catch (Exception aiEx)
+                // {   
+                //     Console.WriteLine($"AI Analysis failed: {aiEx.Message}");
+                // }
+
                 var maxDisplayOrder = await _context.LectureVideos
                     .Where(v => v.LectureId == lectureId)
                     .MaxAsync(v => (int?)v.DisplayOrder) ?? 0;
@@ -127,7 +142,8 @@ namespace LectureService.Infrastructure.Repositories
                     PublicId = publicId,
                     Duration = duration,
                     DisplayOrder = maxDisplayOrder + 1,
-                    LectureId = lectureId
+                    LectureId = lectureId,
+                    // AnalysisResult = analysisJson
                 };
 
                 _context.LectureVideos.Add(lectureVideo);
@@ -221,21 +237,25 @@ namespace LectureService.Infrastructure.Repositories
         {
             try
             {
-                var lectureVideo = await _context.LectureVideos.AsNoTracking()
+                var v = await _context.LectureVideos.AsNoTracking()
                     .Where(v => v.Id == videoId)
-                    .Select(v => new LectureVideoDTO
-                    {
-                        Name = v.Name,
-                        VideoUrl = v.VideoUrl,
-                        Duration = v.Duration
-                    })
                     .FirstOrDefaultAsync();
-                if (lectureVideo == null)
+                if (v == null)
                 {
                     return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
                 }
 
-                return new ApiResponse("Success", _localizer["Success"].Value, lectureVideo, true);
+                var lectureVideoDto = new LectureVideoDTO
+                {
+                    Name = v.Name,
+                    VideoUrl = v.VideoUrl,
+                    Duration = v.Duration,
+                    AnalysisResult = !string.IsNullOrEmpty(v.AnalysisResult) 
+                        ? JsonConvert.DeserializeObject(v.AnalysisResult) 
+                        : null
+                };
+
+                return new ApiResponse("Success", _localizer["Success"].Value, lectureVideoDto, true);
             }
             catch (Exception ex)
             {
@@ -538,6 +558,17 @@ namespace LectureService.Infrastructure.Repositories
                     video.VideoUrl = videoUrl;
                     video.PublicId = publicId;
                     video.Duration = duration;
+
+                    // Re-process AI Analysis for the new video
+                    try
+                    {
+                        var aiResult = await _aiService.ProcessVideo(videoUrl);
+                        video.AnalysisResult = JsonConvert.SerializeObject(aiResult);
+                    }
+                    catch (Exception aiEx)
+                    {
+                        Console.WriteLine($"AI Analysis failed during update: {aiEx.Message}");
+                    }
                 }
 
                 _context.LectureVideos.Update(video);
