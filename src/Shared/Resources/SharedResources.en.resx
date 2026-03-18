@@ -571,4 +571,7 @@
   <data name="CommentNotFound" xml:space="preserve">
     <value>Comment not found.</value>
   </data>
+  <data name="CommentDeleted" xml:space="preserve">
+    <value>Comment deleted successfully.</value>
+  </data>
 </root>

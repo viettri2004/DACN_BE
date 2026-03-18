@@ -11,6 +11,7 @@ namespace CourseService.Application.DTOs
         public int Rate { get; set; }
         public string Content { get; set; } = null!;
         public bool IsMyComment { get; set; }
+        public bool CanDelete { get; set; }
         public DateTime Timestamp { get; set; }
         public List<ReplyDTO> Replies { get; set; } = new List<ReplyDTO>();
     }
@@ -19,10 +20,13 @@ namespace CourseService.Application.DTOs
         public string CommentId { get; set; } = null!;
         public string Content { get; set; } = null!;
         public DateTime Timestamp { get; set; }
+        public bool IsMyComment { get; set; }
+        public bool CanDelete { get; set; }
     }
 
     public class CourseCommentsResponseDTO
     {
+        public bool IsInstructor { get; set; }
         public CommentDTO? MyComment { get; set; }
         public List<CommentDTO> AllComments { get; set; } = new List<CommentDTO>();
     }

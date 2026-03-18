@@ -322,41 +322,75 @@ namespace CourseService.Infrastructure.Repositories
         {
             var course = await _context.Courses
                 .AsNoTracking()
-                .Where(c => c.Id == courseId)
-                .Select(c => new CourseDetailDTO
-                {
-                    Name = c.Name,
-                    Description = c.Description,
-                    Price = c.Price,
-                    ImageUrl = c.ImageUrl,
-                    InstructorName = c.Instructor.FullName,
-                    Rating = c.Enrollments
-                        .SelectMany(e => e.Comments)
-                        .Any()
-                        ? c.Enrollments.SelectMany(e => e.Comments).Average(cm => cm.Rate)
-                        : 0,
-                    TotalReviews = c.Enrollments.SelectMany(e => e.Comments).Count(),
-                    TotalStudents = c.Enrollments.Count,
-                    TotalHours = 0,
-                    IsEnrolled = string.IsNullOrEmpty(studentId)
-                                ? false
-                                : c.Enrollments
-                                    .Any(e => e.StudentId == studentId && e.Status == true),
-                    // Status = c.Status.ToString()
-                })
-                .FirstOrDefaultAsync();
+                .Include(c => c.Instructor)
+                .Include(c => c.Enrollments)
+                    .ThenInclude(e => e.Comments)
+                .Include(c => c.Lectures.OrderBy(l => l.DisplayOrder))
+                    .ThenInclude(l => l.LectureVideos.OrderBy(lv => lv.DisplayOrder))
+                .FirstOrDefaultAsync(c => c.Id == courseId);
 
             if (course == null)
                 return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
 
-            return new ApiResponse("Success", _localizer["Success"].Value, course, true);
+            bool isEnrolled = !string.IsNullOrEmpty(studentId) &&
+                              course.Enrollments.Any(e => e.StudentId == studentId && e.Status == true);
+
+            var totalHours = course.Lectures
+                .SelectMany(l => l.LectureVideos)
+                .Sum(lv => lv.Duration) / 3600.0;
+
+            var allVideos = course.Lectures
+                .OrderBy(l => l.DisplayOrder)
+                .SelectMany(l => l.LectureVideos.OrderBy(lv => lv.DisplayOrder))
+                .ToList();
+
+            var courseDetailDto = new CourseDetailDTO
+            {
+                Name = course.Name,
+                Description = course.Description,
+                Price = course.Price,
+                ImageUrl = course.ImageUrl,
+                InstructorName = course.Instructor.FullName,
+                Rating = course.Enrollments.SelectMany(e => e.Comments).Any()
+                        ? course.Enrollments.SelectMany(e => e.Comments).Average(cm => cm.Rate)
+                        : 0,
+                TotalReviews = course.Enrollments.SelectMany(e => e.Comments).Count(),
+                TotalStudents = course.Enrollments.Count,
+                TotalHours = Math.Round(totalHours, 1),
+                IsEnrolled = isEnrolled,
+                Lectures = course.Lectures.OrderBy(l => l.DisplayOrder).Select(l => new LecturePreviewDTO
+                {
+                    Id = l.Id,
+                    Name = l.Name,
+                    Description = l.Description,
+                    DisplayOrder = l.DisplayOrder,
+                    Videos = l.LectureVideos.OrderBy(lv => lv.DisplayOrder).Select(lv => new VideoPreviewDTO
+                    {
+                        Id = lv.Id,
+                        Name = lv.Name,
+                        Duration = lv.Duration,
+                        DisplayOrder = lv.DisplayOrder,
+                        IsTrial = allVideos.IndexOf(lv) < 2,
+                        VideoUrl = (isEnrolled || allVideos.IndexOf(lv) < 2) ? lv.VideoUrl : null
+                    }).ToList()
+                }).ToList()
+            };
+
+            return new ApiResponse("Success", _localizer["Success"].Value, courseDetailDto, true);
         }
 
         public async Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId)
         {
+            var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == courseId);
+            if (course == null)
+                return new ApiResponse("NotFound", _localizer["CourseNotFound"].Value, null, false);
+
+            bool isInstructor = userId != null && course.InstructorId == userId;
+
             var allComments = await _context.Comments
                 .AsNoTracking()
                 .Include(c => c.Enrollment.Student)
+                .Include(c => c.Enrollment.Course)
                 .Include(c => c.Replies)
                     .ThenInclude(r => r.Enrollment.Student)
                 .Where(c => c.Enrollment.CourseId == courseId && c.ReplyId == null)
@@ -369,18 +403,22 @@ namespace CourseService.Infrastructure.Repositories
                     Rate = c.Rate,
                     Content = c.Content,
                     IsMyComment = userId != null && c.Enrollment.StudentId == userId,
+                    CanDelete = isInstructor,
                     Timestamp = c.CreatedAt,
                     Replies = c.Replies.Select(r => new ReplyDTO
                     {
                         CommentId = r.Id,
                         Content = r.Content,
-                        Timestamp = r.CreatedAt
+                        Timestamp = r.CreatedAt,
+                        IsMyComment = isInstructor, // Assuming only instructor replies
+                        CanDelete = isInstructor
                     }).OrderBy(r => r.Timestamp).ToList()
                 })
                 .ToListAsync();
 
             var response = new CourseCommentsResponseDTO
             {
+                IsInstructor = isInstructor,
                 MyComment = allComments.FirstOrDefault(c => c.IsMyComment),
                 AllComments = allComments.Where(c => !c.IsMyComment).ToList()
             };
@@ -816,7 +854,7 @@ namespace CourseService.Infrastructure.Repositories
         public async Task<ApiResponse> UpdateCommentAsync(string commentId, UpdateCommentDTO updateCommentDTO, string userId)
         {
             var comment = await _context.Comments
-                .Include(c => c.Enrollment)
+                .Include(c => c.Enrollment.Course)
                 .FirstOrDefaultAsync(c => c.Id == commentId);
 
             if (comment == null)
@@ -824,18 +862,52 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse("NotFound", _localizer["CommentNotFound"].Value, null, false);
             }
 
-            if (comment.Enrollment.StudentId != userId)
+            // Student update their own comment OR Instructor update their own reply
+            bool isOwner = comment.Enrollment.StudentId == userId || 
+                          (comment.ReplyId != null && comment.Enrollment.Course.InstructorId == userId);
+
+            if (!isOwner)
             {
                 return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
             }
 
             comment.Content = updateCommentDTO.Content;
             comment.Rate = updateCommentDTO.Rate;
-            comment.CreatedAt = DateTime.UtcNow; 
+            comment.UpdatedAt = DateTime.UtcNow; 
 
             await _context.SaveChangesAsync();
 
             return new ApiResponse("Success", _localizer["CommentUpdated"].Value, null, true);
+        }
+
+        public async Task<ApiResponse> DeleteCommentAsync(string commentId, string userId)
+        {
+            var comment = await _context.Comments
+                .Include(c => c.Enrollment.Course)
+                .Include(c => c.Replies)
+                .FirstOrDefaultAsync(c => c.Id == commentId);
+
+            if (comment == null)
+            {
+                return new ApiResponse("NotFound", _localizer["CommentNotFound"].Value, null, false);
+            }
+
+            // Only course instructor can delete
+            if (comment.Enrollment.Course.InstructorId != userId)
+            {
+                return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
+            }
+
+            // Delete replies first if any (due to Restrict constraint)
+            if (comment.Replies.Any())
+            {
+                _context.Comments.RemoveRange(comment.Replies);
+            }
+
+            _context.Comments.Remove(comment);
+            await _context.SaveChangesAsync();
+
+            return new ApiResponse("Success", _localizer["CommentDeleted"].Value, null, true);
         }
 
         public async Task<ApiResponse> ReplyToCommentAsync(AddReplyCommentDTO replyDTO, string userId)

@@ -17,5 +17,25 @@ namespace CourseService.Application.DTOs
         public int TotalStudents { get; set; }
         public double TotalHours { get; set; }
         public bool IsEnrolled { get; set; }
+        public List<LecturePreviewDTO> Lectures { get; set; } = new List<LecturePreviewDTO>();
+    }
+
+    public class LecturePreviewDTO
+    {
+        public string Id { get; set; } = null!;
+        public string Name { get; set; } = null!;
+        public string Description { get; set; } = null!;
+        public int DisplayOrder { get; set; }
+        public List<VideoPreviewDTO> Videos { get; set; } = new List<VideoPreviewDTO>();
+    }
+
+    public class VideoPreviewDTO
+    {
+        public string Id { get; set; } = null!;
+        public string Name { get; set; } = null!;
+        public double Duration { get; set; }
+        public int DisplayOrder { get; set; }
+        public string? VideoUrl { get; set; }
+        public bool IsTrial { get; set; }
     }
 }

@@ -571,4 +571,7 @@
   <data name="CommentNotFound" xml:space="preserve">
     <value>Không tìm thấy bình luận.</value>
   </data>
+  <data name="CommentDeleted" xml:space="preserve">
+    <value>Bình luận đã được xóa thành công.</value>
+  </data>
 </root>

@@ -96,7 +96,7 @@ namespace CourseService.API.Controllers
             return response.ToActionResult();
         }
 
-        [Authorize(Policy = "Student")]
+        [Authorize]
         [HttpPut("update-comment/{commentId}")]
         public async Task<ActionResult<ApiResponse>> UpdateComment([FromRoute] string commentId, [FromBody] UpdateCommentDTO updateCommentDTO)
         {
@@ -106,6 +106,19 @@ namespace CourseService.API.Controllers
                 return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
             }
             var response = await _courseRepository.UpdateCommentAsync(commentId, updateCommentDTO, userId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpDelete("delete-comment/{commentId}")]
+        public async Task<ActionResult<ApiResponse>> DeleteComment([FromRoute] string commentId)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+            }
+            var response = await _courseRepository.DeleteCommentAsync(commentId, userId);
             return response.ToActionResult();
         }
 
