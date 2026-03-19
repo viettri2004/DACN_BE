@@ -327,6 +327,10 @@ namespace CourseService.Infrastructure.Repositories
                     .ThenInclude(e => e.Comments)
                 .Include(c => c.Lectures.OrderBy(l => l.DisplayOrder))
                     .ThenInclude(l => l.LectureVideos.OrderBy(lv => lv.DisplayOrder))
+                .Include(c => c.Lectures)
+                    .ThenInclude(l => l.Quizzes)
+                .Include(c => c.Lectures)
+                    .ThenInclude(l => l.Documents)
                 .FirstOrDefaultAsync(c => c.Id == courseId);
 
             if (course == null)
@@ -360,18 +364,28 @@ namespace CourseService.Infrastructure.Repositories
                 IsEnrolled = isEnrolled,
                 Lectures = course.Lectures.OrderBy(l => l.DisplayOrder).Select(l => new LecturePreviewDTO
                 {
-                    Id = l.Id,
+                    // Id = l.Id,
                     Name = l.Name,
                     Description = l.Description,
                     DisplayOrder = l.DisplayOrder,
                     Videos = l.LectureVideos.OrderBy(lv => lv.DisplayOrder).Select(lv => new VideoPreviewDTO
                     {
-                        Id = lv.Id,
+                        // Id = lv.Id,
                         Name = lv.Name,
                         Duration = lv.Duration,
                         DisplayOrder = lv.DisplayOrder,
                         IsTrial = allVideos.IndexOf(lv) < 2,
                         VideoUrl = (isEnrolled || allVideos.IndexOf(lv) < 2) ? lv.VideoUrl : null
+                    }).ToList(),
+                    Quizzes = l.Quizzes.Select(q => new QuizPreviewDTO
+                    {
+                        // Id = q.Id,
+                        Name = q.Name
+                    }).ToList(),
+                    Documents = l.Documents.Select(d => new DocumentPreviewDTO
+                    {
+                        // Id = d.Id,
+                        Name = d.Name
                     }).ToList()
                 }).ToList()
             };
@@ -410,7 +424,7 @@ namespace CourseService.Infrastructure.Repositories
                         CommentId = r.Id,
                         Content = r.Content,
                         Timestamp = r.CreatedAt,
-                        IsMyComment = isInstructor, // Assuming only instructor replies
+                        IsMyComment = isInstructor,
                         CanDelete = isInstructor
                     }).OrderBy(r => r.Timestamp).ToList()
                 })

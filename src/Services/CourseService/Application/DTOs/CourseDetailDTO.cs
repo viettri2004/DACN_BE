@@ -22,20 +22,34 @@ namespace CourseService.Application.DTOs
 
     public class LecturePreviewDTO
     {
-        public string Id { get; set; } = null!;
+        // public string Id { get; set; } = null!;
         public string Name { get; set; } = null!;
         public string Description { get; set; } = null!;
         public int DisplayOrder { get; set; }
         public List<VideoPreviewDTO> Videos { get; set; } = new List<VideoPreviewDTO>();
+        public List<QuizPreviewDTO> Quizzes { get; set; } = new List<QuizPreviewDTO>();
+        public List<DocumentPreviewDTO> Documents { get; set; } = new List<DocumentPreviewDTO>();
     }
 
     public class VideoPreviewDTO
     {
-        public string Id { get; set; } = null!;
+        // public string Id { get; set; } = null!;
         public string Name { get; set; } = null!;
         public double Duration { get; set; }
         public int DisplayOrder { get; set; }
         public string? VideoUrl { get; set; }
         public bool IsTrial { get; set; }
+    }
+
+    public class QuizPreviewDTO
+    {
+        // public string Id { get; set; } = null!;
+        public string Name { get; set; } = null!;
+    }
+
+    public class DocumentPreviewDTO
+    {
+        // public string Id { get; set; } = null!;
+        public string Name { get; set; } = null!;
     }
 }
