@@ -484,9 +484,15 @@ namespace CourseService.Infrastructure.Repositories
                     ImageUrl = e.Course.ImageUrl,
                     Name = e.Course.Name,
                     InstructorName = e.Course.Instructor.FullName,
-                    Rating = e.Comments.Where(cm => cm.Type == CommentType.Review).Any()
-                        ? e.Comments.Where(cm => cm.Type == CommentType.Review).Average(c => c.Rate)
-                        : 0,
+                    Rating = e.Course.Enrollments
+                        .SelectMany(en => en.Comments)
+                        .Where(cm => cm.Type == CommentType.Review)
+                        .Any()
+                            ? e.Course.Enrollments
+                                .SelectMany(en => en.Comments)
+                                .Where(cm => cm.Type == CommentType.Review)
+                                .Average(cm => cm.Rate)
+                            : 0,
                     Price = e.Order.OrderItems
                         .Where(oi => oi.CourseId == e.Course.Id)
                         .Sum(oi => (decimal?)oi.Price) ?? 0,
@@ -914,13 +920,11 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse("NotFound", _localizer["CommentNotFound"].Value, null, false);
             }
 
-            // Only course instructor can delete
             if (comment.Enrollment.Course.InstructorId != userId)
             {
                 return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
             }
 
-            // Delete replies first if any (due to Restrict constraint)
             if (comment.Replies.Any())
             {
                 _context.Comments.RemoveRange(comment.Replies);
