@@ -211,6 +211,9 @@ namespace Data.Context
                       .OnDelete(DeleteBehavior.Restrict); 
                 entity.Property(c => c.Content).IsRequired();
                 entity.Property(c => c.CreatedAt).IsRequired();
+                entity.Property(c => c.Type)
+                      .HasConversion<string>()
+                      .IsRequired();
                 entity.HasIndex(c => c.EnrollmentId);
                 entity.HasIndex(c => c.ReplyId);
             });

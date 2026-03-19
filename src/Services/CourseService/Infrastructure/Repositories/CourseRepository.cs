@@ -94,8 +94,8 @@ namespace CourseService.Infrastructure.Repositories
             switch (queryParams.SortBy?.ToLower())
             {
                 case "rating":
-                    coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.Enrollments.SelectMany(e => e.Comments).Any()
-                                                    ? x.Course.Enrollments.SelectMany(e => e.Comments).Average(cm => cm.Rate)
+                    coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.Enrollments.SelectMany(e => e.Comments).Any(cm => cm.Type == CommentType.Review)
+                                                    ? x.Course.Enrollments.SelectMany(e => e.Comments).Where(cm => cm.Type == CommentType.Review).Average(cm => cm.Rate)
                                                     : 0);
                     break;
                 case "newest":
@@ -124,10 +124,10 @@ namespace CourseService.Infrastructure.Repositories
                 Name = x.Course.Name,
                 ImageUrl = x.Course.ImageUrl,
                 InstructorName = x.Course.Instructor.FullName,
-                AverageRating = x.Course.Enrollments.SelectMany(e => e.Comments).Any()
-                                     ? Math.Round(x.Course.Enrollments.SelectMany(e => e.Comments).Average(cm => cm.Rate), 1)
+                AverageRating = x.Course.Enrollments.SelectMany(e => e.Comments).Any(cm => cm.Type == CommentType.Review)
+                                     ? Math.Round(x.Course.Enrollments.SelectMany(e => e.Comments).Where(cm => cm.Type == CommentType.Review).Average(cm => cm.Rate), 1)
                                      : 0,
-                TotalReviews = x.Course.Enrollments.SelectMany(e => e.Comments).Count(),
+                TotalReviews = x.Course.Enrollments.SelectMany(e => e.Comments).Count(cm => cm.Type == CommentType.Review),
                 TotalStudents = x.Course.Enrollments.Count,
                 OriginalPrice = x.Course.Price,
                 Price = x.Price,
@@ -355,10 +355,10 @@ namespace CourseService.Infrastructure.Repositories
                 Price = course.Price,
                 ImageUrl = course.ImageUrl,
                 InstructorName = course.Instructor.FullName,
-                Rating = course.Enrollments.SelectMany(e => e.Comments).Any()
-                        ? course.Enrollments.SelectMany(e => e.Comments).Average(cm => cm.Rate)
+                Rating = course.Enrollments.SelectMany(e => e.Comments).Any(cm => cm.Type == CommentType.Review)
+                        ? course.Enrollments.SelectMany(e => e.Comments).Where(cm => cm.Type == CommentType.Review).Average(cm => cm.Rate)
                         : 0,
-                TotalReviews = course.Enrollments.SelectMany(e => e.Comments).Count(),
+                TotalReviews = course.Enrollments.SelectMany(e => e.Comments).Count(cm => cm.Type == CommentType.Review),
                 TotalStudents = course.Enrollments.Count,
                 TotalHours = Math.Round(totalHours, 1),
                 IsEnrolled = isEnrolled,
@@ -407,7 +407,7 @@ namespace CourseService.Infrastructure.Repositories
                 .Include(c => c.Enrollment.Course)
                 .Include(c => c.Replies)
                     .ThenInclude(r => r.Enrollment.Student)
-                .Where(c => c.Enrollment.CourseId == courseId && c.ReplyId == null)
+                .Where(c => c.Enrollment.CourseId == courseId && c.ReplyId == null && c.Type == CommentType.Review)
                 .OrderByDescending(c => c.CreatedAt)
                 .Select(c => new CommentDTO
                 {
@@ -417,7 +417,7 @@ namespace CourseService.Infrastructure.Repositories
                     Rate = c.Rate,
                     Content = c.Content,
                     IsMyComment = userId != null && c.Enrollment.StudentId == userId,
-                    CanDelete = isInstructor,
+                    CanDelete = false,
                     Timestamp = c.CreatedAt,
                     Replies = c.Replies.Select(r => new ReplyDTO
                     {
@@ -453,9 +453,11 @@ namespace CourseService.Infrastructure.Repositories
                     InstructorName = c.Instructor.FullName,
                     Rating = c.Enrollments
                         .SelectMany(e => e.Comments)
+                        .Where(cm => cm.Type == CommentType.Review)
                         .Any()
                             ? c.Enrollments
                                 .SelectMany(e => e.Comments)
+                                .Where(cm => cm.Type == CommentType.Review)
                                 .Average(cm => cm.Rate)
                             : 0,
                     Price = c.Price,
@@ -482,8 +484,8 @@ namespace CourseService.Infrastructure.Repositories
                     ImageUrl = e.Course.ImageUrl,
                     Name = e.Course.Name,
                     InstructorName = e.Course.Instructor.FullName,
-                    Rating = e.Comments.Any()
-                        ? e.Comments.Average(c => c.Rate)
+                    Rating = e.Comments.Where(cm => cm.Type == CommentType.Review).Any()
+                        ? e.Comments.Where(cm => cm.Type == CommentType.Review).Average(c => c.Rate)
                         : 0,
                     Price = e.Order.OrderItems
                         .Where(oi => oi.CourseId == e.Course.Id)
@@ -511,9 +513,11 @@ namespace CourseService.Infrastructure.Repositories
                     Name = c.Name,
                     Rating = c.Enrollments
                         .SelectMany(e => e.Comments)
+                        .Where(cm => cm.Type == CommentType.Review)
                         .Any()
                             ? c.Enrollments
                                 .SelectMany(e => e.Comments)
+                                .Where(cm => cm.Type == CommentType.Review)
                                 .Average(cm => cm.Rate)
                             : 0,
                     Price = c.Price,
@@ -822,8 +826,8 @@ namespace CourseService.Infrastructure.Repositories
                 Name = c.Name,
                 ImageUrl = c.ImageUrl,
                 InstructorName = c.Instructor.FullName,
-                AverageRating = c.Enrollments.Any(e => e.Comments.Any()) 
-                                ? c.Enrollments.SelectMany(e => e.Comments).Average(cm => cm.Rate) 
+                AverageRating = c.Enrollments.Any(e => e.Comments.Any(cm => cm.Type == CommentType.Review)) 
+                                ? c.Enrollments.SelectMany(e => e.Comments).Where(cm => cm.Type == CommentType.Review).Average(cm => cm.Rate) 
                                 : 0,
                 Price = c.Price,
                 CreateTime = c.CreateTime,
@@ -843,7 +847,7 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse("Forbidden", _localizer["NotEnrolledInCourse"].Value, null, false);
             }
             var existingComment = await _context.Comments
-                .FirstOrDefaultAsync(c => c.EnrollmentId == enrollment.Id);
+                .FirstOrDefaultAsync(c => c.EnrollmentId == enrollment.Id && c.Type == CommentType.Review);
 
             if (existingComment != null)
             {
@@ -856,7 +860,8 @@ namespace CourseService.Infrastructure.Repositories
                 Content = addCommentDTO.Content,
                 Rate = addCommentDTO.Rate,
                 EnrollmentId = enrollment.Id,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                Type = CommentType.Review
             };
 
             _context.Comments.Add(comment);
@@ -877,8 +882,8 @@ namespace CourseService.Infrastructure.Repositories
             }
 
             // Student update their own comment OR Instructor update their own reply
-            bool isOwner = comment.Enrollment.StudentId == userId || 
-                          (comment.ReplyId != null && comment.Enrollment.Course.InstructorId == userId);
+            bool isOwner = (comment.Type == CommentType.Review && comment.Enrollment.StudentId == userId) || 
+                          (comment.Type == CommentType.Reply && comment.Enrollment.Course.InstructorId == userId);
 
             if (!isOwner)
             {
@@ -886,7 +891,10 @@ namespace CourseService.Infrastructure.Repositories
             }
 
             comment.Content = updateCommentDTO.Content;
-            comment.Rate = updateCommentDTO.Rate;
+            if (comment.Type == CommentType.Review)
+            {
+                comment.Rate = updateCommentDTO.Rate;
+            }
             comment.UpdatedAt = DateTime.UtcNow; 
 
             await _context.SaveChangesAsync();
@@ -949,7 +957,8 @@ namespace CourseService.Infrastructure.Repositories
                 Rate = 0,
                 EnrollmentId = parentComment.EnrollmentId, 
                 ReplyId = parentComment.Id,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                Type = CommentType.Reply
             };
 
             _context.Comments.Add(reply);
