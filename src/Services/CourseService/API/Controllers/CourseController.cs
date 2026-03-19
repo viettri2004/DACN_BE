@@ -87,6 +87,7 @@ namespace CourseService.API.Controllers
 
             return response.ToActionResult();
         }
+        
         [HttpGet("course-comments/{courseId}")]
         public async Task<ActionResult<ApiResponse>> GetComments([FromRoute] string courseId)
         {

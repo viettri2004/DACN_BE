@@ -250,9 +250,9 @@ namespace LectureService.Infrastructure.Repositories
                     Name = v.Name,
                     VideoUrl = v.VideoUrl,
                     Duration = v.Duration,
-                    AnalysisResult = !string.IsNullOrEmpty(v.AnalysisResult) 
-                        ? JsonConvert.DeserializeObject(v.AnalysisResult) 
-                        : null
+                    // AnalysisResult = !string.IsNullOrEmpty(v.AnalysisResult) 
+                    //    ? JsonConvert.DeserializeObject(v.AnalysisResult) 
+                    //    : null
                 };
 
                 return new ApiResponse("Success", _localizer["Success"].Value, lectureVideoDto, true);
@@ -560,15 +560,15 @@ namespace LectureService.Infrastructure.Repositories
                     video.Duration = duration;
 
                     // Re-process AI Analysis for the new video
-                    try
-                    {
-                        var aiResult = await _aiService.ProcessVideo(videoUrl);
-                        video.AnalysisResult = JsonConvert.SerializeObject(aiResult);
-                    }
-                    catch (Exception aiEx)
-                    {
-                        Console.WriteLine($"AI Analysis failed during update: {aiEx.Message}");
-                    }
+                    // try
+                    // {
+                    //    var aiResult = await _aiService.ProcessVideo(videoUrl);
+                    //    video.AnalysisResult = JsonConvert.SerializeObject(aiResult);
+                    // }
+                    // catch (Exception aiEx)
+                    // {
+                    //    Console.WriteLine($"AI Analysis failed during update: {aiEx.Message}");
+                    // }
                 }
 
                 _context.LectureVideos.Update(video);
