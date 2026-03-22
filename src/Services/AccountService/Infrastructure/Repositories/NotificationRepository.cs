@@ -39,6 +39,43 @@ namespace AccountService.Infrastructure.Repositories
             }
         }
 
+        public async Task<ApiResponse> CreateNotificationForRoleAsync(NotificationRole role, string title, string message, NotificationType type)
+        {
+            try
+            {
+                var userIds = role switch
+                {
+                    NotificationRole.Admin => await _context.Users.OfType<Admin>().Select(u => u.Id).ToListAsync(),
+                    NotificationRole.Instructor => await _context.Users.OfType<Instructor>().Select(u => u.Id).ToListAsync(),
+                    NotificationRole.Student => await _context.Users.OfType<Student>().Select(u => u.Id).ToListAsync(),
+                    _ => await _context.Users.Select(u => u.Id).ToListAsync()
+                };
+
+                var notifications = userIds.Select(userId => new Notification
+                {
+                    UserId = userId,
+                    Title = title,
+                    Message = message,
+                    Type = type,
+                    CreatedAt = DateTime.UtcNow
+                }).ToList();
+
+                _context.Notifications.AddRange(notifications);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse("Created", _localizer["Success"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> CreateNotificationForAllAsync(string title, string message, NotificationType type)
+        {
+            return await CreateNotificationForRoleAsync(NotificationRole.All, title, message, type);
+        }
+
         public async Task<ApiResponse> GetUserNotificationsAsync(string userId)
         {
             try
@@ -47,15 +84,8 @@ namespace AccountService.Infrastructure.Repositories
                 if (user == null)
                     return new ApiResponse("NotFound", _localizer["UserNotFound"].Value, null, false);
 
-                NotificationRole userRole = user switch
-                {
-                    Admin => NotificationRole.Admin,
-                    Instructor => NotificationRole.Instructor,
-                    _ => NotificationRole.Student
-                };
-
                 var notifications = await _context.Notifications
-                    .Where(n => n.UserId == userId || n.Role == userRole || n.Role == NotificationRole.All)
+                    .Where(n => n.UserId == userId)
                     .OrderByDescending(n => n.CreatedAt)
                     .ToListAsync();
 

@@ -8,8 +8,7 @@ namespace Entities
     {
         [Key]
         public string Id { get; set; } = Guid.NewGuid().ToString();
-        public string? UserId { get; set; } 
-        public NotificationRole? Role { get; set; } 
+        public string UserId { get; set; } = null!;
         public string Title { get; set; } = null!;
         public string Message { get; set; } = null!;
         public NotificationType Type { get; set; }

@@ -270,15 +270,12 @@ namespace AccountService.Application.Services
             var result = await _accountRepository.CreateInstructorRequestAsync(request);
             if (result)
             {
-                var notification = new Notification
-                {
-                    Title = "New Instructor Request",
-                    Message = $"{user.FullName} has requested to become an instructor.",
-                    Type = NotificationType.InstructorRequest,
-                    Role = NotificationRole.Admin,
-                    CreatedAt = DateTime.UtcNow
-                };
-                await _notificationRepository.CreateNotificationAsync(notification);
+                await _notificationRepository.CreateNotificationForRoleAsync(
+                    NotificationRole.Admin,
+                    "New Instructor Request",
+                    $"{user.FullName} has requested to become an instructor.",
+                    NotificationType.InstructorRequest
+                );
 
                 return new ApiResponse("Created", _localizer["RequestSubmittedSuccess"].Value, null, true);
             }

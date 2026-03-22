@@ -698,15 +698,12 @@ namespace CourseService.Infrastructure.Repositories
             await _context.SaveChangesAsync();
 
             // Create notification for Admins
-            var notification = new Notification
-            {
-                Title = "New Course Approval Request",
-                Message = $"Instructor {course.Instructor.FullName} has submitted a new course: {course.Name}",
-                Type = NotificationType.CourseRequest,
-                Role = NotificationRole.Admin,
-                CreatedAt = DateTime.UtcNow
-            };
-            await _notificationRepository.CreateNotificationAsync(notification);
+            await _notificationRepository.CreateNotificationForRoleAsync(
+                NotificationRole.Admin,
+                "New Course Approval Request",
+                $"Instructor {course.Instructor.FullName} has submitted a new course: {course.Name}",
+                NotificationType.CourseRequest
+            );
 
             return new ApiResponse("Success", _localizer["RequestSentSuccess"].Value, null, true);
         }

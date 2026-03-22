@@ -278,9 +278,6 @@ namespace Data.Context
 
             modelBuilder.Entity<Notification>(entity =>
             {
-                entity.Property(n => n.Role)
-                    .HasConversion<string>();
-                
                 entity.Property(n => n.Type)
                     .HasConversion<string>()
                     .IsRequired();
