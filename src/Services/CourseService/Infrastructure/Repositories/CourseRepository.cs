@@ -17,6 +17,7 @@ using src.Shared.Domain.Entities;
 using src.Shared.Resources;
 using AccountService.Application.Interfaces;
 using AccountService.Domain.Enums;
+using Newtonsoft.Json;
 
 namespace CourseService.Infrastructure.Repositories
 {
@@ -27,18 +28,21 @@ namespace CourseService.Infrastructure.Repositories
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly ILuceneSearchService _luceneSearchService;
         private readonly INotificationRepository _notificationRepository;
+        private readonly IAiService _aiService;
 
         public CourseRepository(AppDbContext context, 
                                CloudinaryService cloudinaryService, 
                                IStringLocalizer<SharedResources> localizer, 
                                ILuceneSearchService luceneSearchService,
-                               INotificationRepository notificationRepository)
+                               INotificationRepository notificationRepository,
+                               IAiService aiService)
         {
             _context = context;
             _luceneSearchService = luceneSearchService;
             _cloudinaryService = cloudinaryService;
             _localizer = localizer;
             _notificationRepository = notificationRepository;
+            _aiService = aiService;
         }
         public async Task<ApiResponse> GetCoursesAsync(CourseQueryParameters queryParams, string studentId)
         {
@@ -607,7 +611,8 @@ namespace CourseService.Infrastructure.Repositories
                             Id = v.Id,
                             DisplayOrder = v.DisplayOrder,
                             Name = v.Name,
-                            Duration = v.Duration
+                            Duration = v.Duration,
+                            AnalysisResult = v.AnalysisResult
                         }).ToList(),
                         Documents = l.Documents.Select(d => new DocumentContentDTO
                         {
@@ -756,6 +761,29 @@ namespace CourseService.Infrastructure.Repositories
             if (request.Course != null)
             {
                 request.Course.Status = CourseStatus.Public;
+                
+                // Process AI Analysis for all videos in the course
+                var lectures = await _context.Lectures
+                    .Include(l => l.LectureVideos)
+                    .Where(l => l.CourseId == request.CourseId)
+                    .ToListAsync();
+
+                foreach (var lecture in lectures)
+                {
+                    foreach (var video in lecture.LectureVideos)
+                    {
+                        try
+                        {
+                            var aiResult = await _aiService.ProcessVideo(video.VideoUrl);
+                            video.AnalysisResult = JsonConvert.SerializeObject(aiResult);
+                        }
+                        catch (Exception aiEx)
+                        {
+                            Console.WriteLine($"AI processing failed for video {video.Id}: {aiEx.Message}");
+                        }
+                    }
+                }
+
                 // Update Index
                 try 
                 {

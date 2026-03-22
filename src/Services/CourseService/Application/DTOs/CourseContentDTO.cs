@@ -27,6 +27,7 @@ namespace CourseService.Application.DTOs
         public int DisplayOrder { get; set; }
         public string Name { get; set; } = null!;
         public double Duration { get; set; }
+        public string? AnalysisResult { get; set; }
     }
     public class DocumentContentDTO
     {
