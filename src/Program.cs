@@ -98,6 +98,10 @@ static void ConfigureCache(IServiceCollection services, IConfiguration configura
 static void ConfigureDI(IServiceCollection services, IConfiguration configuration)
 {
     services.AddHttpClient();
+    services.AddHttpClient<IAiService, LmsAiService>(client =>
+    {
+        client.Timeout = TimeSpan.FromMinutes(5);
+    });
     services.AddSingleton(provider => new Cloudinary(Environment.GetEnvironmentVariable("CLOUDINARY_URL")));
     
     // Configure Google OAuth2
@@ -125,7 +129,6 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     services.AddScoped<IEmailService, EmailService>();
     services.AddScoped<IOtpService, OtpService>();
     services.AddScoped<INotificationRepository, NotificationRepository>();
-    services.AddScoped<IAiService, LmsAiService>();
 }
 static void ConfigureLocalization(IServiceCollection services, IConfiguration configuration)
 {
