@@ -97,6 +97,22 @@ namespace Shared.Infrastructure.cloudinaryService
             throw new Exception($"{result.Error?.Message}");
         }
 
+        public async Task<(string Url, string PublicId)> UploadRawAsync(System.IO.Stream stream, string fileName, string folder)
+        {
+            var uploadParams = new RawUploadParams
+            {
+                File = new FileDescription(fileName, stream),
+                Folder = folder
+            };
+
+            var result = await _cloudinary.UploadAsync(uploadParams);
+
+            if (result.StatusCode == System.Net.HttpStatusCode.OK)
+                return (result.SecureUrl.ToString(), result.PublicId);
+
+            throw new Exception($"{result.Error?.Message}");
+        }
+
         public async Task DeleteDocumentAsync(string publicId)
         {
             var deleteParams = new DeletionParams(publicId)

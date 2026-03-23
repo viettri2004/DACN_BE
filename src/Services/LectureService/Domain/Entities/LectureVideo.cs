@@ -14,6 +14,7 @@ namespace Entities
         public double Duration { get; set; }
         public int DisplayOrder { get; set; }
         public string? AnalysisResult { get; set; }
+        public string? SubtitleUrl { get; set; }
         public string LectureId { get; set; } = null!;
         public Lecture Lecture { get; set; } = null!;
     }

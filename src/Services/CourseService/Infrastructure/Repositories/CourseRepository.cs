@@ -18,6 +18,7 @@ using src.Shared.Resources;
 using AccountService.Application.Interfaces;
 using AccountService.Domain.Enums;
 using Newtonsoft.Json;
+using System.Text;
 
 namespace CourseService.Infrastructure.Repositories
 {
@@ -30,9 +31,9 @@ namespace CourseService.Infrastructure.Repositories
         private readonly INotificationRepository _notificationRepository;
         private readonly IAiService _aiService;
 
-        public CourseRepository(AppDbContext context, 
-                               CloudinaryService cloudinaryService, 
-                               IStringLocalizer<SharedResources> localizer, 
+        public CourseRepository(AppDbContext context,
+                               CloudinaryService cloudinaryService,
+                               IStringLocalizer<SharedResources> localizer,
                                ILuceneSearchService luceneSearchService,
                                INotificationRepository notificationRepository,
                                IAiService aiService)
@@ -47,7 +48,7 @@ namespace CourseService.Infrastructure.Repositories
         public async Task<ApiResponse> GetCoursesAsync(CourseQueryParameters queryParams, string studentId)
         {
             var query = _context.Courses.AsNoTracking()
-                .Where(c => c.Status != CourseStatus.Private);      
+                .Where(c => c.Status != CourseStatus.Private);
 
             if (queryParams.TagIds != null && queryParams.TagIds.Any())
             {
@@ -66,7 +67,7 @@ namespace CourseService.Infrastructure.Repositories
                     .Where(e => e.StudentId == studentId && e.Status == true)
                     .Select(e => e.CourseId)
                     .ToListAsync();
-                
+
                 allCoursesList = allCoursesList.Where(c => !enrolledCourseIds.Contains(c.Id)).ToList();
             }
 
@@ -200,13 +201,13 @@ namespace CourseService.Infrastructure.Repositories
 
                 _context.Courses.Add(newCourse);
                 await _context.SaveChangesAsync();
-                
+
                 try
                 {
                     var courseForIndex = await _context.Courses
                         .AsNoTracking()
                         .Include(c => c.Instructor)
-                        .Include(c => c.CourseTags)  
+                        .Include(c => c.CourseTags)
                         .Include(c => c.Enrollments)
                             .ThenInclude(e => e.Comments)
                         .FirstOrDefaultAsync(c => c.Id == newCourse.Id);
@@ -224,7 +225,7 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse(
                     "Created",
                     _localizer["CreateCourseSuccess"].Value,
-                    null, 
+                    null,
                     true
                 );
             }
@@ -532,8 +533,8 @@ namespace CourseService.Infrastructure.Repositories
                             : 0,
                     Price = c.Price,
                     TotalStudents = c.Enrollments.Count,
-                    Status = c.CourseRequests.Any(r => r.Status == RequestStatus.Pending) 
-                             ? "Pending" 
+                    Status = c.CourseRequests.Any(r => r.Status == RequestStatus.Pending)
+                             ? "Pending"
                              : c.Status.ToString()
                 })
                 .ToListAsync();
@@ -575,7 +576,7 @@ namespace CourseService.Infrastructure.Repositories
                 // Check enrollment for students
                 var isEnrolled = await _context.Enrollments
                     .AnyAsync(e => e.CourseId == courseId && e.StudentId == userId && e.Status == true);
-                
+
                 if (isEnrolled)
                 {
                     isAuthorized = true;
@@ -611,8 +612,7 @@ namespace CourseService.Infrastructure.Repositories
                             Id = v.Id,
                             DisplayOrder = v.DisplayOrder,
                             Name = v.Name,
-                            Duration = v.Duration,
-                            AnalysisResult = v.AnalysisResult
+                            Duration = v.Duration
                         }).ToList(),
                         Documents = l.Documents.Select(d => new DocumentContentDTO
                         {
@@ -656,13 +656,13 @@ namespace CourseService.Infrastructure.Repositories
                 _context.Courses.Remove(course);
                 await _context.SaveChangesAsync();
 
-                try 
+                try
                 {
                     await _luceneSearchService.DeleteCourseFromIndexAsync(courseId);
                 }
                 catch (Exception ex)
                 {
-                   Console.WriteLine($"Failed to remove course from index: {ex.Message}");
+                    Console.WriteLine($"Failed to remove course from index: {ex.Message}");
                 }
 
                 return new ApiResponse("Success", _localizer["DeleteCourseSuccess"].Value, null, true);
@@ -688,7 +688,7 @@ namespace CourseService.Infrastructure.Repositories
 
             var existingRequest = await _context.CourseRequests
                 .FirstOrDefaultAsync(r => r.CourseId == courseId && r.Status == RequestStatus.Pending);
-            
+
             if (existingRequest != null)
                 return new ApiResponse("Error", _localizer["RequestAlreadySent"].Value, null, false);
 
@@ -757,12 +757,11 @@ namespace CourseService.Infrastructure.Repositories
 
             request.Status = RequestStatus.Approved;
             request.ProcessedAt = DateTime.UtcNow;
-            
+
             if (request.Course != null)
             {
                 request.Course.Status = CourseStatus.Public;
-                
-                // Process AI Analysis for all videos in the course
+
                 var lectures = await _context.Lectures
                     .Include(l => l.LectureVideos)
                     .Where(l => l.CourseId == request.CourseId)
@@ -775,7 +774,29 @@ namespace CourseService.Infrastructure.Repositories
                         try
                         {
                             var aiResult = await _aiService.ProcessVideo(video.VideoUrl);
-                            video.AnalysisResult = JsonConvert.SerializeObject(aiResult);
+
+                            if (aiResult.Subtitles != null && aiResult.Subtitles.Any())
+                            {
+                                var vttContent = GenerateVtt(aiResult.Subtitles);
+
+                                using var vttStream = new MemoryStream();
+                                using (var writer = new StreamWriter(vttStream, new UTF8Encoding(true))) 
+                                {
+                                    writer.Write(vttContent);
+                                    writer.Flush();
+                                    vttStream.Position = 0;
+
+                                    var (vttUrl, _) = await _cloudinaryService.UploadRawAsync(vttStream, $"subtitle_{video.Id}.vtt", "subtitles");
+                                    video.SubtitleUrl = vttUrl;
+                                }
+                            }
+
+                            var dbAnalysis = new
+                            {
+                                Summary = aiResult.Summary,
+                                Segments = aiResult.Segments
+                            };
+                            video.AnalysisResult = JsonConvert.SerializeObject(dbAnalysis);
                         }
                         catch (Exception aiEx)
                         {
@@ -784,12 +805,11 @@ namespace CourseService.Infrastructure.Repositories
                     }
                 }
 
-                // Update Index
-                try 
+                try
                 {
                     await _luceneSearchService.IndexCourseAsync(request.Course);
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     Console.WriteLine($"Indexing failed: {ex.Message}");
                 }
@@ -797,7 +817,6 @@ namespace CourseService.Infrastructure.Repositories
 
             await _context.SaveChangesAsync();
 
-            // Create notification for Instructor
             var notification = new Notification
             {
                 UserId = request.InstructorId,
@@ -857,8 +876,8 @@ namespace CourseService.Infrastructure.Repositories
                 Name = c.Name,
                 ImageUrl = c.ImageUrl,
                 InstructorName = c.Instructor.FullName,
-                AverageRating = c.Enrollments.Any(e => e.Comments.Any(cm => cm.Type == CommentType.Review)) 
-                                ? c.Enrollments.SelectMany(e => e.Comments).Where(cm => cm.Type == CommentType.Review).Average(cm => cm.Rate) 
+                AverageRating = c.Enrollments.Any(e => e.Comments.Any(cm => cm.Type == CommentType.Review))
+                                ? c.Enrollments.SelectMany(e => e.Comments).Where(cm => cm.Type == CommentType.Review).Average(cm => cm.Rate)
                                 : 0,
                 Price = c.Price,
                 CreateTime = c.CreateTime,
@@ -913,7 +932,7 @@ namespace CourseService.Infrastructure.Repositories
             }
 
             // Student update their own comment OR Instructor update their own reply
-            bool isOwner = (comment.Type == CommentType.Review && comment.Enrollment.StudentId == userId) || 
+            bool isOwner = (comment.Type == CommentType.Review && comment.Enrollment.StudentId == userId) ||
                           (comment.Type == CommentType.Reply && comment.Enrollment.Course.InstructorId == userId);
 
             if (!isOwner)
@@ -926,7 +945,7 @@ namespace CourseService.Infrastructure.Repositories
             {
                 comment.Rate = updateCommentDTO.Rate;
             }
-            comment.UpdatedAt = DateTime.UtcNow; 
+            comment.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
@@ -984,7 +1003,7 @@ namespace CourseService.Infrastructure.Repositories
                 Id = Guid.NewGuid().ToString(),
                 Content = replyDTO.Content,
                 Rate = 0,
-                EnrollmentId = parentComment.EnrollmentId, 
+                EnrollmentId = parentComment.EnrollmentId,
                 ReplyId = parentComment.Id,
                 CreatedAt = DateTime.UtcNow,
                 Type = CommentType.Reply
@@ -994,6 +1013,28 @@ namespace CourseService.Infrastructure.Repositories
             await _context.SaveChangesAsync();
 
             return new ApiResponse("Created", _localizer["ReplyAdded"].Value, null, true);
+        }
+
+        private string GenerateVtt(List<SubtitleSegment> subtitles)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("WEBVTT");
+            sb.AppendLine();
+
+            foreach (var subtitle in subtitles)
+            {
+                sb.AppendLine($"{FormatVttTime(subtitle.StartTime)} --> {FormatVttTime(subtitle.EndTime)}");
+                sb.AppendLine(subtitle.Text);
+                sb.AppendLine();
+            }
+
+            return sb.ToString();
+        }
+
+        private string FormatVttTime(double seconds)
+        {
+            var time = TimeSpan.FromSeconds(seconds);
+            return $"{(int)time.TotalHours:D2}:{time.Minutes:D2}:{time.Seconds:D2}.{time.Milliseconds:D3}";
         }
     }
 }

@@ -14,6 +14,7 @@ using Shared.Infrastructure.cloudinaryService;
 using src.Shared.Domain.Entities;
 using src.Shared.Resources;
 using CourseService.Application.Interfaces;
+using CourseService.Application.DTOs;
 using Newtonsoft.Json;
 
 namespace LectureService.Infrastructure.Repositories
@@ -250,9 +251,10 @@ namespace LectureService.Infrastructure.Repositories
                     Name = v.Name,
                     VideoUrl = v.VideoUrl,
                     Duration = v.Duration,
-                    // AnalysisResult = !string.IsNullOrEmpty(v.AnalysisResult) 
-                    //    ? JsonConvert.DeserializeObject(v.AnalysisResult) 
-                    //    : null
+                    SubtitleUrl = v.SubtitleUrl,
+                    AnalysisResult = !string.IsNullOrEmpty(v.AnalysisResult) 
+                       ? JsonConvert.DeserializeObject<LmsAnalysisResponse>(v.AnalysisResult) 
+                       : null
                 };
 
                 return new ApiResponse("Success", _localizer["Success"].Value, lectureVideoDto, true);
