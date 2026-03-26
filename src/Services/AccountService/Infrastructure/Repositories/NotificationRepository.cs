@@ -12,17 +12,24 @@ using src.Shared.Domain.Entities;
 using AccountService.Application.DTOs;
 using AccountService.Domain.Enums;
 
+using Microsoft.AspNetCore.SignalR;
+using Shared.Infrastructure.Hubs;
+
 namespace AccountService.Infrastructure.Repositories
 {
     public class NotificationRepository : INotificationRepository
     {
         private readonly AppDbContext _context;
         private readonly IStringLocalizer<SharedResources> _localizer;
+        private readonly IHubContext<NotificationHub> _hubContext;
 
-        public NotificationRepository(AppDbContext context, IStringLocalizer<SharedResources> localizer)
+        public NotificationRepository(AppDbContext context, 
+                                    IStringLocalizer<SharedResources> localizer,
+                                    IHubContext<NotificationHub> hubContext)
         {
             _context = context;
             _localizer = localizer;
+            _hubContext = hubContext;
         }
 
         public async Task<ApiResponse> CreateNotificationAsync(Notification notification)
@@ -31,6 +38,21 @@ namespace AccountService.Infrastructure.Repositories
             {
                 _context.Notifications.Add(notification);
                 await _context.SaveChangesAsync();
+
+                // Send Real-time notification to the User's specific group
+                var dto = new NotificationDTO
+                {
+                    Id = notification.Id,
+                    Type = notification.Type.ToString(),
+                    Title = notification.Title,
+                    Message = notification.Message,
+                    IsRead = notification.IsRead,
+                    CreatedAt = notification.CreatedAt
+                };
+                
+                // Using Group(userId) because we manually added users to groups named after their ID in the Hub
+                await _hubContext.Clients.Group(notification.UserId).SendAsync("ReceiveNotification", dto);
+
                 return new ApiResponse("Created", _localizer["Success"].Value, null, true);
             }
             catch (Exception ex)
@@ -62,6 +84,28 @@ namespace AccountService.Infrastructure.Repositories
 
                 _context.Notifications.AddRange(notifications);
                 await _context.SaveChangesAsync();
+
+                // Build DTO for real-time
+                var dto = new NotificationDTO
+                {
+                    Id = Guid.NewGuid().ToString(), // Placeholder for bulk notifications
+                    Type = type.ToString(),
+                    Title = title,
+                    Message = message,
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                // Send Real-time notification to Group
+                var groupName = role.ToString();
+                if (role != NotificationRole.All)
+                {
+                    await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNotification", dto);
+                }
+                else
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveNotification", dto);
+                }
 
                 return new ApiResponse("Created", _localizer["Success"].Value, null, true);
             }

@@ -34,12 +34,13 @@ using CourseService.Infrastructure;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Hangfire;
 using Hangfire.PostgreSql;
+using Shared.Infrastructure.Hubs;
 
 const string BearerScheme = "Bearer";
 const string AdminRole = "Admin";
 const string StudentRole = "Student";
 const string InstructorRole = "Instructor";
-// const string NotificationHubPath = "/notificationHub";
+const string NotificationHubPath = "/notificationHub";
 
 try
 {
@@ -61,6 +62,7 @@ if (string.IsNullOrEmpty(jwtSection["Issuer"]) ||
     throw new InvalidOperationException("JWT configuration is incomplete. Please check JWT:Issuer, JWT:Audience, and JWT:SigningKey in configuration.");
 }
 
+builder.Services.AddSignalR();
 ConfigureControllers(builder.Services);
 ConfigureCache(builder.Services, builder.Configuration);
 ConfigureDI(builder.Services, builder.Configuration);
@@ -72,32 +74,17 @@ ConfigureAuthorization(builder.Services);
 ConfigureDbContext(builder.Services, builder.Configuration);
 ConfigureHangfire(builder.Services, builder.Configuration);
 
-// builder.Host.UseSerilog((context, config) =>
-// {
-//     config.ReadFrom.Configuration(context.Configuration);
-// });
-
 var app = builder.Build();
 
-// app.UseSerilogRequestLogging();
-// using (var scope = app.Services.CreateScope())
-//     {
-//         var seeder = scope.ServiceProvider.GetRequiredService<DbSeeder>();
-//         await seeder.SeedAsync();
-//     }
 ConfigureMiddleware(app);
 
 app.Run();
+
 static void ConfigureCache(IServiceCollection services, IConfiguration configuration)
 {
-    // services.AddStackExchangeRedisCache(options =>
-    // {
-    //     options.Configuration = configuration.GetConnectionString("Redis");
-    //     options.InstanceName = "AccountService:";
-    // });
     services.AddDistributedMemoryCache();
-
 }
+
 static void ConfigureDI(IServiceCollection services, IConfiguration configuration)
 {
     services.AddHttpClient();
@@ -106,11 +93,10 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
         client.Timeout = TimeSpan.FromMinutes(5);
     });
     services.AddSingleton(provider => new Cloudinary(Environment.GetEnvironmentVariable("CLOUDINARY_URL")));
-    
-    // Configure Google OAuth2
+
     services.Configure<GoogleConfig>(configuration.GetSection("Google"));
     services.AddScoped<IGoogleAuthService, GoogleAuthService>();
-    
+
     services.AddScoped<DbSeeder>();
     services.AddScoped<CloudinaryService>();
     services.AddSingleton<ILuceneSearchService, LuceneSearchService>();
@@ -119,7 +105,6 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     services.AddScoped<IVnPayService, VnPayService>();
     services.AddScoped<IPaymentRepository, PaymentRepository>();
     services.AddScoped<IPaymentService, PaymentService.Application.Services.PaymentService>();
-    //services.AddAutoMapper(typeof(Program));
     services.AddScoped<ICourseRepository, CourseRepository>();
     services.AddScoped<ILectureRepository, LectureRepository>();
     services.AddScoped<IQuizRepository, QuizRepository>();
@@ -134,6 +119,7 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     services.AddScoped<INotificationRepository, NotificationRepository>();
     services.AddScoped<IVideoProcessingService, VideoProcessingService>();
 }
+
 static void ConfigureHangfire(IServiceCollection services, IConfiguration configuration)
 {
     string? ConnectionString = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION");
@@ -145,36 +131,33 @@ static void ConfigureHangfire(IServiceCollection services, IConfiguration config
 
     services.AddHangfireServer();
 }
+
 static void ConfigureLocalization(IServiceCollection services, IConfiguration configuration)
 {
     services.AddLocalization(options => options.ResourcesPath = "");
     services.Configure<RequestLocalizationOptions>(options =>
-        {
-            var supportedCultures = new[] { "vi", "en" };
-            options.SetDefaultCulture("vi")
-                .AddSupportedCultures(supportedCultures)
-                .AddSupportedUICultures(supportedCultures);
+    {
+        var supportedCultures = new[] { "vi", "en" };
+        options.SetDefaultCulture("vi")
+            .AddSupportedCultures(supportedCultures)
+            .AddSupportedUICultures(supportedCultures);
 
-            options.RequestCultureProviders = new List<IRequestCultureProvider>
-            {
-                new AcceptLanguageHeaderRequestCultureProvider(),
-                new QueryStringRequestCultureProvider(),
-                new CookieRequestCultureProvider()
-            };
-        });
+        options.RequestCultureProviders = new List<IRequestCultureProvider>
+        {
+            new AcceptLanguageHeaderRequestCultureProvider(),
+            new QueryStringRequestCultureProvider(),
+            new CookieRequestCultureProvider()
+        };
+    });
 }
 
 static void ConfigureDbContext(IServiceCollection services, IConfiguration configuration)
 {
-    // var ConnectionString = configuration.GetConnectionString("DefaultConnection");
-    // if (string.IsNullOrEmpty(connectionString))
-    // {
-    //     throw new InvalidOperationException("Database connection string 'DefaultConnection' is not configured.");
-    // }
     string? ConnectionString = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION");
     services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(ConnectionString));
+        options.UseNpgsql(ConnectionString));
 }
+
 static void ConfigureControllers(IServiceCollection services)
 {
     services.AddControllers().AddJsonOptions(options =>
@@ -213,7 +196,6 @@ static void ConfigureSwagger(IServiceCollection services)
             }
         });
         option.OperationFilter<AcceptLanguageHeaderOperationFilter>();
-        // option.AddGlobalParameter();
         option.SchemaFilter<LocalizedStringSchemaFilter>();
     });
 }
@@ -250,6 +232,20 @@ static void ConfigureAuthentication(IServiceCollection services, IConfiguration 
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
         };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments(NotificationHubPath))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 }
 
@@ -265,19 +261,15 @@ static void ConfigureAuthorization(IServiceCollection services)
 
 static void ConfigureMiddleware(WebApplication app)
 {
-    // if (app.Environment.IsDevelopment())
-    // {
-    //     app.UseSwagger();
-    //     app.UseSwaggerUI();
-    // }
-
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Demo API V1");
         c.RoutePrefix = "swagger";
     });
+    
     app.UseRequestLocalization();
+    app.UseRouting(); // Phải có UseRouting trước UseCors và UseAuthentication
 
     app.UseCors(x => x
         .WithOrigins("http://localhost:5173")
@@ -288,19 +280,18 @@ static void ConfigureMiddleware(WebApplication app)
     app.UseAuthentication();
     app.UseAuthorization();
     app.UseHangfireDashboard();
+    
     app.MapControllers();
+    app.MapHub<NotificationHub>(NotificationHubPath);
 }
+
 public class AcceptLanguageHeaderOperationFilter : IOperationFilter
 {
     public void Apply(OpenApiOperation operation, OperationFilterContext context)
     {
         operation.Parameters ??= new List<OpenApiParameter>();
-
         var existingParam = operation.Parameters.FirstOrDefault(p => p.Name == "Accept-Language");
-        if (existingParam != null)
-        {
-            operation.Parameters.Remove(existingParam);
-        }
+        if (existingParam != null) operation.Parameters.Remove(existingParam);
 
         operation.Parameters.Add(new OpenApiParameter
         {
@@ -321,6 +312,7 @@ public class AcceptLanguageHeaderOperationFilter : IOperationFilter
         });
     }
 }
+
 public class LocalizedStringSchemaFilter : ISchemaFilter
 {
     public void Apply(OpenApiSchema schema, SchemaFilterContext context)
