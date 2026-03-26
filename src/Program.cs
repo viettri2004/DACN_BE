@@ -32,6 +32,8 @@ using Shared.Infrastructure.cloudinaryService;
 using src.Shared.Domain.Entities;
 using CourseService.Infrastructure;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using Hangfire;
+using Hangfire.PostgreSql;
 
 const string BearerScheme = "Bearer";
 const string AdminRole = "Admin";
@@ -68,6 +70,7 @@ ConfigureIdentity(builder.Services);
 ConfigureAuthentication(builder.Services, builder.Configuration);
 ConfigureAuthorization(builder.Services);
 ConfigureDbContext(builder.Services, builder.Configuration);
+ConfigureHangfire(builder.Services, builder.Configuration);
 
 // builder.Host.UseSerilog((context, config) =>
 // {
@@ -129,6 +132,18 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     services.AddScoped<IEmailService, EmailService>();
     services.AddScoped<IOtpService, OtpService>();
     services.AddScoped<INotificationRepository, NotificationRepository>();
+    services.AddScoped<IVideoProcessingService, VideoProcessingService>();
+}
+static void ConfigureHangfire(IServiceCollection services, IConfiguration configuration)
+{
+    string? ConnectionString = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION");
+    services.AddHangfire(config => config
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UsePostgreSqlStorage(c => c.UseNpgsqlConnection(ConnectionString)));
+
+    services.AddHangfireServer();
 }
 static void ConfigureLocalization(IServiceCollection services, IConfiguration configuration)
 {
@@ -272,6 +287,7 @@ static void ConfigureMiddleware(WebApplication app)
 
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseHangfireDashboard();
     app.MapControllers();
 }
 public class AcceptLanguageHeaderOperationFilter : IOperationFilter

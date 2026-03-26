@@ -19,6 +19,7 @@ using AccountService.Application.Interfaces;
 using AccountService.Domain.Enums;
 using Newtonsoft.Json;
 using System.Text;
+using Hangfire;
 
 namespace CourseService.Infrastructure.Repositories
 {
@@ -30,13 +31,15 @@ namespace CourseService.Infrastructure.Repositories
         private readonly ILuceneSearchService _luceneSearchService;
         private readonly INotificationRepository _notificationRepository;
         private readonly IAiService _aiService;
+        private readonly IBackgroundJobClient _backgroundJobClient;
 
-        public CourseRepository(AppDbContext context,
-                               CloudinaryService cloudinaryService,
-                               IStringLocalizer<SharedResources> localizer,
+        public CourseRepository(AppDbContext context, 
+                               CloudinaryService cloudinaryService, 
+                               IStringLocalizer<SharedResources> localizer, 
                                ILuceneSearchService luceneSearchService,
                                INotificationRepository notificationRepository,
-                               IAiService aiService)
+                               IAiService aiService,
+                               IBackgroundJobClient backgroundJobClient)
         {
             _context = context;
             _luceneSearchService = luceneSearchService;
@@ -44,7 +47,9 @@ namespace CourseService.Infrastructure.Repositories
             _localizer = localizer;
             _notificationRepository = notificationRepository;
             _aiService = aiService;
+            _backgroundJobClient = backgroundJobClient;
         }
+
         public async Task<ApiResponse> GetCoursesAsync(CourseQueryParameters queryParams, string studentId)
         {
             var query = _context.Courses.AsNoTracking()
@@ -762,47 +767,15 @@ namespace CourseService.Infrastructure.Repositories
             {
                 request.Course.Status = CourseStatus.Public;
 
-                var lectures = await _context.Lectures
-                    .Include(l => l.LectureVideos)
-                    .Where(l => l.CourseId == request.CourseId)
+                // Enqueue AI processing jobs for each video using Hangfire
+                var videoIds = await _context.LectureVideos
+                    .Where(v => v.Lecture.CourseId == request.CourseId)
+                    .Select(v => v.Id)
                     .ToListAsync();
 
-                foreach (var lecture in lectures)
+                foreach (var videoId in videoIds)
                 {
-                    foreach (var video in lecture.LectureVideos)
-                    {
-                        try
-                        {
-                            var aiResult = await _aiService.ProcessVideo(video.VideoUrl);
-
-                            if (aiResult.Subtitles != null && aiResult.Subtitles.Any())
-                            {
-                                var vttContent = GenerateVtt(aiResult.Subtitles);
-
-                                using var vttStream = new MemoryStream();
-                                using (var writer = new StreamWriter(vttStream, new UTF8Encoding(true))) 
-                                {
-                                    writer.Write(vttContent);
-                                    writer.Flush();
-                                    vttStream.Position = 0;
-
-                                    var (vttUrl, _) = await _cloudinaryService.UploadRawAsync(vttStream, $"subtitle_{video.Id}.vtt", "subtitles");
-                                    video.SubtitleUrl = vttUrl;
-                                }
-                            }
-
-                            var dbAnalysis = new
-                            {
-                                Summary = aiResult.Summary,
-                                Segments = aiResult.Segments
-                            };
-                            video.AnalysisResult = JsonConvert.SerializeObject(dbAnalysis);
-                        }
-                        catch (Exception aiEx)
-                        {
-                            Console.WriteLine($"AI processing failed for video {video.Id}: {aiEx.Message}");
-                        }
-                    }
+                    _backgroundJobClient.Enqueue<IVideoProcessingService>(x => x.ProcessVideoAsync(videoId));
                 }
 
                 try
@@ -817,6 +790,7 @@ namespace CourseService.Infrastructure.Repositories
 
             await _context.SaveChangesAsync();
 
+            // Create notification for Instructor
             var notification = new Notification
             {
                 UserId = request.InstructorId,
@@ -1013,28 +987,6 @@ namespace CourseService.Infrastructure.Repositories
             await _context.SaveChangesAsync();
 
             return new ApiResponse("Created", _localizer["ReplyAdded"].Value, null, true);
-        }
-
-        private string GenerateVtt(List<SubtitleSegment> subtitles)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine("WEBVTT");
-            sb.AppendLine();
-
-            foreach (var subtitle in subtitles)
-            {
-                sb.AppendLine($"{FormatVttTime(subtitle.StartTime)} --> {FormatVttTime(subtitle.EndTime)}");
-                sb.AppendLine(subtitle.Text);
-                sb.AppendLine();
-            }
-
-            return sb.ToString();
-        }
-
-        private string FormatVttTime(double seconds)
-        {
-            var time = TimeSpan.FromSeconds(seconds);
-            return $"{(int)time.TotalHours:D2}:{time.Minutes:D2}:{time.Seconds:D2}.{time.Milliseconds:D3}";
         }
     }
 }
