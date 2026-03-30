@@ -32,7 +32,7 @@ namespace AccountService.Infrastructure.Email
                 return new ApiResponse("NotFound", _localizer["UserNotFound"].Value, null, false);
 
             var fromEmail = _config["Email:From"];
-            var fromPassword = _config["Email:Password"];
+            var fromPassword = Environment.GetEnvironmentVariable("Email__Password");
 
             string otp = await _otpService.GenerateOtpAsync($"ResetPassword:{toEmail}", TimeSpan.FromMinutes(5));
 

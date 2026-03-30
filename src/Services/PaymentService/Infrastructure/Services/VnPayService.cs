@@ -70,7 +70,7 @@ namespace PaymentService.Infrastructure.Services
 
             vnpay.AddRequestData("vnp_TxnRef", model.OrderId); 
 
-            return vnpay.CreateRequestUrl(_config["VnPay:BaseUrl"], _config["VnPay:HashSecret"]);
+            return vnpay.CreateRequestUrl(_config["VnPay:BaseUrl"], Environment.GetEnvironmentVariable("VnPay__HashSecret"));
         }
 
         public VnPayPaymentResponseModel PaymentExecute(IQueryCollection collections)
@@ -94,7 +94,7 @@ namespace PaymentService.Infrastructure.Services
             var vnp_Amount = vnpay.GetResponseData("vnp_Amount");
 
             // Kiểm tra chữ ký bảo mật
-            bool checkSignature = vnpay.ValidateSignature(vnp_SecureHash, _config["VnPay:HashSecret"]);
+            bool checkSignature = vnpay.ValidateSignature(vnp_SecureHash, Environment.GetEnvironmentVariable("VnPay__HashSecret"));
 
             if (!checkSignature)
             {

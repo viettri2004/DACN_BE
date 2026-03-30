@@ -101,7 +101,6 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     services.AddScoped<DbSeeder>();
     services.AddScoped<CloudinaryService>();
     services.AddSingleton<ILuceneSearchService, LuceneSearchService>();
-    services.AddScoped<IMomoService, MoMoService>();
     services.AddScoped<ISepayService, SepayService>();
     services.AddScoped<IVnPayService, VnPayService>();
     services.AddScoped<IPaymentRepository, PaymentRepository>();
@@ -235,7 +234,7 @@ static void ConfigureAuthentication(IServiceCollection services, IConfiguration 
             ValidAudience = configuration["JWT:Audience"],
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(
-                System.Text.Encoding.UTF8.GetBytes(configuration["JWT:SigningKey"] ?? string.Empty)
+                System.Text.Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWT__SigningKey") ?? configuration["JWT:SigningKey"] ?? string.Empty)
             ),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
