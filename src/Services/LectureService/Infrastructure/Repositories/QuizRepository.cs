@@ -12,6 +12,9 @@ using src.Shared.Domain.Entities;
 using src.Shared.Resources;
 using Shared.Infrastructure.cloudinaryService;
 
+using Microsoft.Extensions.Caching.Distributed;
+using Newtonsoft.Json;
+
 namespace LectureService.Infrastructure.Repositories
 {
     public class QuizRepository : IQuizRepository
@@ -19,12 +22,14 @@ namespace LectureService.Infrastructure.Repositories
         private readonly AppDbContext _context;
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly CloudinaryService _cloudinaryService;
+        private readonly IDistributedCache _cache;
 
-        public QuizRepository(AppDbContext context, IStringLocalizer<SharedResources> localizer, CloudinaryService cloudinaryService)
+        public QuizRepository(AppDbContext context, IStringLocalizer<SharedResources> localizer, CloudinaryService cloudinaryService, IDistributedCache cache)
         {
             _context = context;
             _localizer = localizer;
             _cloudinaryService = cloudinaryService;
+            _cache = cache;
         }
 
         public async Task<ApiResponse> CreateQuizAsync(CreateQuizDTO createQuizDTO, string instructorId)
@@ -174,6 +179,7 @@ namespace LectureService.Infrastructure.Repositories
                 }
 
                 await _context.SaveChangesAsync();
+                await RemoveQuizCache(quizId);
 
                 return new ApiResponse("Success", _localizer["UpdateQuizSuccess"].Value, null, true);
             }
@@ -211,6 +217,7 @@ namespace LectureService.Infrastructure.Repositories
 
                 _context.Quizzes.Remove(quiz);
                 await _context.SaveChangesAsync();
+                await RemoveQuizCache(quizId);
 
                 return new ApiResponse("Success", _localizer["DeleteQuizSuccess"].Value, null, true);
             }
@@ -223,6 +230,13 @@ namespace LectureService.Infrastructure.Repositories
 
         public async Task<ApiResponse> GetQuizByIdAsync(string quizId)
         {
+            string cacheKey = $"quiz:{quizId}";
+            var cachedData = await _cache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(cachedData))
+            {
+                return JsonConvert.DeserializeObject<ApiResponse>(cachedData);
+            }
+
             try
             {
                 var quiz = await _context.Quizzes
@@ -257,13 +271,26 @@ namespace LectureService.Infrastructure.Repositories
                     }).OrderBy(q => q.DisplayOrder).ToList()
                 };
 
-                return new ApiResponse("Success", _localizer["Success"].Value, quizDto, true);
+                var response = new ApiResponse("Success", _localizer["Success"].Value, quizDto, true);
+
+                var cacheOptions = new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+                };
+                await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response), cacheOptions);
+
+                return response;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error getting quiz: {ex.Message}");
                 return new ApiResponse("Error", _localizer["Error"].Value, null, false);
             }
+        }
+
+        private async Task RemoveQuizCache(string quizId)
+        {
+            await _cache.RemoveAsync($"quiz:{quizId}");
         }
 
         public async Task<ApiResponse> StartQuizAttemptAsync(string quizId, string studentId)

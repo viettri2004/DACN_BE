@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using AutoMapper;
 using CourseService.Application.DTOs;
 using CourseService.Application.Interfaces;
 using CourseService.Domain.Enums;
@@ -17,9 +16,10 @@ using src.Shared.Domain.Entities;
 using src.Shared.Resources;
 using AccountService.Application.Interfaces;
 using AccountService.Domain.Enums;
-using Newtonsoft.Json;
 using System.Text;
 using Hangfire;
+using Microsoft.Extensions.Caching.Distributed;
+using Newtonsoft.Json;
 
 namespace CourseService.Infrastructure.Repositories
 {
@@ -32,6 +32,7 @@ namespace CourseService.Infrastructure.Repositories
         private readonly INotificationRepository _notificationRepository;
         private readonly IAiService _aiService;
         private readonly IBackgroundJobClient _backgroundJobClient;
+        private readonly IDistributedCache _cache;
 
         public CourseRepository(AppDbContext context, 
                                CloudinaryService cloudinaryService, 
@@ -39,7 +40,8 @@ namespace CourseService.Infrastructure.Repositories
                                ILuceneSearchService luceneSearchService,
                                INotificationRepository notificationRepository,
                                IAiService aiService,
-                               IBackgroundJobClient backgroundJobClient)
+                               IBackgroundJobClient backgroundJobClient,
+                               IDistributedCache cache)
         {
             _context = context;
             _luceneSearchService = luceneSearchService;
@@ -48,6 +50,7 @@ namespace CourseService.Infrastructure.Repositories
             _notificationRepository = notificationRepository;
             _aiService = aiService;
             _backgroundJobClient = backgroundJobClient;
+            _cache = cache;
         }
 
         public async Task<ApiResponse> GetCoursesAsync(CourseQueryParameters queryParams, string studentId)
@@ -206,6 +209,7 @@ namespace CourseService.Infrastructure.Repositories
 
                 _context.Courses.Add(newCourse);
                 await _context.SaveChangesAsync();
+                await RemoveRecommendedCache();
 
                 try
                 {
@@ -298,6 +302,8 @@ namespace CourseService.Infrastructure.Repositories
                 }
 
                 await _context.SaveChangesAsync();
+                await RemoveRecommendedCache();
+                await RemoveCourseDetailCache(courseId);
 
                 // Re-index
                 try
@@ -330,6 +336,13 @@ namespace CourseService.Infrastructure.Repositories
 
         public async Task<ApiResponse> GetCourseDetailAsync(string courseId, string studentId)
         {
+            string cacheKey = $"course:detail:{courseId}:{studentId ?? "guest"}";
+            var cachedData = await _cache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(cachedData))
+            {
+                return JsonConvert.DeserializeObject<ApiResponse>(cachedData);
+            }
+
             var course = await _context.Courses
                 .AsNoTracking()
                 .Include(c => c.Instructor)
@@ -400,7 +413,15 @@ namespace CourseService.Infrastructure.Repositories
                 }).ToList()
             };
 
-            return new ApiResponse("Success", _localizer["Success"].Value, courseDetailDto, true);
+            var response = new ApiResponse("Success", _localizer["Success"].Value, courseDetailDto, true);
+
+            var cacheOptions = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+            };
+            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response), cacheOptions);
+
+            return response;
         }
 
         public async Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId)
@@ -452,6 +473,13 @@ namespace CourseService.Infrastructure.Repositories
 
         public async Task<ApiResponse> GetRecommendedCoursesAsync()
         {
+            string cacheKey = "course:recommended";
+            var cachedData = await _cache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(cachedData))
+            {
+                return JsonConvert.DeserializeObject<ApiResponse>(cachedData);
+            }
+
             var courseDTOs = await _context.Courses
                 .AsNoTracking()
                 .OrderByDescending(c => c.CreateTime)
@@ -479,7 +507,15 @@ namespace CourseService.Infrastructure.Repositories
             if (courseDTOs.Count == 0)
                 return new ApiResponse("Success", _localizer["NoData"].Value, null, true);
 
-            return new ApiResponse("Success", _localizer["Success"].Value, courseDTOs, true);
+            var response = new ApiResponse("Success", _localizer["Success"].Value, courseDTOs, true);
+            
+            var cacheOptions = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1)
+            };
+            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response), cacheOptions);
+
+            return response;
         }
 
 
@@ -660,6 +696,9 @@ namespace CourseService.Infrastructure.Repositories
 
                 _context.Courses.Remove(course);
                 await _context.SaveChangesAsync();
+                
+                await RemoveRecommendedCache();
+                await RemoveCourseDetailCache(courseId);
 
                 try
                 {
@@ -789,6 +828,8 @@ namespace CourseService.Infrastructure.Repositories
             }
 
             await _context.SaveChangesAsync();
+            await RemoveRecommendedCache();
+            await RemoveCourseDetailCache(request.CourseId);
 
             // Create notification for Instructor
             var notification = new Notification
@@ -890,6 +931,7 @@ namespace CourseService.Infrastructure.Repositories
 
             _context.Comments.Add(comment);
             await _context.SaveChangesAsync();
+            await RemoveCourseDetailCache(addCommentDTO.CourseId);
 
             return new ApiResponse("Created", _localizer["CommentAdded"].Value, null, true);
         }
@@ -922,6 +964,7 @@ namespace CourseService.Infrastructure.Repositories
             comment.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+            await RemoveCourseDetailCache(comment.Enrollment.CourseId);
 
             return new ApiResponse("Success", _localizer["CommentUpdated"].Value, null, true);
         }
@@ -950,6 +993,7 @@ namespace CourseService.Infrastructure.Repositories
 
             _context.Comments.Remove(comment);
             await _context.SaveChangesAsync();
+            await RemoveCourseDetailCache(comment.Enrollment.CourseId);
 
             return new ApiResponse("Success", _localizer["CommentDeleted"].Value, null, true);
         }
@@ -985,8 +1029,21 @@ namespace CourseService.Infrastructure.Repositories
 
             _context.Comments.Add(reply);
             await _context.SaveChangesAsync();
+            await RemoveCourseDetailCache(parentComment.Enrollment.CourseId);
 
             return new ApiResponse("Created", _localizer["ReplyAdded"].Value, null, true);
+        }
+
+        private async Task RemoveRecommendedCache()
+        {
+            await _cache.RemoveAsync("course:recommended");
+        }
+
+        private async Task RemoveCourseDetailCache(string courseId)
+        {
+            // At least remove the guest view. Student-specific views will expire naturally
+            // unless we use a library that supports tag-based or pattern-based invalidation.
+            await _cache.RemoveAsync($"course:detail:{courseId}:guest");
         }
     }
 }

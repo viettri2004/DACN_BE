@@ -11,17 +11,22 @@ using Microsoft.Extensions.Localization;
 using src.Shared.Domain.Entities;
 using src.Shared.Resources;
 
+using Microsoft.Extensions.Caching.Distributed;
+using Newtonsoft.Json;
+
 namespace CartService.Infrastructure.Repositories
 {
     public class CartRepository : ICartRepository
     {
         private readonly AppDbContext _context;
         private readonly IStringLocalizer<SharedResources> _localizer;
+        private readonly IDistributedCache _cache;
 
-        public CartRepository(AppDbContext context, IStringLocalizer<SharedResources> localizer)
+        public CartRepository(AppDbContext context, IStringLocalizer<SharedResources> localizer, IDistributedCache cache)
         {
             _context = context;
             _localizer = localizer;
+            _cache = cache;
         }
 
         public async Task<ApiResponse> AddToCartAsync(string courseId, string studentId)
@@ -75,6 +80,7 @@ namespace CartService.Infrastructure.Repositories
 
             await _context.CartItems.AddAsync(cartItem);
             await _context.SaveChangesAsync();
+            await RemoveCartCache(studentId);
 
             return new ApiResponse("Success", _localizer["ItemAddedToCart"].Value, null, true);
         }
@@ -100,12 +106,20 @@ namespace CartService.Infrastructure.Repositories
 
             _context.CartItems.Remove(cartItem);
             await _context.SaveChangesAsync();
+            await RemoveCartCache(studentId);
 
             return new ApiResponse("Success", _localizer["ItemRemovedFromCart"].Value, null, true);
         }
 
         public async Task<ApiResponse> GetAllItemsAsync(string studentId)
         {
+            string cacheKey = $"cart:{studentId}";
+            var cachedData = await _cache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(cachedData))
+            {
+                return JsonConvert.DeserializeObject<ApiResponse>(cachedData);
+            }
+
             var cart = await _context.Carts
                 .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.StudentId == studentId);
@@ -151,7 +165,20 @@ namespace CartService.Infrastructure.Repositories
             cartDto.TotalItems = items.Count;
             cartDto.TotalPrice = items.Sum(item => item.Price);
 
-            return new ApiResponse("Success", _localizer["Success"].Value, cartDto, true);
+            var response = new ApiResponse("Success", _localizer["Success"].Value, cartDto, true);
+
+            var cacheOptions = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+            };
+            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response), cacheOptions);
+
+            return response;
+        }
+
+        private async Task RemoveCartCache(string studentId)
+        {
+            await _cache.RemoveAsync($"cart:{studentId}");
         }
     }
 }

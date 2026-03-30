@@ -33,8 +33,9 @@ using src.Shared.Domain.Entities;
 using CourseService.Infrastructure;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Hangfire;
-using Hangfire.PostgreSql;
 using Shared.Infrastructure.Hubs;
+using Hangfire.Redis.StackExchange;
+using Microsoft.Extensions.Caching.Distributed;
 
 const string BearerScheme = "Bearer";
 const string AdminRole = "Admin";
@@ -112,7 +113,9 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     services.AddScoped<ITagRepository, TagRepository>();
     services.AddScoped<ITokenService, TokenService>();
     services.AddScoped<IAccountRepository, AccountRepository>();
-    services.AddScoped<IDashboardRepository, DashboardRepository>();
+    services.AddScoped<DashboardRepository>();
+    services.AddScoped<IDashboardRepository>(provider => 
+        new CachedDashboardRepository(provider.GetRequiredService<DashboardRepository>(), provider.GetRequiredService<IDistributedCache>()));
     services.AddScoped<IAuthService, AuthService>();
     services.AddScoped<IEmailService, EmailService>();
     services.AddScoped<IOtpService, OtpService>();
@@ -122,12 +125,17 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
 
 static void ConfigureHangfire(IServiceCollection services, IConfiguration configuration)
 {
-    string? ConnectionString = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION");
+    string? redisConnectionString = Environment.GetEnvironmentVariable("REDIS_CONNECTION");
+    if (string.IsNullOrEmpty(redisConnectionString))
+    {
+        throw new InvalidOperationException("REDIS_CONNECTION environment variable is not set.");
+    }
+
     services.AddHangfire(config => config
         .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
         .UseSimpleAssemblyNameTypeSerializer()
         .UseRecommendedSerializerSettings()
-        .UsePostgreSqlStorage(c => c.UseNpgsqlConnection(ConnectionString)));
+        .UseRedisStorage(redisConnectionString));
 
     services.AddHangfireServer();
 }

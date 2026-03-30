@@ -12,6 +12,9 @@ using Microsoft.Extensions.Localization;
 using src.Shared.Domain.Entities;
 using src.Shared.Resources;
 
+using Microsoft.Extensions.Caching.Distributed;
+using Newtonsoft.Json;
+
 namespace AccountService.Infrastructure.Persistence.Repositories
 {
     public class AccountRepository : IAccountRepository
@@ -19,12 +22,14 @@ namespace AccountService.Infrastructure.Persistence.Repositories
         private readonly AppDbContext _context;
         private readonly UserManager<User> _userManager;
         private readonly IStringLocalizer<SharedResources> _localizer;
+        private readonly IDistributedCache _cache;
 
-        public AccountRepository(AppDbContext context, UserManager<User> userManager, IStringLocalizer<SharedResources> localizer)
+        public AccountRepository(AppDbContext context, UserManager<User> userManager, IStringLocalizer<SharedResources> localizer, IDistributedCache cache)
         {
             _userManager = userManager;
             _context = context;
             _localizer = localizer;
+            _cache = cache;
         }
         
         public async Task<User> GetUserFromRefreshToken(string refreshToken)
@@ -53,6 +58,13 @@ namespace AccountService.Infrastructure.Persistence.Repositories
 
         public async Task<ApiResponse> GetUserProfileAsync(string userId)
         {
+            string cacheKey = $"user:profile:{userId}";
+            var cachedData = await _cache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(cachedData))
+            {
+                return JsonConvert.DeserializeObject<ApiResponse>(cachedData);
+            }
+
             var user = await _context.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == userId);
@@ -95,7 +107,15 @@ namespace AccountService.Infrastructure.Persistence.Repositories
                 Stats = stats
             };
 
-            return new ApiResponse("Success", _localizer["Success"].Value, profileDto, true);
+            var response = new ApiResponse("Success", _localizer["Success"].Value, profileDto, true);
+
+            var cacheOptions = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1)
+            };
+            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response), cacheOptions);
+
+            return response;
         }
 
         public async Task<bool> CreateInstructorRequestAsync(InstructorRequest request)
@@ -146,11 +166,26 @@ namespace AccountService.Infrastructure.Persistence.Repositories
 
         public async Task<List<User>> GetAllInstructorsAsync()
         {
-            return await _context.Users
+            string cacheKey = "users:instructors";
+            var cachedData = await _cache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(cachedData))
+            {
+                return JsonConvert.DeserializeObject<List<User>>(cachedData);
+            }
+
+            var instructors = await _context.Users
                 .OfType<Instructor>()
                 .Cast<User>()
                 .OrderByDescending(u => u.CreatedAt)
                 .ToListAsync();
+
+            var cacheOptions = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(2)
+            };
+            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(instructors), cacheOptions);
+
+            return instructors;
         }
 
         public async Task<User?> GetUserByIdAsync(string userId)
@@ -162,6 +197,13 @@ namespace AccountService.Infrastructure.Persistence.Repositories
         {
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
+            await RemoveProfileCache(user.Id);
+            await _cache.RemoveAsync("users:instructors");
+        }
+
+        private async Task RemoveProfileCache(string userId)
+        {
+            await _cache.RemoveAsync($"user:profile:{userId}");
         }
     }
 }
