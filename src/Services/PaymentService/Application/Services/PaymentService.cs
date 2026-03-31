@@ -13,74 +13,17 @@ namespace PaymentService.Application.Services
     public class PaymentService : IPaymentService
     {
         private readonly IPaymentRepository _paymentRepository;
-        private readonly IMomoService _momoService;
         private readonly IVnPayService _vnPayService;
         private readonly BankConfig _bankConfig;
 
         public PaymentService(
             IPaymentRepository paymentRepository,
-            IMomoService momoService,
             IVnPayService vnPayService,
             IConfiguration configuration)
         {
             _paymentRepository = paymentRepository;
-            _momoService = momoService;
             _vnPayService = vnPayService;
             _bankConfig = configuration.GetSection("Bank").Get<BankConfig>() ?? new BankConfig();
-        }
-
-        public async Task<ApiResponse> CreateMoMoPaymentAsync(CheckoutRequestDto checkoutRequest, string studentId)
-        {
-            try
-            {
-                var courses = await _paymentRepository.GetCoursesByIdsAsync(checkoutRequest.CourseIds);
-
-                // Check if student already owns any of these courses
-                var existingEnrollments = await _paymentRepository.GetEnrollmentsByStudentAndCoursesAsync(studentId, checkoutRequest.CourseIds);
-                if (existingEnrollments.Any())
-                {
-                    var ownedCourseIds = existingEnrollments.Select(e => e.CourseId).ToList();
-                    return new ApiResponse("Conflict", "Bạn đã sở hữu một số khóa học trong đơn hàng này.", new { ownedCourses = ownedCourseIds }, false);
-                }
-
-                var totalAmount = courses.Sum(c => c.Price);
-
-                var order = new Order
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    StudentId = studentId,
-                    TotalAmount = totalAmount,
-                    CreatedAt = DateTime.UtcNow,
-                    Status = "Pending",
-                    MoMoRequestId = Guid.NewGuid().ToString()
-                };
-
-                var orderItems = courses.Select(course => new OrderItem
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    OrderId = order.Id,
-                    CourseId = course.Id,
-                    Price = course.Price,
-                    FinalPrice = course.Price
-                }).ToList();
-
-                await _paymentRepository.CreateOrderAsync(order);
-                await _paymentRepository.AddOrderItemsAsync(orderItems);
-                await _paymentRepository.SaveChangesAsync();
-
-                var momoResponse = await _momoService.CreatePaymentRequestAsync(order);
-
-                if (momoResponse.resultCode == 0)
-                {
-                    return new ApiResponse("Success", "Payment created successfully", new { payUrl = momoResponse.payUrl }, true);
-                }
-
-                return new ApiResponse("BadRequest", momoResponse.message, null, false);
-            }
-            catch (Exception ex)
-            {
-                return new ApiResponse("Error", ex.Message, null, false);
-            }
         }
 
         public async Task<ApiResponse> CreateBankPaymentAsync(CheckoutRequestDto checkoutRequest, string studentId)
