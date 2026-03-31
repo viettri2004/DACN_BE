@@ -12,7 +12,7 @@ services:
   server:
     build:
       context: .
-      dockerfile: src/VietEdu.Api/Dockerfile
+      dockerfile: src/Dockerfile
       target: final
     container_name: vietedu-api
     restart: always

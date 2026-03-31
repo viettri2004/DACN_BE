@@ -482,7 +482,10 @@ namespace CourseService.Infrastructure.Repositories
 
             var courseDTOs = await _context.Courses
                 .AsNoTracking()
-                .OrderByDescending(c => c.CreateTime)
+                .OrderByDescending(c => c.Enrollments
+                                .SelectMany(e => e.Comments)
+                                .Where(cm => cm.Type == CommentType.Review)
+                                .Average(cm => cm.Rate))
                 .Select(c => new CourseListDTO
                 {
                     Id = c.Id,
@@ -490,14 +493,10 @@ namespace CourseService.Infrastructure.Repositories
                     Name = c.Name,
                     InstructorName = c.Instructor.FullName,
                     Rating = c.Enrollments
-                        .SelectMany(e => e.Comments)
-                        .Where(cm => cm.Type == CommentType.Review)
-                        .Any()
-                            ? c.Enrollments
                                 .SelectMany(e => e.Comments)
                                 .Where(cm => cm.Type == CommentType.Review)
                                 .Average(cm => cm.Rate)
-                            : 0,
+                            ,
                     Price = c.Price,
                     // Status = c.Status.ToString()
                 })

@@ -123,8 +123,6 @@ namespace CourseService.API.Controllers
             return response.ToActionResult();
         }
 
-        [Authorize(Policy = "Instructor")]
-
         [HttpGet("recommended-courses")]
         public async Task<ActionResult<ApiResponse>> GetRecommendedCourses()
         {
@@ -132,6 +130,7 @@ namespace CourseService.API.Controllers
 
             return response.ToActionResult();
         }
+
         [Authorize(Policy = "Student")]
         [HttpGet("student-courses")]
         public async Task<ActionResult<ApiResponse>> GetMyCourses()
