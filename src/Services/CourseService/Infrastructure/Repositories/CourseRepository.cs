@@ -485,17 +485,17 @@ namespace CourseService.Infrastructure.Repositories
                 .OrderByDescending(c => c.Enrollments
                                 .SelectMany(e => e.Comments)
                                 .Where(cm => cm.Type == CommentType.Review)
-                                .Average(cm => cm.Rate))
+                                .Average(cm => (double?)cm.Rate) ?? 0)
                 .Select(c => new CourseListDTO
                 {
-                    Id = c.Id,
+                    Id = c.Id,  
                     ImageUrl = c.ImageUrl,
                     Name = c.Name,
                     InstructorName = c.Instructor.FullName,
                     Rating = c.Enrollments
                                 .SelectMany(e => e.Comments)
                                 .Where(cm => cm.Type == CommentType.Review)
-                                .Average(cm => cm.Rate)
+                                .Average(cm => (double?)cm.Rate) ?? 0
                             ,
                     Price = c.Price,
                     // Status = c.Status.ToString()

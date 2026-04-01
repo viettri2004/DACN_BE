@@ -36,6 +36,7 @@ using Hangfire;
 using Shared.Infrastructure.Hubs;
 using Hangfire.Redis.StackExchange;
 using Microsoft.Extensions.Caching.Distributed;
+using Newtonsoft.Json.Serialization;
 
 const string BearerScheme = "Bearer";
 const string AdminRole = "Admin";
@@ -167,9 +168,11 @@ static void ConfigureDbContext(IServiceCollection services, IConfiguration confi
 
 static void ConfigureControllers(IServiceCollection services)
 {
-    services.AddControllers().AddJsonOptions(options =>
+    services.AddControllers().AddNewtonsoftJson(options =>
     {
-        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+        
+        options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
     });
     services.AddEndpointsApiExplorer();
 }
