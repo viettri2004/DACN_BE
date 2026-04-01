@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using src.Shared.Domain.Entities;
 using src.Shared.Resources;
+using src.Shared.Infrastructure;
 
 using Microsoft.Extensions.Caching.Distributed;
 using Newtonsoft.Json;
@@ -62,7 +63,7 @@ namespace AccountService.Infrastructure.Persistence.Repositories
             var cachedData = await _cache.GetStringAsync(cacheKey);
             if (!string.IsNullOrEmpty(cachedData))
             {
-                return JsonConvert.DeserializeObject<ApiResponse>(cachedData);
+                return JsonConvert.DeserializeObject<ApiResponse>(cachedData, JsonSettings.CamelCase);
             }
 
             var user = await _context.Users
@@ -113,7 +114,7 @@ namespace AccountService.Infrastructure.Persistence.Repositories
             {
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1)
             };
-            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response), cacheOptions);
+            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response, JsonSettings.CamelCase), cacheOptions);
 
             return response;
         }
@@ -170,7 +171,7 @@ namespace AccountService.Infrastructure.Persistence.Repositories
             var cachedData = await _cache.GetStringAsync(cacheKey);
             if (!string.IsNullOrEmpty(cachedData))
             {
-                return JsonConvert.DeserializeObject<List<User>>(cachedData);
+                return JsonConvert.DeserializeObject<List<User>>(cachedData, JsonSettings.CamelCase);
             }
 
             var instructors = await _context.Users
@@ -183,7 +184,7 @@ namespace AccountService.Infrastructure.Persistence.Repositories
             {
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(2)
             };
-            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(instructors), cacheOptions);
+            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(instructors, JsonSettings.CamelCase), cacheOptions);
 
             return instructors;
         }

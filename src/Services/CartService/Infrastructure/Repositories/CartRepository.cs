@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using src.Shared.Domain.Entities;
 using src.Shared.Resources;
+using src.Shared.Infrastructure;
 
 using Microsoft.Extensions.Caching.Distributed;
 using Newtonsoft.Json;
@@ -117,7 +118,7 @@ namespace CartService.Infrastructure.Repositories
             var cachedData = await _cache.GetStringAsync(cacheKey);
             if (!string.IsNullOrEmpty(cachedData))
             {
-                return JsonConvert.DeserializeObject<ApiResponse>(cachedData);
+                return JsonConvert.DeserializeObject<ApiResponse>(cachedData, JsonSettings.CamelCase);
             }
 
             var cart = await _context.Carts
@@ -171,7 +172,7 @@ namespace CartService.Infrastructure.Repositories
             {
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
             };
-            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response), cacheOptions);
+            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response, JsonSettings.CamelCase), cacheOptions);
 
             return response;
         }

@@ -37,6 +37,7 @@ using Shared.Infrastructure.Hubs;
 using Hangfire.Redis.StackExchange;
 using Microsoft.Extensions.Caching.Distributed;
 using Newtonsoft.Json.Serialization;
+using StackExchange.Redis;
 
 const string BearerScheme = "Bearer";
 const string AdminRole = "Admin";
@@ -84,7 +85,20 @@ app.Run();
 
 static void ConfigureCache(IServiceCollection services, IConfiguration configuration)
 {
-    services.AddDistributedMemoryCache();
+    string? redisConnectionString = Environment.GetEnvironmentVariable("REDIS_CONNECTION");
+    
+    if (string.IsNullOrEmpty(redisConnectionString))
+    {
+        throw new InvalidOperationException("REDIS_CONNECTION environment variable is not set.");
+    }
+
+    services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConnectionString));
+
+    services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnectionString;
+        options.InstanceName = "Vietedu_APIcache:"; 
+    });
 }
 
 static void ConfigureDI(IServiceCollection services, IConfiguration configuration)

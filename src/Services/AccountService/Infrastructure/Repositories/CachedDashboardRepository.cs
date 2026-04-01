@@ -1,9 +1,10 @@
 using System;
-using System.Text.Json;
 using System.Threading.Tasks;
 using AccountService.Application.Interfaces;
 using Microsoft.Extensions.Caching.Distributed;
 using src.Shared.Domain.Entities;
+using Newtonsoft.Json;
+using src.Shared.Infrastructure;
 
 namespace AccountService.Infrastructure.Repositories
 {
@@ -24,7 +25,7 @@ namespace AccountService.Infrastructure.Repositories
             var cachedData = await _cache.GetStringAsync(CacheKey);
             if (!string.IsNullOrEmpty(cachedData))
             {
-                return JsonSerializer.Deserialize<ApiResponse>(cachedData);
+                return JsonConvert.DeserializeObject<ApiResponse>(cachedData, JsonSettings.CamelCase);
             }
 
             var response = await _inner.GetDashboardDataAsync();
@@ -35,7 +36,7 @@ namespace AccountService.Infrastructure.Repositories
                 {
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10) // Cache for 10 minutes
                 };
-                await _cache.SetStringAsync(CacheKey, JsonSerializer.Serialize(response), options);
+                await _cache.SetStringAsync(CacheKey, JsonConvert.SerializeObject(response, JsonSettings.CamelCase), options);
             }
 
             return response;

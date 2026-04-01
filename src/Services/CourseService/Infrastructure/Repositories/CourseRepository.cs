@@ -20,6 +20,7 @@ using System.Text;
 using Hangfire;
 using Microsoft.Extensions.Caching.Distributed;
 using Newtonsoft.Json;
+using src.Shared.Infrastructure;
 
 namespace CourseService.Infrastructure.Repositories
 {
@@ -340,7 +341,7 @@ namespace CourseService.Infrastructure.Repositories
             var cachedData = await _cache.GetStringAsync(cacheKey);
             if (!string.IsNullOrEmpty(cachedData))
             {
-                return JsonConvert.DeserializeObject<ApiResponse>(cachedData);
+                return JsonConvert.DeserializeObject<ApiResponse>(cachedData, JsonSettings.CamelCase);
             }
 
             var course = await _context.Courses
@@ -419,7 +420,7 @@ namespace CourseService.Infrastructure.Repositories
             {
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
             };
-            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response), cacheOptions);
+            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response, JsonSettings.CamelCase), cacheOptions);
 
             return response;
         }
@@ -477,7 +478,7 @@ namespace CourseService.Infrastructure.Repositories
             var cachedData = await _cache.GetStringAsync(cacheKey);
             if (!string.IsNullOrEmpty(cachedData))
             {
-                return JsonConvert.DeserializeObject<ApiResponse>(cachedData);
+                return JsonConvert.DeserializeObject<ApiResponse>(cachedData, JsonSettings.CamelCase);
             }
 
             var courseDTOs = await _context.Courses
@@ -512,7 +513,7 @@ namespace CourseService.Infrastructure.Repositories
             {
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1)
             };
-            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response), cacheOptions);
+            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response, JsonSettings.CamelCase), cacheOptions);
 
             return response;
         }
