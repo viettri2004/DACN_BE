@@ -10,21 +10,18 @@
 services:
   # --- Backend .NET ---
   server:
-    build:
-      context: .
-      dockerfile: src/Dockerfile
-      target: final
+    # build:
+    #   context: .
+    #   dockerfile: src/Dockerfile
+    #   target: final
+    image: dacnbe:latest
+    pull_policy: never
     container_name: vietedu-api
     restart: always
     ports:
       - "5223:8080"
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=${POSTGRES_CONNECTION}
-      - ConnectionStrings__Redis=${REDIS_CONNECTION}
-      - Cloudinary__Url=${CLOUDINARY_URL}
-      - Gemini__ApiKey=${GEMINI_API_KEY}
-      - AI__ServerUrl=${AI_SERVER_URL}
+    env_file:
+      - .env
     depends_on:
       - redis-service
     volumes:
@@ -35,6 +32,8 @@ services:
     image: redis:alpine
     container_name: redis-cache
     restart: always
+    ports:
+      - "6379:6379"
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     volumes:
       - redis-data:/data

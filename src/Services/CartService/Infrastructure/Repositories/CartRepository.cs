@@ -48,7 +48,6 @@ namespace CartService.Infrastructure.Repositories
             if (isEnrolled)
                 return new ApiResponse("Conflict", _localizer["AlreadyEnrolled"].Value, null, false);
 
-            // Lấy Cart hiện tại từ Cache hoặc DB
             var cartResponse = await GetAllItemsAsync(studentId);
             var cartDto = cartResponse.Data as CartDTO ?? new CartDTO();
 
@@ -58,7 +57,6 @@ namespace CartService.Infrastructure.Repositories
             if (cartDto.TotalItems >= 5)
                 return new ApiResponse("Conflict", _localizer["CartFull"].Value, null, false);
 
-            // Thêm item mới vào CartDTO
             var newItem = new CartItemDTO
             {
                 Id = course.Id,
@@ -73,11 +71,8 @@ namespace CartService.Infrastructure.Repositories
             cartDto.Items.Add(newItem);
             cartDto.TotalItems = cartDto.Items.Count;
             cartDto.TotalPrice = cartDto.Items.Sum(i => i.Price);
-
-            // Cập nhật Redis
             await UpdateCartCache(studentId, cartDto);
 
-            // Lập lịch đồng bộ sau 15 phút (Write-Behind)
             ScheduleSyncJob(studentId);
 
             return new ApiResponse("Success", _localizer["ItemAddedToCart"].Value, null, true);
