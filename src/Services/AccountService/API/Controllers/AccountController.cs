@@ -115,7 +115,6 @@ namespace src.Services.AccountService.API.Controllers
             {
                 return BadRequest(new ApiResponse("Error", _localizer["InvalidOtp"].Value, null, false));
             }
-
             return Ok(new ApiResponse("Success", _localizer["OtpVerified"].Value, null, true));
         }
 

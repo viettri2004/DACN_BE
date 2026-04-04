@@ -36,7 +36,7 @@ namespace AccountService.Infrastructure.Email
 
             string otp = await _otpService.GenerateOtpAsync($"ResetPassword:{toEmail}", TimeSpan.FromMinutes(5));
 
-            string subject = "3T - OTP for Password Reset";
+            string subject = "VietEdu - OTP for Password Reset";
             string body = $@"
     <!DOCTYPE html>
     <html lang='en' xmlns='http://www.w3.org/1999/xhtml'>

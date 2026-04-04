@@ -14,6 +14,7 @@ using src.Shared.Infrastructure;
 
 using Microsoft.Extensions.Caching.Distributed;
 using Newtonsoft.Json;
+using Hangfire;
 
 namespace CartService.Infrastructure.Repositories
 {
@@ -22,92 +23,81 @@ namespace CartService.Infrastructure.Repositories
         private readonly AppDbContext _context;
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly IDistributedCache _cache;
+        private readonly IBackgroundJobClient _backgroundJobClient;
 
-        public CartRepository(AppDbContext context, IStringLocalizer<SharedResources> localizer, IDistributedCache cache)
+        public CartRepository(AppDbContext context, 
+                             IStringLocalizer<SharedResources> localizer, 
+                             IDistributedCache cache,
+                             IBackgroundJobClient backgroundJobClient)
         {
             _context = context;
             _localizer = localizer;
             _cache = cache;
+            _backgroundJobClient = backgroundJobClient;
         }
 
         public async Task<ApiResponse> AddToCartAsync(string courseId, string studentId)
         {
-            var course = await _context.Courses.FindAsync(courseId);
+            var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == courseId);
             if (course == null)
-            {
                 return new ApiResponse("NotFound", _localizer["CourseNotFound"].Value, null, false);
-            }
 
-            var isEnrolled = await _context.Enrollments
+            var isEnrolled = await _context.Enrollments.AsNoTracking()
                 .AnyAsync(e => e.StudentId == studentId && e.CourseId == courseId && e.Status == true);
 
             if (isEnrolled)
-            {
                 return new ApiResponse("Conflict", _localizer["AlreadyEnrolled"].Value, null, false);
-            }
 
-            var cart = await _context.Carts.FirstOrDefaultAsync(c => c.StudentId == studentId);
-            if (cart == null)
-            {
-                cart = new Cart
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    StudentId = studentId
-                };
-                await _context.Carts.AddAsync(cart);
-            }
+            // Lấy Cart hiện tại từ Cache hoặc DB
+            var cartResponse = await GetAllItemsAsync(studentId);
+            var cartDto = cartResponse.Data as CartDTO ?? new CartDTO();
 
-            var existingItem = await _context.CartItems
-                .FirstOrDefaultAsync(ci => ci.CartId == cart.Id && ci.CourseId == courseId);
-
-            if (existingItem != null)
-            {
+            if (cartDto.Items.Any(i => i.Id == courseId))
                 return new ApiResponse("Conflict", _localizer["ItemAlreadyInCart"].Value, null, false);
-            }
 
-            var currentItemCount = await _context.CartItems.CountAsync(ci => ci.CartId == cart.Id);
-            if (currentItemCount >= 5)
-            {
+            if (cartDto.TotalItems >= 5)
                 return new ApiResponse("Conflict", _localizer["CartFull"].Value, null, false);
-            }
 
-            var cartItem = new CartItem
+            // Thêm item mới vào CartDTO
+            var newItem = new CartItemDTO
             {
-                Id = Guid.NewGuid().ToString(),
-                CartId = cart.Id,
-                CourseId = courseId,
-                Price = course.Price
+                Id = course.Id,
+                Name = course.Name,
+                ImageUrl = course.ImageUrl,
+                InstructorName = (await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == course.InstructorId))?.FullName ?? "Unknown",
+                Price = course.Price,
+                OriginalPrice = null,
+                IsBestseller = (await _context.Enrollments.AsNoTracking().CountAsync(e => e.CourseId == course.Id)) > 5
             };
 
-            await _context.CartItems.AddAsync(cartItem);
-            await _context.SaveChangesAsync();
-            await RemoveCartCache(studentId);
+            cartDto.Items.Add(newItem);
+            cartDto.TotalItems = cartDto.Items.Count;
+            cartDto.TotalPrice = cartDto.Items.Sum(i => i.Price);
+
+            // Cập nhật Redis
+            await UpdateCartCache(studentId, cartDto);
+
+            // Lập lịch đồng bộ sau 15 phút (Write-Behind)
+            ScheduleSyncJob(studentId);
 
             return new ApiResponse("Success", _localizer["ItemAddedToCart"].Value, null, true);
         }
 
         public async Task<ApiResponse> RemoveFromCartAsync(string courseId, string studentId)
         {
-            var cart = await _context.Carts
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.StudentId == studentId);
+            var cartResponse = await GetAllItemsAsync(studentId);
+            var cartDto = cartResponse.Data as CartDTO;
 
-            if (cart == null)
-            {
+            if (cartDto == null || !cartDto.Items.Any(i => i.Id == courseId))
                 return new ApiResponse("NotFound", _localizer["ItemNotFoundInCart"].Value, null, false);
-            }
 
-            var cartItem = await _context.CartItems
-                .FirstOrDefaultAsync(ci => ci.CartId == cart.Id && ci.CourseId == courseId);
+            cartDto.Items.RemoveAll(i => i.Id == courseId);
+            cartDto.TotalItems = cartDto.Items.Count;
+            cartDto.TotalPrice = cartDto.Items.Sum(i => i.Price);
 
-            if (cartItem == null)
-            {
-                return new ApiResponse("NotFound", _localizer["ItemNotFoundInCart"].Value, null, false);
-            }
+            await UpdateCartCache(studentId, cartDto);
 
-            _context.CartItems.Remove(cartItem);
-            await _context.SaveChangesAsync();
-            await RemoveCartCache(studentId);
+            ScheduleSyncJob(studentId);
 
             return new ApiResponse("Success", _localizer["ItemRemovedFromCart"].Value, null, true);
         }
@@ -118,7 +108,15 @@ namespace CartService.Infrastructure.Repositories
             var cachedData = await _cache.GetStringAsync(cacheKey);
             if (!string.IsNullOrEmpty(cachedData))
             {
-                return JsonConvert.DeserializeObject<ApiResponse>(cachedData, JsonSettings.CamelCase);
+                var apiResponse = JsonConvert.DeserializeObject<ApiResponse>(cachedData, JsonSettings.CamelCase);
+                if (apiResponse != null && apiResponse.Data != null)
+                {
+                    if (apiResponse.Data is Newtonsoft.Json.Linq.JObject jObject)
+                    {
+                        apiResponse.Data = jObject.ToObject<CartDTO>();
+                    }
+                }
+                return apiResponse;
             }
 
             var cart = await _context.Carts
@@ -170,11 +168,62 @@ namespace CartService.Infrastructure.Repositories
 
             var cacheOptions = new DistributedCacheEntryOptions
             {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) // Tăng TTL để tránh mất dữ liệu khi chưa kịp sync
             };
             await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response, JsonSettings.CamelCase), cacheOptions);
 
             return response;
+        }
+
+        public async Task SyncCartToDbAsync(string studentId)
+        {
+            var cartResponse = await GetAllItemsAsync(studentId);
+            var cartDto = cartResponse.Data as CartDTO;
+
+            if (cartDto == null) return;
+
+            var cart = await _context.Carts.FirstOrDefaultAsync(c => c.StudentId == studentId);
+            if (cart == null)
+            {
+                cart = new Cart
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    StudentId = studentId
+                };
+                await _context.Carts.AddAsync(cart);
+            }
+
+            var oldItems = _context.CartItems.Where(ci => ci.CartId == cart.Id);
+            _context.CartItems.RemoveRange(oldItems);
+
+            foreach (var item in cartDto.Items)
+            {
+                await _context.CartItems.AddAsync(new CartItem
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    CartId = cart.Id,
+                    CourseId = item.Id,
+                    Price = item.Price
+                });
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        private void ScheduleSyncJob(string studentId)
+        {
+            _backgroundJobClient.Schedule<ICartRepository>(repo => repo.SyncCartToDbAsync(studentId), TimeSpan.FromMinutes(15));
+        }
+
+        private async Task UpdateCartCache(string studentId, CartDTO cartDto)
+        {
+            string cacheKey = $"cart:{studentId}";
+            var response = new ApiResponse("Success", _localizer["Success"].Value, cartDto, true);
+            var cacheOptions = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
+            };
+            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response, JsonSettings.CamelCase), cacheOptions);
         }
 
         private async Task RemoveCartCache(string studentId)
