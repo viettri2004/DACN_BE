@@ -14,7 +14,7 @@ services:
     #   context: .
     #   dockerfile: src/Dockerfile
     #   target: final
-    image: dacnbe:latest
+    image: tritonviet/dacnbe:v1
     pull_policy: never
     container_name: vietedu-api
     restart: always

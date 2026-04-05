@@ -308,7 +308,7 @@ static void ConfigureMiddleware(WebApplication app)
     app.UseRouting(); // Phải có UseRouting trước UseCors và UseAuthentication
 
     app.UseCors(x => x
-        .WithOrigins("http://localhost:5173")
+        .WithOrigins("https://vietedu.id.vn")
         .AllowAnyMethod()
         .AllowAnyHeader()
         .AllowCredentials());

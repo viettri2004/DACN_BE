@@ -28,19 +28,26 @@ namespace PaymentService.Infrastructure.Services
         {
             var vnpay = new VnPayLibrary();
 
-            // 1. Cấu hình cơ bản
             vnpay.AddRequestData("vnp_Version", "2.1.0");
             vnpay.AddRequestData("vnp_Command", "pay");
             vnpay.AddRequestData("vnp_TmnCode", _config["VnPay:TmnCode"]);
-            vnpay.AddRequestData("vnp_Amount", ((long)model.Amount * 100).ToString()); 
+            vnpay.AddRequestData("vnp_Amount", ((long)model.Amount * 100).ToString());
 
-            // 2. Xử lý TimeZone (BẮT BUỘC GMT+7)
-            // Nếu server không ở VN, DateTime.Now sẽ sai. Phải dùng TimeZoneInfo
-            TimeZoneInfo timeZoneId = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"); // Hoặc "Asia/Ho_Chi_Minh" trên Linux
+            TimeZoneInfo timeZoneId;
+
+            try
+            {
+                timeZoneId = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                timeZoneId = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+            }
+
             DateTime timeNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZoneId);
-            
+
             vnpay.AddRequestData("vnp_CreateDate", timeNow.ToString("yyyyMMddHHmmss"));
-            
+
             // Thêm ExpireDate (thường là +15 phút) để tránh lỗi timeout
             vnpay.AddRequestData("vnp_ExpireDate", timeNow.AddMinutes(15).ToString("yyyyMMddHHmmss"));
 
@@ -60,15 +67,15 @@ namespace PaymentService.Infrastructure.Services
             // 4. Thông tin đơn hàng (Tiếng Việt KHÔNG DẤU, không ký tự đặc biệt)
             // "Thanh toan don hang:" + model.OrderId có thể chứa ký tự lạ nếu OrderId là chuỗi phức tạp
             vnpay.AddRequestData("vnp_OrderInfo", "Thanh toan don hang " + model.OrderId);
-            vnpay.AddRequestData("vnp_OrderType", "other"); 
-            
+            vnpay.AddRequestData("vnp_OrderType", "other");
+
             vnpay.AddRequestData("vnp_ReturnUrl", _config["VnPay:ReturnUrl"]);
-            
+
             // LƯU Ý: Thường không gửi vnp_IpnUrl qua API, bạn cấu hình trên trang quản trị VNPAY.
             // Nếu gửi mà bên kia không nhận => Sai checksum => Lỗi 99.
             // vnpay.AddRequestData("vnp_IpnUrl", _config["VnPay:IpnUrl"]); // Comment dòng này lại thử xem
 
-            vnpay.AddRequestData("vnp_TxnRef", model.OrderId); 
+            vnpay.AddRequestData("vnp_TxnRef", model.OrderId);
 
             return vnpay.CreateRequestUrl(_config["VnPay:BaseUrl"], Environment.GetEnvironmentVariable("VnPay__HashSecret"));
         }
