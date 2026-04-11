@@ -107,7 +107,7 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     services.AddHttpClient();
     services.AddHttpClient<IAiService, LmsAiService>(client =>
     {
-        client.Timeout = TimeSpan.FromMinutes(5);
+        client.Timeout = TimeSpan.FromMinutes(15);
     });
     services.AddSingleton(provider => new Cloudinary(Environment.GetEnvironmentVariable("CLOUDINARY_URL")));
 

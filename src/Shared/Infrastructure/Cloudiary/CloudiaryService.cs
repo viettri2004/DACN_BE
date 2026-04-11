@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using src.Shared.Resources;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using ApiResponse = src.Shared.Domain.Entities.ApiResponse;
 
@@ -40,17 +42,16 @@ namespace Shared.Infrastructure.cloudinaryService
                     return new ApiResponse("Forbidden", _localizer["ForbiddenAddVideo"].Value, null, false);
 
                 long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                string folder = "vietedu/lectures/videos";
+                string folder = "videos";
                 string contextStr = $"lecture_id={lectureId}";
+                string targetPreset = "lecture_video_preset";
+                string stringToSign = $"context={contextStr}&folder={folder}&timestamp={timestamp}&upload_preset={targetPreset}";
 
-                var parametersToSign = new Dictionary<string, object>
-                {
-                    { "timestamp", timestamp },
-                    { "folder", folder },
-                    { "context", contextStr }
-                };
+                string apiSecret = _cloudinary.Api.Account.ApiSecret;
 
-                string signature = _cloudinary.Api.SignParameters(parametersToSign);
+                using var sha1 = SHA1.Create();
+                var hashBytes = sha1.ComputeHash(Encoding.UTF8.GetBytes(stringToSign + apiSecret));
+                string signature = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
 
                 var uploadCredentials = new
                 {
@@ -58,6 +59,7 @@ namespace Shared.Infrastructure.cloudinaryService
                     Timestamp = timestamp,
                     Folder = folder,
                     Context = contextStr,
+                    TargetPreset = targetPreset,
                     ApiKey = _cloudinary.Api.Account.ApiKey,
                     CloudName = _cloudinary.Api.Account.Cloud
                 };
@@ -75,25 +77,62 @@ namespace Shared.Infrastructure.cloudinaryService
         {
             try
             {
-                if (!payload.TryGetProperty("notification_type", out var notifProp) || notifProp.GetString() != "upload")
+                if (payload.ValueKind != JsonValueKind.Object)
+                {
+                    _logger.LogWarning("Webhook bị từ chối: Payload không phải là JSON Object. ValueKind hiện tại: {ValueKind}. Nội dung: {Content}", payload.ValueKind, payload.GetRawText());
+                    return false;
+                }
+                if (!payload.TryGetProperty("notification_type", out var notifProp) ||
+                    notifProp.ValueKind != JsonValueKind.String ||
+                    notifProp.GetString() != "upload")
+                {
                     return true;
+                }
 
-                var publicId = payload.GetProperty("public_id").GetString();
-                var secureUrl = payload.GetProperty("secure_url").GetString();
-                var duration = payload.TryGetProperty("duration", out var durProp) ? durProp.GetDouble() : 0;
-                var originalFilename = payload.TryGetProperty("original_filename", out var fileProp) ? fileProp.GetString() : "Untitled Video";
+                if (!payload.TryGetProperty("resource_type", out var resTypeProp) ||
+                    resTypeProp.ValueKind != JsonValueKind.String ||
+                    resTypeProp.GetString() != "video")
+                {
+                    _logger.LogInformation("Webhook bị từ chối: File tải lên không phải là Video.");
+                    return true;
+                }
+
+                string publicId = payload.TryGetProperty("public_id", out var pId) && pId.ValueKind == JsonValueKind.String ? pId.GetString()! : "";
+                string secureUrl = payload.TryGetProperty("secure_url", out var sUrl) && sUrl.ValueKind == JsonValueKind.String ? sUrl.GetString()! : "";
+                string originalFilename = payload.TryGetProperty("original_filename", out var fileProp) && fileProp.ValueKind == JsonValueKind.String ? fileProp.GetString()! : "Untitled Video";
+
+                double duration = 0;
+                if (payload.TryGetProperty("duration", out var durProp) && durProp.ValueKind == JsonValueKind.Number)
+                {
+                    duration = durProp.GetDouble();
+                }
+
+                if (string.IsNullOrEmpty(publicId) || string.IsNullOrEmpty(secureUrl))
+                {
+                    _logger.LogWarning("Webhook thiếu public_id hoặc secure_url.");
+                    return false;
+                }
 
                 string? lectureId = null;
-                if (payload.TryGetProperty("context", out var contextObj) &&
-                    contextObj.TryGetProperty("custom", out var customObj) &&
-                    customObj.TryGetProperty("lecture_id", out var lectureIdProp))
+
+                if (payload.TryGetProperty("context", out var contextObj) && contextObj.ValueKind == JsonValueKind.Object)
                 {
-                    lectureId = lectureIdProp.GetString();
+                    if (contextObj.TryGetProperty("custom", out var customObj) && customObj.ValueKind == JsonValueKind.Object)
+                    {
+                        if (customObj.TryGetProperty("lecture_id", out var lecIdProp) && lecIdProp.ValueKind == JsonValueKind.String)
+                        {
+                            lectureId = lecIdProp.GetString();
+                        }
+                    }
+                    else if (contextObj.TryGetProperty("lecture_id", out var lecIdPropDirect) && lecIdPropDirect.ValueKind == JsonValueKind.String)
+                    {
+                        lectureId = lecIdPropDirect.GetString();
+                    }
                 }
 
                 if (string.IsNullOrEmpty(lectureId))
                 {
-                    _logger.LogWarning("Cloudinary webhook received for public_id {PublicId} but no lecture_id in context", publicId);
+                    _logger.LogWarning("Không tìm thấy lecture_id trong context. Toàn bộ Payload từ Cloudinary: {Payload}", payload.GetRawText());
                     return false;
                 }
 
@@ -125,7 +164,6 @@ namespace Shared.Infrastructure.cloudinaryService
                 return false;
             }
         }
-
         public async Task<(string Url, string PublicId)> UploadImageAsync(IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -136,7 +174,7 @@ namespace Shared.Infrastructure.cloudinaryService
             var uploadParams = new ImageUploadParams
             {
                 File = new FileDescription(file.FileName, stream),
-                Folder = "uploads" 
+                Folder = "uploads"
             };
 
             var result = await _cloudinary.UploadAsync(uploadParams);

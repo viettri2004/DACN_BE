@@ -187,5 +187,27 @@ namespace src.Services.PaymentService.API.Controllers
                 return Ok(new { RspCode = "99", Message = "Unknown Error" });
             }
         }
+
+        [Authorize]
+        [HttpPost("giftcode/redeem")]
+        public async Task<ActionResult<ApiResponse>> RedeemGiftCode([FromBody] GiftCodeRedeemDto redeemDto)
+        {
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return Unauthorized(new ApiResponse("Unauthorized", "User not authenticated", null, false));
+            }
+
+            var response = await _paymentService.RedeemGiftCodeAsync(redeemDto, studentId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Admin")]
+        [HttpPost("giftcode/create")]
+        public async Task<ActionResult<ApiResponse>> CreateGiftCode([FromBody] CreateGiftCodeDto createDto)
+        {
+            var response = await _paymentService.CreateGiftCodeAsync(createDto);
+            return response.ToActionResult();
+        }
     }
 }

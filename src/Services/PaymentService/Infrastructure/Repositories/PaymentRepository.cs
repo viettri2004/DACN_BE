@@ -78,5 +78,39 @@ namespace PaymentService.Infrastructure.Repositories
                 .Where(e => e.StudentId == studentId && courseIds.Contains(e.CourseId) && e.Status == true)
                 .ToListAsync();
         }
+
+        public async Task<GiftCode?> GetGiftCodeByCodeAsync(string code)
+        {
+            return await _context.GiftCodes
+                .Include(gc => gc.Course)
+                .FirstOrDefaultAsync(gc => gc.Code == code);
+        }
+
+        public async Task AddGiftCodeAsync(GiftCode giftCode)
+        {
+            await _context.GiftCodes.AddAsync(giftCode);
+        }
+
+        public async Task AddEnrollmentAsync(Enrollment enrollment)
+        {
+            await _context.Enrollments.AddAsync(enrollment);
+        }
+
+        public async Task<Course?> GetCourseByIdAsync(string courseId)
+        {
+            return await _context.Courses.FirstOrDefaultAsync(c => c.Id == courseId);
+        }
+
+        public async Task RemoveCartItemsAsync(string studentId, List<string> courseIds)
+        {
+            var cartItemsToRemove = await _context.CartItems
+                .Where(ci => ci.Cart.StudentId == studentId && courseIds.Contains(ci.CourseId))
+                .ToListAsync();
+
+            if (cartItemsToRemove.Any())
+            {
+                _context.CartItems.RemoveRange(cartItemsToRemove);
+            }
+        }
     }
 }

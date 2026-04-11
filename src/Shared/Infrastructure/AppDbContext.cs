@@ -33,6 +33,7 @@ namespace Data.Context
         public DbSet<InstructorRequest> InstructorRequests { get; set; } = null!;
         public DbSet<CourseRequest> CourseRequests { get; set; } = null!;
         public DbSet<Notification> Notifications { get; set; } = null!;
+        public DbSet<GiftCode> GiftCodes { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -281,6 +282,21 @@ namespace Data.Context
                 entity.Property(n => n.Type)
                     .HasConversion<string>()
                     .IsRequired();
+            });
+
+            modelBuilder.Entity<GiftCode>(entity =>
+            {
+                entity.HasKey(gc => gc.Id);
+                entity.Property(gc => gc.Code).IsRequired().HasMaxLength(50);
+                entity.HasIndex(gc => gc.Code).IsUnique();
+                entity.HasOne(gc => gc.Course)
+                    .WithMany()
+                    .HasForeignKey(gc => gc.CourseId)
+                    .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(gc => gc.UsedByStudent)
+                    .WithMany()
+                    .HasForeignKey(gc => gc.UsedByStudentId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
         }
     }
