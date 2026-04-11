@@ -122,19 +122,17 @@ namespace src.Services.PaymentService.API.Controllers
                     return Redirect($"{successUrl}?orderId={response.OrderId}");
                 }
 
-                // Process the payment in the service
-                await _vnPayService.ProcessVnPayIpnAsync(response);
-
-                // Redirect based on result
-                var successUrlFinal = _configuration["FrontendUrls:PaymentSuccess"];
-                var failUrlFinal = _configuration["FrontendUrls:PaymentFail"];
-
+                // Call ProcessVnPayIpnAsync to update database (idempotent)
                 if (response.VnPayResponseCode == "00")
                 {
+                    await _vnPayService.ProcessVnPayIpnAsync(response);
+                    
+                    var successUrlFinal = _configuration["FrontendUrls:PaymentSuccess"];
                     return Redirect($"{successUrlFinal}?orderId={response.OrderId}");
                 }
                 else
                 {
+                    var failUrlFinal = _configuration["FrontendUrls:PaymentFail"];
                     return Redirect($"{failUrlFinal}?orderId={response.OrderId}&errorCode={response.VnPayResponseCode}");
                 }
             }
@@ -143,6 +141,50 @@ namespace src.Services.PaymentService.API.Controllers
                 _logger.LogError(ex, "VNPAY Return Error");
                 var failUrl = _configuration["FrontendUrls:PaymentFail"];
                 return Redirect($"{failUrl}?errorCode=UnknownError");
+            }
+        }
+
+        [HttpGet("vnpay-ipn")]
+        public async Task<IActionResult> VnPayIpnHandler()
+        {
+            try
+            {
+                var response = _vnPayService.PaymentExecute(Request.Query);
+
+                // 1. Check Checksum
+                if (!response.Success)
+                {
+                    return Ok(new { RspCode = "97", Message = "Invalid Checksum" });
+                }
+
+                // 2. Check Order tồn tại
+                var order = await _paymentRepository.GetOrderByIdAsync(response.OrderId);
+                if (order == null)
+                {
+                    return Ok(new { RspCode = "01", Message = "Order not found" });
+                }
+
+                // 3. Check Amount
+                if (order.TotalAmount != response.Amount)
+                {
+                    return Ok(new { RspCode = "04", Message = "Invalid Amount" });
+                }
+
+                // 4. Check trạng thái đơn hàng (Idempotency)
+                if (order.Status == "Paid")
+                {
+                    return Ok(new { RspCode = "02", Message = "Order already confirmed" });
+                }
+
+                // 5. Update Database
+                await _vnPayService.ProcessVnPayIpnAsync(response);
+
+                return Ok(new { RspCode = "00", Message = "Confirm Success" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "VNPAY IPN Error");
+                return Ok(new { RspCode = "99", Message = "Unknown Error" });
             }
         }
     }

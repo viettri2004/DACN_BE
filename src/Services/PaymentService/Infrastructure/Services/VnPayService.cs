@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Data.Context;
 using Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using PaymentService.Application.DTOs;
 using PaymentService.Application.Interfaces;
 using PaymentService.Infrastructure.Services.Helpers;
@@ -16,12 +17,14 @@ namespace PaymentService.Infrastructure.Services
         private readonly IConfiguration _config;
         private readonly AppDbContext _context;
         private readonly ILogger<VnPayService> _logger;
+        private readonly IDistributedCache _cache;
 
-        public VnPayService(IConfiguration config, AppDbContext context, ILogger<VnPayService> logger)
+        public VnPayService(IConfiguration config, AppDbContext context, ILogger<VnPayService> logger, IDistributedCache cache)
         {
             _config = config;
             _context = context;
             _logger = logger;
+            _cache = cache;
         }
 
         public string CreatePaymentUrl(HttpContext context, VnPayPaymentRequestModel model)
@@ -53,8 +56,6 @@ namespace PaymentService.Infrastructure.Services
 
             vnpay.AddRequestData("vnp_CurrCode", "VND");
 
-            // 3. Xử lý IP Address (Fix cứng nếu là localhost để tránh lỗi ::1)
-            // Bạn nên check lại hàm Utils.GetIpAddress, hoặc dùng logic dưới đây cho an toàn
             string clientIpAddress = Utils.GetIpAddress(context);
             if (clientIpAddress == "::1" || string.IsNullOrEmpty(clientIpAddress))
             {
@@ -126,82 +127,102 @@ namespace PaymentService.Infrastructure.Services
 
         public async Task ProcessVnPayIpnAsync(VnPayPaymentResponseModel response)
         {
-            var order = await _context.Orders
-                .Include(o => o.OrderItems)
-                .FirstOrDefaultAsync(o => o.Id == response.OrderId);
-
-            if (order == null)
+            await using var dbTransaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                _logger.LogError("Order not found for VnPay IPN: {OrderId}", response.OrderId);
-                throw new Exception("Order not found.");
-            }
+                var order = await _context.Orders
+                    .Include(o => o.OrderItems)
+                    .FirstOrDefaultAsync(o => o.Id == response.OrderId);
 
-            if (order.Status == "Paid")
-            {
-                _logger.LogInformation("Order {OrderId} already paid, skipping VnPay IPN processing", response.OrderId);
-                return;
-            }
-
-            var transaction = new PaymentTransaction
-            {
-                Id = Guid.NewGuid().ToString(),
-                OrderId = order.Id,
-                GatewayTransactionId = response.TransactionId,
-                GatewayToken = response.Token,
-                Amount = response.Amount,
-                PaymentStatus = response.VnPayResponseCode == "00" ? "Success" : "Failed",
-                TransactionDate = DateTime.UtcNow,
-                GatewayResponse = "VnPay",
-                ErrorCode = response.VnPayResponseCode
-            };
-            await _context.PaymentTransactions.AddAsync(transaction);
-
-            if (response.VnPayResponseCode == "00")
-            {
-                order.Status = "Paid";
-                order.PaidAt = DateTime.UtcNow;
-                order.PaymentMethod = "VnPay";
-
-                foreach (var item in order.OrderItems)
+                if (order == null)
                 {
-                    var enrollment = new Enrollment
-                    {
-                        Id = Guid.NewGuid().ToString(),
-                        CourseId = item.CourseId,
-                        StudentId = order.StudentId,
-                        OrderId = order.Id,
-                        Status = true,
-                        EnrolledAt = DateTime.UtcNow,
-                        ExpiresAt = DateTime.UtcNow.AddYears(100)
-                    };
-                    await _context.Enrollments.AddAsync(enrollment);
+                    _logger.LogError("Order not found for VnPay IPN: {OrderId}", response.OrderId);
+                    return;
                 }
 
-                // Remove purchased courses from cart
-                var cart = await _context.Carts
-                    .FirstOrDefaultAsync(c => c.StudentId == order.StudentId);
-
-                if (cart != null)
+                if (order.Status == "Paid")
                 {
-                    var courseIds = order.OrderItems.Select(oi => oi.CourseId).ToList();
-                    var cartItemsToRemove = await _context.CartItems
-                        .Where(ci => ci.CartId == cart.Id && courseIds.Contains(ci.CourseId))
-                        .ToListAsync();
+                    _logger.LogInformation("Order {OrderId} already paid, skipping VnPay IPN processing", response.OrderId);
+                    return;
+                }
 
-                    if (cartItemsToRemove.Any())
+                var paymentTransaction = new PaymentTransaction
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    OrderId = order.Id,
+                    GatewayTransactionId = response.TransactionId,
+                    GatewayToken = response.Token,
+                    Amount = response.Amount,
+                    PaymentStatus = response.VnPayResponseCode == "00" ? "Success" : "Failed",
+                    TransactionDate = DateTime.UtcNow,
+                    GatewayResponse = "VnPay",
+                    ErrorCode = response.VnPayResponseCode
+                };
+
+                await _context.PaymentTransactions.AddAsync(paymentTransaction);
+
+                if (response.VnPayResponseCode == "00")
+                {
+                    order.Status = "Paid";
+                    order.PaidAt = DateTime.UtcNow;
+                    order.PaymentMethod = "VnPay";
+
+                    var orderItems = order.OrderItems ?? new List<OrderItem>();
+                    foreach (var item in orderItems)
                     {
-                        _context.CartItems.RemoveRange(cartItemsToRemove);
-                        _logger.LogInformation("Removed {Count} items from cart for student {StudentId}", cartItemsToRemove.Count, order.StudentId);
+                        var enrollment = new Enrollment
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            CourseId = item.CourseId,
+                            StudentId = order.StudentId,
+                            OrderId = order.Id,
+                            Status = true,
+                            EnrolledAt = DateTime.UtcNow,
+                            ExpiresAt = DateTime.UtcNow.AddYears(100)
+                        };
+
+                        await _context.Enrollments.AddAsync(enrollment);
+                    }
+
+                    if (!string.IsNullOrEmpty(order.StudentId))
+                    {
+                        var courseIds = orderItems.Select(oi => oi.CourseId).ToList();
+                        if (courseIds.Any())
+                        {
+                            var cartItemsToRemove = await _context.CartItems
+                                .Where(ci => ci.Cart.StudentId == order.StudentId && courseIds.Contains(ci.CourseId))
+                                .ToListAsync();
+
+                            if (cartItemsToRemove.Any())
+                            {
+                                _context.CartItems.RemoveRange(cartItemsToRemove);
+                                _logger.LogInformation("Removed {Count} items from cart for student {StudentId}", cartItemsToRemove.Count, order.StudentId);
+                            }
+                        }
                     }
                 }
-            }
-            else
-            {
-                order.Status = "Failed";
-            }
+                else
+                {
+                    order.Status = "Failed";
+                }
 
-            await _context.SaveChangesAsync();
-            _logger.LogInformation("Processed VnPay IPN for Order {OrderId} with status {Status}", response.OrderId, order.Status);
+                await _context.SaveChangesAsync();
+                await dbTransaction.CommitAsync();
+
+                if (response.VnPayResponseCode == "00" && !string.IsNullOrEmpty(order.StudentId))
+                {
+                    await _cache.RemoveAsync($"cart:{order.StudentId}");
+                    _logger.LogInformation("Invalidated Redis cart cache for student {StudentId}", order.StudentId);
+                }
+
+                _logger.LogInformation("Processed VnPay IPN for Order {OrderId} with status {Status}", response.OrderId, order.Status);
+            }
+            catch (Exception ex)
+            {
+                await dbTransaction.RollbackAsync();
+                _logger.LogError(ex, "Error processing IPN for Order {OrderId}", response.OrderId);
+                throw;
+            }
         }
     }
 }

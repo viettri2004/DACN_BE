@@ -91,6 +91,11 @@ namespace LectureService.Infrastructure.Repositories
             }
         }
 
+        public async Task<ApiResponse> GetVideoUploadSignatureAsync(string lectureId, string instructorId)
+        {
+            return await _cloudinaryService.GetVideoUploadSignatureAsync(lectureId, instructorId);
+        }
+
         public async Task<ApiResponse> AddVideoToLectureAsync(string lectureId, IFormFile videoFile, string instructorId)
         {
             try
@@ -112,7 +117,7 @@ namespace LectureService.Infrastructure.Repositories
                 }
 
                 var allowedExtensions = new[] { ".mp4", ".avi", ".mov", ".wmv", ".flv", ".mkv" };
-                var extension = System.IO.Path.GetExtension(videoFile.FileName).ToLowerInvariant();
+                var extension = Path.GetExtension(videoFile.FileName).ToLowerInvariant();
                 if (!allowedExtensions.Contains(extension))
                 {
                     return new ApiResponse("BadRequest", _localizer["InvalidFileType"].Value, null, false);

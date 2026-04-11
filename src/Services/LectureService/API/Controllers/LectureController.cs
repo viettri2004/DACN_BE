@@ -88,6 +88,20 @@ namespace LectureService.API.Controllers
         }
 
         [Authorize(Policy = "Instructor")]
+        [HttpGet("video-upload-signature/{lectureId}")]
+        public async Task<ActionResult<ApiResponse>> GetVideoUploadSignature([FromRoute] string lectureId)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+
+            var response = await _lectureRepository.GetVideoUploadSignatureAsync(lectureId, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
         [HttpPost("add-video/{lectureId}")]
         public async Task<ActionResult<ApiResponse>> AddVideo([FromRoute] string lectureId, IFormFile videoFile)
         {

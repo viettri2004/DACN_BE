@@ -38,6 +38,7 @@ using Hangfire.Redis.StackExchange;
 using Microsoft.Extensions.Caching.Distributed;
 using Newtonsoft.Json.Serialization;
 using StackExchange.Redis;
+using Hangfire.Dashboard;
 
 const string BearerScheme = "Bearer";
 const string AdminRole = "Admin";
@@ -86,7 +87,7 @@ app.Run();
 static void ConfigureCache(IServiceCollection services, IConfiguration configuration)
 {
     string? redisConnectionString = Environment.GetEnvironmentVariable("REDIS_CONNECTION");
-    
+
     if (string.IsNullOrEmpty(redisConnectionString))
     {
         throw new InvalidOperationException("REDIS_CONNECTION environment variable is not set.");
@@ -97,7 +98,7 @@ static void ConfigureCache(IServiceCollection services, IConfiguration configura
     services.AddStackExchangeRedisCache(options =>
     {
         options.Configuration = redisConnectionString;
-        options.InstanceName = "Vietedu_APIcache:"; 
+        options.InstanceName = "Vietedu_APIcache:";
     });
 }
 
@@ -128,7 +129,7 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     services.AddScoped<ITokenService, TokenService>();
     services.AddScoped<IAccountRepository, AccountRepository>();
     services.AddScoped<DashboardRepository>();
-    services.AddScoped<IDashboardRepository>(provider => 
+    services.AddScoped<IDashboardRepository>(provider =>
         new CachedDashboardRepository(provider.GetRequiredService<DashboardRepository>(), provider.GetRequiredService<IDistributedCache>()));
     services.AddScoped<IAuthService, AuthService>();
     services.AddScoped<IEmailService, EmailService>();
@@ -197,7 +198,7 @@ static void ConfigureControllers(IServiceCollection services)
     services.AddControllers().AddNewtonsoftJson(options =>
     {
         options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
-        
+
         options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
     });
     services.AddEndpointsApiExplorer();
@@ -297,15 +298,18 @@ static void ConfigureAuthorization(IServiceCollection services)
 
 static void ConfigureMiddleware(WebApplication app)
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
+    if (app.Environment.IsDevelopment() || Environment.GetEnvironmentVariable("ENABLE_SWAGGER") == "true")
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Demo API V1");
-        c.RoutePrefix = "swagger";
-    });
-    
+        app.UseSwagger();
+        app.UseSwaggerUI(c =>
+        {
+            c.SwaggerEndpoint("/swagger/v1/swagger.json", "Demo API V1");
+            c.RoutePrefix = "swagger";
+        });
+    }
+
     app.UseRequestLocalization();
-    app.UseRouting(); // Phải có UseRouting trước UseCors và UseAuthentication
+    app.UseRouting();
 
     app.UseCors(x => x
         .WithOrigins("https://vietedu.id.vn")
@@ -315,8 +319,11 @@ static void ConfigureMiddleware(WebApplication app)
 
     app.UseAuthentication();
     app.UseAuthorization();
-    app.UseHangfireDashboard();
-    
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        Authorization = new[] { new MyHangfireAuthorizationFilter() }
+    });
+
     app.MapControllers();
     app.MapHub<NotificationHub>(NotificationHubPath);
 }
@@ -362,6 +369,15 @@ public class LocalizedStringSchemaFilter : ISchemaFilter
                 ["message"] = new Microsoft.OpenApi.Any.OpenApiString("Thành công / Success"),
                 ["data"] = new Microsoft.OpenApi.Any.OpenApiNull()
             };
+            Console.WriteLine("Applied LocalizedStringSchemaFilter to ApiResponse");
         }
+    }
+}
+
+public class MyHangfireAuthorizationFilter : IDashboardAuthorizationFilter
+{
+    public bool Authorize(DashboardContext context)
+    {
+        return true;
     }
 }

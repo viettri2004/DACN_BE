@@ -73,7 +73,7 @@ namespace CartService.Infrastructure.Repositories
             cartDto.TotalPrice = cartDto.Items.Sum(i => i.Price);
             await UpdateCartCache(studentId, cartDto);
 
-            ScheduleSyncJob(studentId);
+            await ScheduleSyncJobAsync(studentId);
 
             return new ApiResponse("Success", _localizer["ItemAddedToCart"].Value, null, true);
         }
@@ -92,7 +92,7 @@ namespace CartService.Infrastructure.Repositories
 
             await UpdateCartCache(studentId, cartDto);
 
-            ScheduleSyncJob(studentId);
+            await ScheduleSyncJobAsync(studentId);
 
             return new ApiResponse("Success", _localizer["ItemRemovedFromCart"].Value, null, true);
         }
@@ -205,9 +205,26 @@ namespace CartService.Infrastructure.Repositories
             await _context.SaveChangesAsync();
         }
 
-        private void ScheduleSyncJob(string studentId)
+        private async Task ScheduleSyncJobAsync(string studentId)
         {
-            _backgroundJobClient.Schedule<ICartRepository>(repo => repo.SyncCartToDbAsync(studentId), TimeSpan.FromMinutes(15));
+            string jobCacheKey = $"cart:syncjob:{studentId}";
+            var existingJobId = await _cache.GetStringAsync(jobCacheKey);
+
+            if (!string.IsNullOrEmpty(existingJobId))
+            {
+                _backgroundJobClient.Delete(existingJobId);
+            }
+
+            var newJobId = _backgroundJobClient.Schedule<ICartRepository>(repo => repo.SyncCartToDbAsync(studentId), TimeSpan.FromMinutes(15));
+
+            if (!string.IsNullOrEmpty(newJobId))
+            {
+                var cacheOptions = new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
+                };
+                await _cache.SetStringAsync(jobCacheKey, newJobId, cacheOptions);
+            }
         }
 
         private async Task UpdateCartCache(string studentId, CartDTO cartDto)
@@ -219,11 +236,6 @@ namespace CartService.Infrastructure.Repositories
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
             };
             await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response, JsonSettings.CamelCase), cacheOptions);
-        }
-
-        private async Task RemoveCartCache(string studentId)
-        {
-            await _cache.RemoveAsync($"cart:{studentId}");
         }
     }
 }

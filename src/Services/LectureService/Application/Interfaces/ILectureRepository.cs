@@ -13,8 +13,8 @@ namespace LectureService.Application.Interfaces
         Task<ApiResponse> CreateLectureAsync(CreateLectureDTO createLectureDTO, string instructorId);
         Task<ApiResponse> UpdateLectureAsync(string lectureId, UpdateLectureDTO updateLectureDTO, string instructorId);
         Task<ApiResponse> DeleteLectureAsync(string lectureId, string instructorId);
-        Task<ApiResponse> AddVideoToLectureAsync(string lectureId, IFormFile videoFile, string instructorId);
-        Task<ApiResponse> UpdateVideoAsync(string videoId, string name, IFormFile? videoFile, string instructorId);
+        Task<ApiResponse> GetVideoUploadSignatureAsync(string lectureId, string instructorId);
+        Task<ApiResponse> AddVideoToLectureAsync(string lectureId, IFormFile videoFile, string instructorId);        Task<ApiResponse> UpdateVideoAsync(string videoId, string name, IFormFile? videoFile, string instructorId);
         Task<ApiResponse> DeleteVideoAsync(string videoId, string instructorId);
         Task<ApiResponse> UpdateLectureOrdersAsync(List<UpdateOrderDTO> lectureOrders, string instructorId);
         Task<ApiResponse> GetVideoByIdAsync(string videoId);

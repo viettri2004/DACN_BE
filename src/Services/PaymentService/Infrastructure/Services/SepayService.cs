@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Data.Context;
 using Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using PaymentService.Application.DTOs;
 using PaymentService.Application.Interfaces;
 
@@ -15,11 +16,13 @@ namespace PaymentService.Infrastructure.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<SepayService> _logger;
+        private readonly IDistributedCache _cache;
 
-        public SepayService(AppDbContext context, ILogger<SepayService> logger)
+        public SepayService(AppDbContext context, ILogger<SepayService> logger, IDistributedCache cache)
         {
             _context = context;
             _logger = logger;
+            _cache = cache;
         }
 
         public async Task ProcessSepayWebhookAsync(SepayWebhookRequest request)
@@ -110,7 +113,8 @@ namespace PaymentService.Infrastructure.Services
             order.PaidAt = DateTime.UtcNow;
             order.PaymentMethod = "Sepay_MBBank";
 
-            foreach (var item in order.OrderItems)
+            var orderItems = order.OrderItems ?? new List<OrderItem>();
+            foreach (var item in orderItems)
             {
                 var enrollment = new Enrollment
                 {
@@ -125,7 +129,33 @@ namespace PaymentService.Infrastructure.Services
                 await _context.Enrollments.AddAsync(enrollment);
             }
 
+            // Remove items from cart
+            if (!string.IsNullOrEmpty(order.StudentId))
+            {
+                var courseIds = orderItems.Select(oi => oi.CourseId).ToList();
+                if (courseIds.Any())
+                {
+                    var cartItemsToRemove = await _context.CartItems
+                        .Where(ci => ci.Cart.StudentId == order.StudentId && courseIds.Contains(ci.CourseId))
+                        .ToListAsync();
+
+                    if (cartItemsToRemove.Any())
+                    {
+                        _context.CartItems.RemoveRange(cartItemsToRemove);
+                        _logger.LogInformation("Removed {Count} items from cart for student {StudentId} via Sepay", cartItemsToRemove.Count, order.StudentId);
+                    }
+                }
+            }
+
             await _context.SaveChangesAsync();
+
+            // Invalidate Redis cart cache
+            if (!string.IsNullOrEmpty(order.StudentId))
+            {
+                await _cache.RemoveAsync($"cart:{order.StudentId}");
+                _logger.LogInformation("Invalidated Redis cart cache for student {StudentId} via Sepay", order.StudentId);
+            }
+
             _logger.LogInformation("Kích hoạt thành công Order {OrderId} qua Sepay Webhook.", orderId);
         }
     }

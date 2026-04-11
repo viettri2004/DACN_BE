@@ -59,6 +59,7 @@ namespace src.Services.AccountService.API.Controllers
                 var cookieOptions = new CookieOptions
                 {
                     HttpOnly = true,
+                    Secure = true,
                     SameSite = SameSiteMode.Lax,
                     Expires = DateTime.UtcNow.AddDays(14)
                 };
