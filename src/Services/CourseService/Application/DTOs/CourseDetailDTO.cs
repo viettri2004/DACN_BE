@@ -22,7 +22,6 @@ namespace CourseService.Application.DTOs
         public string Level { get; set; } = "Dành cho mọi người";
         public string Access { get; set; } = "Truy cập trọn đời";
         public string Language { get; set; } = "Tiếng Việt";
-        public int Progress { get; set; }
         public DateTime UpdatedAt { get; set; }
         public List<LecturePreviewDTO> Lectures { get; set; } = new List<LecturePreviewDTO>();
     }

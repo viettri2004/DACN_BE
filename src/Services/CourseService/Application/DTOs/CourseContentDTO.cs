@@ -8,6 +8,7 @@ namespace CourseService.Application.DTOs
         public string Id { get; set; } = null!;
         public string Name { get; set; } = null!;
         public IEnumerable<string> Tags { get; set; } = new List<string>();
+        public int Progress { get; set; }
         public IEnumerable<LectureContentDTO> Lectures { get; set; } = new List<LectureContentDTO>();
     }
 
@@ -17,6 +18,7 @@ namespace CourseService.Application.DTOs
         public string Name { get; set; } = null!;
         public string Description { get; set; } = string.Empty;
         public int DisplayOrder { get; set; }
+        public bool IsCompleted { get; set; }
         public IEnumerable<VideoContentDTO> Videos { get; set; } = new List<VideoContentDTO>();
         public IEnumerable<DocumentContentDTO> Documents { get; set; } = new List<DocumentContentDTO>();
         public IEnumerable<QuizContentDTO> Quizzes { get; set; } = new List<QuizContentDTO>();

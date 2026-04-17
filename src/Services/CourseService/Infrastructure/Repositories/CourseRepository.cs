@@ -372,13 +372,7 @@ namespace CourseService.Infrastructure.Repositories
                 .SelectMany(l => l.LectureVideos.OrderBy(lv => lv.DisplayOrder))
                 .ToList();
 
-            int progressPercentage = 0;
-            if (isEnrolled && course.Lectures.Count > 0)
-            {
-                var completedLectures = await _context.StudentLectureProgresses
-                    .CountAsync(p => p.CourseId == courseId && p.StudentId == studentId && p.IsCompleted);
-                progressPercentage = (completedLectures * 100) / course.Lectures.Count;
-            }
+
 
             var totalInstructorCourses = await _context.Courses
                 .CountAsync(c => c.InstructorId == course.InstructorId);
@@ -403,7 +397,6 @@ namespace CourseService.Infrastructure.Repositories
                 Access = course.Access ?? _localizer["DefaultCourseAccess"].Value,
                 Language = course.Language ?? _localizer["DefaultCourseLanguage"].Value,
                 UpdatedAt = course.UpdatedAt,
-                Progress = progressPercentage,
                 Lectures = course.Lectures.OrderBy(l => l.DisplayOrder).Select(l => new LecturePreviewDTO
                 {
                     // Id = l.Id,
@@ -649,6 +642,23 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse("Forbidden", _localizer["ForbiddenCourseContent"].Value, null, false);
             }
 
+            var completedLectureIds = new HashSet<string>();
+            int progressPercentage = 0;
+            if (!string.IsNullOrEmpty(userId))
+            {
+                var progresses = await _context.StudentLectureProgresses
+                    .Where(p => p.CourseId == courseId && p.StudentId == userId && p.IsCompleted)
+                    .Select(p => p.LectureId)
+                    .ToListAsync();
+                completedLectureIds = new HashSet<string>(progresses);
+
+                var totalLectures = await _context.Lectures.CountAsync(l => l.CourseId == courseId);
+                if (totalLectures > 0)
+                {
+                    progressPercentage = (completedLectureIds.Count * 100) / totalLectures;
+                }
+            }
+
             var courseContent = await _context.Courses
                 .AsNoTracking()
                 .Where(c => c.Id == courseId)
@@ -656,6 +666,7 @@ namespace CourseService.Infrastructure.Repositories
                 {
                     Id = c.Id,
                     Name = c.Name,
+                    Progress = progressPercentage,
                     // Status = c.Status.ToString(),
                     Tags = c.CourseTags.Select(t => t.Tag.Name).ToList(),
                     Lectures = c.Lectures
@@ -666,6 +677,7 @@ namespace CourseService.Infrastructure.Repositories
                         Name = l.Name,
                         Description = l.Description,
                         DisplayOrder = l.DisplayOrder,
+                        IsCompleted = completedLectureIds.Contains(l.Id),
                         Videos = l.LectureVideos
                         .OrderBy(v => v.DisplayOrder)
                         .Select(v => new VideoContentDTO
