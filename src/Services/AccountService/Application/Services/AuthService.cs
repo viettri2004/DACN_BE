@@ -99,15 +99,21 @@ namespace AccountService.Application.Services
 
         public async Task<(ApiResponse response, string refreshToken)> LoginAsync(LoginDTO loginDTO)
         {
+            if (string.IsNullOrWhiteSpace(loginDTO.Username))
+                return (new ApiResponse("BadRequest", _localizer["RequiredField", "Username"].Value, null, false), "");
+
+            if (string.IsNullOrWhiteSpace(loginDTO.Password))
+                return (new ApiResponse("BadRequest", _localizer["RequiredField", "Password"].Value, null, false), "");
+
             var user = await _userManager.FindByNameAsync(loginDTO.Username);
             if (user == null)
-                return (new ApiResponse("Unauthorized", _localizer["InvalidUsernamePassword"], null, false), "");
+                return (new ApiResponse("Unauthorized", _localizer["InvalidUsernamePassword"].Value, null, false), "");
 
             if (!await _userManager.CheckPasswordAsync(user, loginDTO.Password))
-                return (new ApiResponse("Unauthorized", _localizer["InvalidUsernamePassword"], null, false), "");
+                return (new ApiResponse("Unauthorized", _localizer["InvalidUsernamePassword"].Value, null, false), "");
 
             if (user.IsBanned)
-                return (new ApiResponse("Unauthorized", _localizer["AccountLocked"], null, false), "");
+                return (new ApiResponse("Unauthorized", _localizer["AccountLocked"].Value, null, false), "");
 
             var roles = await _userManager.GetRolesAsync(user);
 
