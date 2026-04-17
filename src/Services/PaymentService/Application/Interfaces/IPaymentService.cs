@@ -10,5 +10,6 @@ namespace PaymentService.Application.Interfaces
         Task<ApiResponse> CreateVnPayPaymentAsync(CheckoutRequestDto checkoutRequest, string studentId);
         Task<ApiResponse> RedeemGiftCodeAsync(GiftCodeRedeemDto redeemDto, string studentId);
         Task<ApiResponse> CreateGiftCodeAsync(CreateGiftCodeDto createDto);
+        Task<ApiResponse> GetPaymentHistoryAsync(string studentId);
     }
 }

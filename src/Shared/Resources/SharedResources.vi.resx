@@ -610,4 +610,19 @@
   <data name="GoogleAuthUrlGenerated" xml:space="preserve">
     <value>Đã tạo URL xác thực Google.</value>
   </data>
+  <data name="PaymentHistoryRetrieved" xml:space="preserve">
+    <value>Lấy lịch sử thanh toán thành công.</value>
+  </data>
+  <data name="DefaultCourseLevel" xml:space="preserve">
+    <value>Dành cho mọi người</value>
+  </data>
+  <data name="DefaultCourseAccess" xml:space="preserve">
+    <value>Truy cập trọn đời</value>
+  </data>
+  <data name="DefaultCourseLanguage" xml:space="preserve">
+    <value>Tiếng Việt</value>
+  </data>
+  <data name="DefaultInstructorJobPosition" xml:space="preserve">
+    <value>Giảng viên</value>
+  </data>
 </root>

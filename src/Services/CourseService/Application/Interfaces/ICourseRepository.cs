@@ -28,5 +28,6 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> UpdateCommentAsync(string commentId, UpdateCommentDTO updateCommentDTO, string userId);
         Task<ApiResponse> DeleteCommentAsync(string commentId, string userId);
         Task<ApiResponse> ReplyToCommentAsync(AddReplyCommentDTO replyDTO, string userId);
+        Task<ApiResponse> MarkLectureCompletedAsync(string lectureId, string studentId);
     }
 }

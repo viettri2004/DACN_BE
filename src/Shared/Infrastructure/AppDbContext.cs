@@ -34,6 +34,7 @@ namespace Data.Context
         public DbSet<CourseRequest> CourseRequests { get; set; } = null!;
         public DbSet<Notification> Notifications { get; set; } = null!;
         public DbSet<GiftCode> GiftCodes { get; set; } = null!;
+        public DbSet<StudentLectureProgress> StudentLectureProgresses { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -297,6 +298,17 @@ namespace Data.Context
                     .WithMany()
                     .HasForeignKey(gc => gc.UsedByStudentId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<StudentLectureProgress>(entity =>
+            {
+                entity.HasKey(slp => slp.Id);
+                entity.HasOne(slp => slp.Course)
+                    .WithMany()
+                    .HasForeignKey(slp => slp.CourseId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(slp => new { slp.StudentId, slp.CourseId });
+                entity.HasIndex(slp => new { slp.StudentId, slp.LectureId }).IsUnique();
             });
         }
     }

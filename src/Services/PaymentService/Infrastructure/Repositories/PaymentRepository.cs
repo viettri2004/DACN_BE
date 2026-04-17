@@ -112,5 +112,16 @@ namespace PaymentService.Infrastructure.Repositories
                 _context.CartItems.RemoveRange(cartItemsToRemove);
             }
         }
+
+        public async Task<List<Order>> GetOrdersByStudentIdAsync(string studentId)
+        {
+            return await _context.Orders
+                .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Course)
+                .Include(o => o.PaymentTransactions)
+                .Where(o => o.StudentId == studentId)
+                .OrderByDescending(o => o.CreatedAt)
+                .ToListAsync();
+        }
     }
 }

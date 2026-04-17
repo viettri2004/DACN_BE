@@ -610,4 +610,19 @@
   <data name="GoogleAuthUrlGenerated" xml:space="preserve">
     <value>Google auth URL generated.</value>
   </data>
+  <data name="PaymentHistoryRetrieved" xml:space="preserve">
+    <value>Payment history retrieved successfully.</value>
+  </data>
+  <data name="DefaultCourseLevel" xml:space="preserve">
+    <value>For everyone</value>
+  </data>
+  <data name="DefaultCourseAccess" xml:space="preserve">
+    <value>Lifetime access</value>
+  </data>
+  <data name="DefaultCourseLanguage" xml:space="preserve">
+    <value>Vietnamese</value>
+  </data>
+  <data name="DefaultInstructorJobPosition" xml:space="preserve">
+    <value>Instructor</value>
+  </data>
 </root>

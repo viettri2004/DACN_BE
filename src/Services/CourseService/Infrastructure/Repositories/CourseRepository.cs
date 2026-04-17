@@ -372,6 +372,17 @@ namespace CourseService.Infrastructure.Repositories
                 .SelectMany(l => l.LectureVideos.OrderBy(lv => lv.DisplayOrder))
                 .ToList();
 
+            int progressPercentage = 0;
+            if (isEnrolled && course.Lectures.Count > 0)
+            {
+                var completedLectures = await _context.StudentLectureProgresses
+                    .CountAsync(p => p.CourseId == courseId && p.StudentId == studentId && p.IsCompleted);
+                progressPercentage = (completedLectures * 100) / course.Lectures.Count;
+            }
+
+            var totalInstructorCourses = await _context.Courses
+                .CountAsync(c => c.InstructorId == course.InstructorId);
+
             var courseDetailDto = new CourseDetailDTO
             {
                 Name = course.Name,
@@ -379,6 +390,8 @@ namespace CourseService.Infrastructure.Repositories
                 Price = course.Price,
                 ImageUrl = course.ImageUrl,
                 InstructorName = course.Instructor.FullName,
+                InstructorJobPosition = course.Instructor.JobPosition ?? _localizer["DefaultInstructorJobPosition"].Value,
+                InstructorTotalCourses = totalInstructorCourses,
                 Rating = course.Enrollments.SelectMany(e => e.Comments).Any(cm => cm.Type == CommentType.Review)
                         ? course.Enrollments.SelectMany(e => e.Comments).Where(cm => cm.Type == CommentType.Review).Average(cm => cm.Rate)
                         : 0,
@@ -386,6 +399,11 @@ namespace CourseService.Infrastructure.Repositories
                 TotalStudents = course.Enrollments.Count,
                 TotalHours = Math.Round(totalHours, 1),
                 IsEnrolled = isEnrolled,
+                Level = course.Level ?? _localizer["DefaultCourseLevel"].Value,
+                Access = course.Access ?? _localizer["DefaultCourseAccess"].Value,
+                Language = course.Language ?? _localizer["DefaultCourseLanguage"].Value,
+                UpdatedAt = course.UpdatedAt,
+                Progress = progressPercentage,
                 Lectures = course.Lectures.OrderBy(l => l.DisplayOrder).Select(l => new LecturePreviewDTO
                 {
                     // Id = l.Id,
@@ -542,7 +560,9 @@ namespace CourseService.Infrastructure.Repositories
                     Price = e.Order.OrderItems
                         .Where(oi => oi.CourseId == e.Course.Id)
                         .Sum(oi => (decimal?)oi.Price) ?? 0,
-                    // Status = e.Course.Status.ToString()
+                    Progress = _context.Lectures.Count(l => l.CourseId == e.Course.Id) == 0 ? 0 :
+                               (_context.StudentLectureProgresses.Count(p => p.CourseId == e.Course.Id && p.StudentId == studentId && p.IsCompleted) * 100) /
+                               _context.Lectures.Count(l => l.CourseId == e.Course.Id)
                 })
                 .ToListAsync();
 
@@ -1044,6 +1064,45 @@ namespace CourseService.Infrastructure.Repositories
             // At least remove the guest view. Student-specific views will expire naturally
             // unless we use a library that supports tag-based or pattern-based invalidation.
             await _cache.RemoveAsync($"course:detail:{courseId}:guest");
+        }
+        
+
+        public async Task<ApiResponse> MarkLectureCompletedAsync(string lectureId, string studentId)
+        {
+            try
+            {
+                var lecture = await _context.Lectures.AsNoTracking().FirstOrDefaultAsync(l => l.Id == lectureId);
+                if (lecture == null)
+                    return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+
+                var progress = await _context.StudentLectureProgresses
+                    .FirstOrDefaultAsync(p => p.LectureId == lectureId && p.StudentId == studentId);
+
+                if (progress == null)
+                {
+                    progress = new StudentLectureProgress
+                    {
+                        StudentId = studentId,
+                        LectureId = lectureId,
+                        CourseId = lecture.CourseId,
+                        IsCompleted = true,
+                        CompletedAt = DateTime.UtcNow
+                    };
+                    _context.StudentLectureProgresses.Add(progress);
+                }
+                else if (!progress.IsCompleted)
+                {
+                    progress.IsCompleted = true;
+                    progress.CompletedAt = DateTime.UtcNow;
+                }
+
+                await _context.SaveChangesAsync();
+                return new ApiResponse("Success", _localizer["Success"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
         }
     }
 }

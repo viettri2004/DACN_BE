@@ -271,5 +271,19 @@ namespace CourseService.API.Controllers
             var response = await _courseRepository.ReplyToCommentAsync(replyDTO, userId);
             return response.ToActionResult();
         }
+
+        [Authorize(Policy = "Student")]
+        [HttpPost("mark-completed/{lectureId}")]
+        public async Task<ActionResult<ApiResponse>> MarkLectureCompleted([FromRoute] string lectureId)
+        {
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+
+            var response = await _courseRepository.MarkLectureCompletedAsync(lectureId, studentId);
+            return response.ToActionResult();
+        }
     }
 }

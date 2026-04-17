@@ -10,6 +10,7 @@ using Shared.Application.Extension;
 using src.Shared.Domain.Entities;
 using Microsoft.Extensions.Localization;
 using Shared.Domain.Entities;
+using src.Shared.Resources;
 
 namespace CartService.API.Controllers
 {

@@ -12,11 +12,18 @@ namespace CourseService.Application.DTOs
         public decimal Price { get; set; }
         public string ImageUrl { get; set; } = null!;
         public string InstructorName { get; set; } = null!;
+        public string InstructorJobPosition { get; set; } = null!;
+        public int InstructorTotalCourses { get; set; }
         public double Rating { get; set; }
         public int TotalReviews { get; set; }
         public int TotalStudents { get; set; }
         public double TotalHours { get; set; }
         public bool IsEnrolled { get; set; }
+        public string Level { get; set; } = "Dành cho mọi người";
+        public string Access { get; set; } = "Truy cập trọn đời";
+        public string Language { get; set; } = "Tiếng Việt";
+        public int Progress { get; set; }
+        public DateTime UpdatedAt { get; set; }
         public List<LecturePreviewDTO> Lectures { get; set; } = new List<LecturePreviewDTO>();
     }
 

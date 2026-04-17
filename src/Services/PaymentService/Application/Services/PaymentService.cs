@@ -293,5 +293,38 @@ namespace PaymentService.Application.Services
                 return new ApiResponse("Error", ex.Message, null, false);
             }
         }
+
+        public async Task<ApiResponse> GetPaymentHistoryAsync(string studentId)
+        {
+            try
+            {
+                var orders = await _paymentRepository.GetOrdersByStudentIdAsync(studentId);
+                var history = new List<PaymentHistoryDto>();
+
+                foreach (var order in orders)
+                {
+                    string courseName = order.OrderItems.FirstOrDefault()?.Course?.Name ?? "Nạp tiền ví/Unknown";
+                    string transactionId = order.PaymentTransactions.FirstOrDefault()?.GatewayTransactionId ?? order.Id;
+                    
+                    history.Add(new PaymentHistoryDto
+                    {
+                        Id = order.Id,
+                        Course = order.PaymentMethod != null && order.PaymentMethod.StartsWith("GiftCode") ? "Mã Khuyến Mãi" : courseName,
+                        Amount = order.TotalAmount,
+                        Currency = "VND",
+                        Date = order.CreatedAt,
+                        Status = order.Status == "Paid" ? "Completed" : (order.Status == "Pending" ? "Pending" : "Failed"),
+                        Method = order.PaymentMethod ?? "Unknown",
+                        TransactionId = transactionId
+                    });
+                }
+
+                return new ApiResponse("Success", _localizer["PaymentHistoryRetrieved"].Value, history, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
     }
 }

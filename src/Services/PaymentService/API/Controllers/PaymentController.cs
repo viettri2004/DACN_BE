@@ -215,5 +215,19 @@ namespace src.Services.PaymentService.API.Controllers
             var response = await _paymentService.CreateGiftCodeAsync(createDto);
             return response.ToActionResult();
         }
+
+        [Authorize]
+        [HttpGet("history")]
+        public async Task<ActionResult<ApiResponse>> GetPaymentHistory()
+        {
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return Unauthorized(new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false));
+            }
+
+            var response = await _paymentService.GetPaymentHistoryAsync(studentId);
+            return response.ToActionResult();
+        }
     }
 }

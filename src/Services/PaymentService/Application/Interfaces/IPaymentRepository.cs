@@ -20,5 +20,6 @@ namespace PaymentService.Application.Interfaces
         Task AddEnrollmentAsync(Enrollment enrollment);
         Task<Course?> GetCourseByIdAsync(string courseId);
         Task RemoveCartItemsAsync(string studentId, List<string> courseIds);
+        Task<List<Order>> GetOrdersByStudentIdAsync(string studentId);
     }
 }

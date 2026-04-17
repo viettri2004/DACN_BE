@@ -18,6 +18,10 @@ namespace Entities
         public string Description { get; set; } = null!;
         public CourseStatus Status { get; set; } = CourseStatus.Private;
         public DateTime CreateTime { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public string Level { get; set; } = "All Levels";
+        public string Language { get; set; } = "Vietnamese";
+        public string Access { get; set; } = "Lifetime";
         public string InstructorId { get; set; } = null!;
         public Instructor Instructor { get; set; } = null!;
         public ICollection<CourseTag> CourseTags { get; set; } = new List<CourseTag>();
