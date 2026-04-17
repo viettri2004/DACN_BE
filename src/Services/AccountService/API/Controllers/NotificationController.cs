@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.Application.Extension;
 using src.Shared.Domain.Entities;
+using Microsoft.Extensions.Localization;
+using Shared.Domain.Entities;
 
 namespace AccountService.API.Controllers
 {
@@ -13,10 +15,12 @@ namespace AccountService.API.Controllers
     public class NotificationController : ControllerBase
     {
         private readonly INotificationRepository _notificationRepository;
+        private readonly IStringLocalizer<SharedResources> _localizer;
 
-        public NotificationController(INotificationRepository notificationRepository)
+        public NotificationController(INotificationRepository notificationRepository, IStringLocalizer<SharedResources> localizer)
         {
             _notificationRepository = notificationRepository;
+            _localizer = localizer;
         }
 
         [Authorize]
@@ -27,7 +31,7 @@ namespace AccountService.API.Controllers
 
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
             var response = await _notificationRepository.GetUserNotificationsAsync(userId);
@@ -49,7 +53,7 @@ namespace AccountService.API.Controllers
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
             var response = await _notificationRepository.MarkAllAsReadAsync(userId);

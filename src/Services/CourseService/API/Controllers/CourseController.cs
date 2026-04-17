@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.Application.Extension;
 using src.Shared.Domain.Entities;
+using Microsoft.Extensions.Localization;
+using Shared.Domain.Entities;
+using src.Shared.Resources;
 
 namespace CourseService.API.Controllers
 {
@@ -17,11 +20,13 @@ namespace CourseService.API.Controllers
     {
         private readonly ICourseRepository _courseRepository;
         private readonly ILuceneSearchService _searchService;
+        private readonly IStringLocalizer<SharedResources> _localizer;
 
-        public CourseController(ICourseRepository courseRepository, ILuceneSearchService searchService)
+        public CourseController(ICourseRepository courseRepository, ILuceneSearchService searchService, IStringLocalizer<SharedResources> localizer)
         {
             _courseRepository = courseRepository;
             _searchService = searchService;
+            _localizer = localizer;
         }
 
         [Authorize]
@@ -31,7 +36,7 @@ namespace CourseService.API.Controllers
             var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(studentId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
             var response = await _courseRepository.GetCoursesAsync(queryParams, studentId);
             return response.ToActionResult();
@@ -44,7 +49,7 @@ namespace CourseService.API.Controllers
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
             var response = await _courseRepository.CreateCourseAsync(createCourseDTO, instructorId);
 
@@ -58,7 +63,7 @@ namespace CourseService.API.Controllers
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
             var response = await _courseRepository.UpdateCourseAsync(courseId, updateCourseDTO, instructorId);
             return response.ToActionResult();
@@ -71,7 +76,7 @@ namespace CourseService.API.Controllers
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
             var response = await _courseRepository.GetCoursesByInstructorAsync(instructorId);
             return response.ToActionResult();
@@ -104,7 +109,7 @@ namespace CourseService.API.Controllers
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
             var response = await _courseRepository.UpdateCommentAsync(commentId, updateCommentDTO, userId);
             return response.ToActionResult();
@@ -117,7 +122,7 @@ namespace CourseService.API.Controllers
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
             var response = await _courseRepository.DeleteCommentAsync(commentId, userId);
             return response.ToActionResult();
@@ -139,7 +144,7 @@ namespace CourseService.API.Controllers
                 c.Type == "id")?.Value;
 
             if (string.IsNullOrEmpty(studentId))
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
 
             var response = await _courseRepository.GetCoursesByStudentIdAsync(studentId);
 
@@ -153,7 +158,7 @@ namespace CourseService.API.Controllers
             var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(studentId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
             var response = await _searchService.SearchCoursesAsync(queryParams, studentId);
             return response.ToActionResult();
@@ -176,7 +181,7 @@ namespace CourseService.API.Controllers
 
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
             var response = await _courseRepository.GetCourseContentAsync(courseId, userId);
@@ -190,7 +195,7 @@ namespace CourseService.API.Controllers
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
             var response = await _courseRepository.DeleteCourseAsync(courseId, instructorId);
             return response.ToActionResult();
@@ -203,7 +208,7 @@ namespace CourseService.API.Controllers
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
             var response = await _courseRepository.CreateCourseRequestAsync(courseId, instructorId);
             return response.ToActionResult();
@@ -248,7 +253,7 @@ namespace CourseService.API.Controllers
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
             var response = await _courseRepository.AddCommentAsync(addCommentDTO, userId);
             return response.ToActionResult();
@@ -261,7 +266,7 @@ namespace CourseService.API.Controllers
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
             var response = await _courseRepository.ReplyToCommentAsync(replyDTO, userId);
             return response.ToActionResult();

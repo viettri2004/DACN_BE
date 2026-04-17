@@ -48,6 +48,27 @@ namespace AccountService.Application.Services
 
         public async Task<ApiResponse> Register(RegisterDTO RegisterDTO)
         {
+            if (string.IsNullOrWhiteSpace(RegisterDTO.UserName))
+                return new ApiResponse("BadRequest", _localizer["RequiredField", "Username"].Value, null, false);
+            
+            if (string.IsNullOrWhiteSpace(RegisterDTO.Email))
+                return new ApiResponse("BadRequest", _localizer["RequiredField", "Email"].Value, null, false);
+
+            if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(RegisterDTO.Email))
+                return new ApiResponse("BadRequest", _localizer["InvalidEmailFormat"].Value, null, false);
+
+            if (string.IsNullOrWhiteSpace(RegisterDTO.Password))
+                return new ApiResponse("BadRequest", _localizer["RequiredField", "Password"].Value, null, false);
+
+            if (string.IsNullOrWhiteSpace(RegisterDTO.FullName))
+                return new ApiResponse("BadRequest", _localizer["RequiredField", "FullName"].Value, null, false);
+
+            if (string.IsNullOrWhiteSpace(RegisterDTO.PhoneNumber))
+                return new ApiResponse("BadRequest", _localizer["RequiredField", "PhoneNumber"].Value, null, false);
+
+            if (!System.Text.RegularExpressions.Regex.IsMatch(RegisterDTO.PhoneNumber, @"^\d{10}$"))
+                return new ApiResponse("BadRequest", _localizer["InvalidFormat", "PhoneNumber"].Value, null, false);
+
             if (await _userManager.FindByNameAsync(RegisterDTO.UserName) != null)
                 return new ApiResponse("Conflict", _localizer["UsernameAlreadyExists"].Value, null, false);
 

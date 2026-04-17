@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.Application.Extension;
 using src.Shared.Domain.Entities;
+using Microsoft.Extensions.Localization;
+using Shared.Domain.Entities;
 
 namespace CartService.API.Controllers
 {
@@ -16,9 +18,12 @@ namespace CartService.API.Controllers
     public class CartController : ControllerBase
     {
         private readonly ICartRepository _cartRepository;
-        public CartController(ICartRepository cartRepository)
+        private readonly IStringLocalizer<SharedResources> _localizer;
+
+        public CartController(ICartRepository cartRepository, IStringLocalizer<SharedResources> localizer)
         {
             _cartRepository = cartRepository;
+            _localizer = localizer;
         }
 
         [Authorize(Policy = "Student")]
@@ -29,7 +34,7 @@ namespace CartService.API.Controllers
 
             if (string.IsNullOrEmpty(studentId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
             var response = await _cartRepository.GetAllItemsAsync(studentId);
@@ -45,7 +50,7 @@ namespace CartService.API.Controllers
 
             if (string.IsNullOrEmpty(studentId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
             var response = await _cartRepository.AddToCartAsync(addToCartDTO.CourseId, studentId);
@@ -61,7 +66,7 @@ namespace CartService.API.Controllers
 
             if (string.IsNullOrEmpty(studentId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
             var response = await _cartRepository.RemoveFromCartAsync(courseId, studentId);

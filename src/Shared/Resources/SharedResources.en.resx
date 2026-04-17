@@ -574,4 +574,40 @@
   <data name="CommentDeleted" xml:space="preserve">
     <value>Comment deleted successfully.</value>
   </data>
+  <data name="OwnedCoursesConflict" xml:space="preserve">
+    <value>You already own some courses in this order.</value>
+  </data>
+  <data name="BankPaymentCreated" xml:space="preserve">
+    <value>Bank payment created successfully.</value>
+  </data>
+  <data name="VnPayPaymentCreated" xml:space="preserve">
+    <value>VnPay payment created successfully.</value>
+  </data>
+  <data name="GiftCodeExists" xml:space="preserve">
+    <value>Gift code already exists.</value>
+  </data>
+  <data name="GiftCodeCreated" xml:space="preserve">
+    <value>Gift code created successfully.</value>
+  </data>
+  <data name="InvalidGiftCode" xml:space="preserve">
+    <value>Invalid or non-existent gift code.</value>
+  </data>
+  <data name="GiftCodeUsed" xml:space="preserve">
+    <value>Gift code has already been used.</value>
+  </data>
+  <data name="GiftCodeExpired" xml:space="preserve">
+    <value>Gift code has expired.</value>
+  </data>
+  <data name="SelectCourseForGiftCode" xml:space="preserve">
+    <value>Please select a course to apply the gift code.</value>
+  </data>
+  <data name="OwnedCourseConflict" xml:space="preserve">
+    <value>You already own this course.</value>
+  </data>
+  <data name="GiftCodeRedeemedSuccess" xml:space="preserve">
+    <value>You have successfully redeemed the gift code for the course: {0}</value>
+  </data>
+  <data name="GoogleAuthUrlGenerated" xml:space="preserve">
+    <value>Google auth URL generated.</value>
+  </data>
 </root>

@@ -9,6 +9,9 @@ using PaymentService.Application.Interfaces;
 using src.Shared.Domain.Entities;
 
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Localization;
+using Shared.Domain.Entities;
+using src.Shared.Resources;
 
 namespace PaymentService.Application.Services
 {
@@ -18,17 +21,20 @@ namespace PaymentService.Application.Services
         private readonly IVnPayService _vnPayService;
         private readonly BankConfig _bankConfig;
         private readonly IDistributedCache _cache;
+        private readonly IStringLocalizer<SharedResources> _localizer;
 
         public PaymentService(
             IPaymentRepository paymentRepository,
             IVnPayService vnPayService,
             IConfiguration configuration,
-            IDistributedCache cache)
+            IDistributedCache cache,
+            IStringLocalizer<SharedResources> localizer)
         {
             _paymentRepository = paymentRepository;
             _vnPayService = vnPayService;
             _bankConfig = configuration.GetSection("Bank").Get<BankConfig>() ?? new BankConfig();
             _cache = cache;
+            _localizer = localizer;
         }
 
         public async Task<ApiResponse> CreateBankPaymentAsync(CheckoutRequestDto checkoutRequest, string studentId)
@@ -41,7 +47,7 @@ namespace PaymentService.Application.Services
                 if (existingEnrollments.Any())
                 {
                     var ownedCourseIds = existingEnrollments.Select(e => e.CourseId).ToList();
-                    return new ApiResponse("Conflict", "Bạn đã sở hữu một số khóa học trong đơn hàng này.", new { ownedCourses = ownedCourseIds }, false);
+                    return new ApiResponse("Conflict", _localizer["OwnedCoursesConflict"].Value, new { ownedCourses = ownedCourseIds }, false);
                 }
 
                 var totalAmount = courses.Sum(c => c.Price);
@@ -91,7 +97,7 @@ namespace PaymentService.Application.Services
                     QrCodeBase64 = qrCodeBase64
                 };
 
-                return new ApiResponse("Success", "Bank payment created successfully", responseData, true);
+                return new ApiResponse("Success", _localizer["BankPaymentCreated"].Value, responseData, true);
             }
             catch (Exception ex)
             {
@@ -109,7 +115,7 @@ namespace PaymentService.Application.Services
                 if (existingEnrollments.Any())
                 {
                     var ownedCourseIds = existingEnrollments.Select(e => e.CourseId).ToList();
-                    return new ApiResponse("Conflict", "Bạn đã sở hữu một số khóa học trong đơn hàng này.", new { ownedCourses = ownedCourseIds }, false);
+                    return new ApiResponse("Conflict", _localizer["OwnedCoursesConflict"].Value, new { ownedCourses = ownedCourseIds }, false);
                 }
 
                 var totalAmount = courses.Sum(c => c.Price);
@@ -148,7 +154,7 @@ namespace PaymentService.Application.Services
 
                 var payUrl = _vnPayService.CreatePaymentUrl(null, vnPayRequest);
 
-                return new ApiResponse("Success", "VnPay payment created successfully", new { payUrl }, true);
+                return new ApiResponse("Success", _localizer["VnPayPaymentCreated"].Value, new { payUrl }, true);
             }
             catch (Exception ex)
             {
@@ -163,7 +169,7 @@ namespace PaymentService.Application.Services
                 var existingCode = await _paymentRepository.GetGiftCodeByCodeAsync(createDto.Code);
                 if (existingCode != null)
                 {
-                    return new ApiResponse("Conflict", "Mã quà tặng đã tồn tại.", null, false);
+                    return new ApiResponse("Conflict", _localizer["GiftCodeExists"].Value, null, false);
                 }
 
                 var giftCode = new GiftCode
@@ -180,7 +186,7 @@ namespace PaymentService.Application.Services
                 await _paymentRepository.AddGiftCodeAsync(giftCode);
                 await _paymentRepository.SaveChangesAsync();
 
-                return new ApiResponse("Success", "Mã quà tặng đã được tạo thành công.", giftCode, true);
+                return new ApiResponse("Success", _localizer["GiftCodeCreated"].Value, giftCode, true);
             }
             catch (Exception ex)
             {
@@ -196,36 +202,36 @@ namespace PaymentService.Application.Services
 
                 if (giftCode == null || !giftCode.IsActive)
                 {
-                    return new ApiResponse("NotFound", "Mã quà tặng không hợp lệ hoặc không tồn tại.", null, false);
+                    return new ApiResponse("NotFound", _localizer["InvalidGiftCode"].Value, null, false);
                 }
 
                 if (giftCode.IsUsed)
                 {
-                    return new ApiResponse("BadRequest", "Mã quà tặng đã được sử dụng.", null, false);
+                    return new ApiResponse("BadRequest", _localizer["GiftCodeUsed"].Value, null, false);
                 }
 
                 if (giftCode.ExpiryDate.HasValue && giftCode.ExpiryDate.Value < DateTime.UtcNow)
                 {
-                    return new ApiResponse("BadRequest", "Mã quà tặng đã hết hạn.", null, false);
+                    return new ApiResponse("BadRequest", _localizer["GiftCodeExpired"].Value, null, false);
                 }
 
                 string? courseIdToRedeem = giftCode.CourseId ?? redeemDto.CourseId;
 
                 if (string.IsNullOrEmpty(courseIdToRedeem))
                 {
-                    return new ApiResponse("BadRequest", "Vui lòng chọn khóa học để áp dụng mã quà tặng.", null, false);
+                    return new ApiResponse("BadRequest", _localizer["SelectCourseForGiftCode"].Value, null, false);
                 }
 
                 var course = await _paymentRepository.GetCourseByIdAsync(courseIdToRedeem);
                 if (course == null)
                 {
-                    return new ApiResponse("NotFound", "Khóa học không tồn tại.", null, false);
+                    return new ApiResponse("NotFound", _localizer["CourseNotFound"].Value, null, false);
                 }
 
                 var existingEnrollment = await _paymentRepository.GetEnrollmentsByStudentAndCoursesAsync(studentId, new List<string> { courseIdToRedeem });
                 if (existingEnrollment.Any())
                 {
-                    return new ApiResponse("Conflict", "Bạn đã sở hữu khóa học này.", null, false);
+                    return new ApiResponse("Conflict", _localizer["OwnedCourseConflict"].Value, null, false);
                 }
 
                 // Mark as used
@@ -280,7 +286,7 @@ namespace PaymentService.Application.Services
                 // Clear cart from Redis cache
                 await _cache.RemoveAsync($"cart:{studentId}");
 
-                return new ApiResponse("Success", $"Bạn đã đổi mã quà tặng thành công cho khóa học: {course.Name}", null, true);
+                return new ApiResponse("Success", _localizer["GiftCodeRedeemedSuccess", course.Name].Value, null, true);
             }
             catch (Exception ex)
             {

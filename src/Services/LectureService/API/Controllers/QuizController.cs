@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.Application.Extension;
 using src.Shared.Domain.Entities;
+using Microsoft.Extensions.Localization;
+using Shared.Domain.Entities;
+using src.Shared.Resources;
 
 namespace LectureService.API.Controllers
 {
@@ -14,10 +17,12 @@ namespace LectureService.API.Controllers
     public class QuizController : ControllerBase
     {
         private readonly IQuizRepository _quizRepository;
+        private readonly IStringLocalizer<SharedResources> _localizer;
 
-        public QuizController(IQuizRepository quizRepository)
+        public QuizController(IQuizRepository quizRepository, IStringLocalizer<SharedResources> localizer)
         {
             _quizRepository = quizRepository;
+            _localizer = localizer;
         }
 
         [Authorize(Policy = "Instructor")]
@@ -27,7 +32,7 @@ namespace LectureService.API.Controllers
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
             var response = await _quizRepository.CreateQuizAsync(createQuizDTO, instructorId);
             return response.ToActionResult();
@@ -40,7 +45,7 @@ namespace LectureService.API.Controllers
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
             var response = await _quizRepository.UpdateQuizAsync(quizId, updateQuizDTO, instructorId);
             return response.ToActionResult();
@@ -53,7 +58,7 @@ namespace LectureService.API.Controllers
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
             var response = await _quizRepository.DeleteQuizAsync(quizId, instructorId);
             return response.ToActionResult();
@@ -73,7 +78,7 @@ namespace LectureService.API.Controllers
             var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(studentId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             } 
 
             var response = await _quizRepository.StartQuizAttemptAsync(quizId, studentId);
@@ -87,7 +92,7 @@ namespace LectureService.API.Controllers
             var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(studentId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
             var response = await _quizRepository.SubmitQuizAttemptAsync(submissionDTO, studentId);
@@ -100,7 +105,7 @@ namespace LectureService.API.Controllers
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(userId))
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
 
             var response = await _quizRepository.GetQuizResultAsync(attemptId, userId);
             return response.ToActionResult();
@@ -112,7 +117,7 @@ namespace LectureService.API.Controllers
         {
             var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(studentId))
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
 
             var response = await _quizRepository.GetStudentQuizAttemptsAsync(quizId, studentId);
             return response.ToActionResult();

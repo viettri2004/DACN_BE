@@ -8,6 +8,9 @@ using PaymentService.Application.DTOs;
 using PaymentService.Application.Interfaces;
 using Shared.Application.Extension;
 using src.Shared.Domain.Entities;
+using Microsoft.Extensions.Localization;
+using Shared.Domain.Entities;
+using src.Shared.Resources;
 
 namespace src.Services.PaymentService.API.Controllers
 {
@@ -21,6 +24,7 @@ namespace src.Services.PaymentService.API.Controllers
         private readonly IVnPayService _vnPayService;
         private readonly IPaymentRepository _paymentRepository;
         private readonly IConfiguration _configuration;
+        private readonly IStringLocalizer<SharedResources> _localizer;
 
         public PaymentController(
             IPaymentService paymentService,
@@ -28,7 +32,8 @@ namespace src.Services.PaymentService.API.Controllers
             ISepayService sepayService,
             IVnPayService vnPayService,
             IPaymentRepository paymentRepository,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IStringLocalizer<SharedResources> localizer)
         {
             _paymentService = paymentService;
             _logger = logger;
@@ -36,6 +41,7 @@ namespace src.Services.PaymentService.API.Controllers
             _vnPayService = vnPayService;
             _paymentRepository = paymentRepository;
             _configuration = configuration;
+            _localizer = localizer;
         }
 
 
@@ -46,7 +52,7 @@ namespace src.Services.PaymentService.API.Controllers
             var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(studentId))
             {
-                return Unauthorized(new ApiResponse("Unauthorized", "User not authenticated", null, false));
+                return Unauthorized(new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false));
             }
 
             var response = await _paymentService.CreateBankPaymentAsync(checkoutRequest, studentId);
@@ -79,7 +85,7 @@ namespace src.Services.PaymentService.API.Controllers
             var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(studentId))
             {
-                return Unauthorized(new ApiResponse("Unauthorized", "User not authenticated", null, false));
+                return Unauthorized(new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false));
             }
 
             var response = await _paymentService.CreateVnPayPaymentAsync(checkoutRequest, studentId);
@@ -195,7 +201,7 @@ namespace src.Services.PaymentService.API.Controllers
             var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(studentId))
             {
-                return Unauthorized(new ApiResponse("Unauthorized", "User not authenticated", null, false));
+                return Unauthorized(new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false));
             }
 
             var response = await _paymentService.RedeemGiftCodeAsync(redeemDto, studentId);

@@ -574,4 +574,40 @@
   <data name="CommentDeleted" xml:space="preserve">
     <value>Bình luận đã được xóa thành công.</value>
   </data>
+  <data name="OwnedCoursesConflict" xml:space="preserve">
+    <value>Bạn đã sở hữu một số khóa học trong đơn hàng này.</value>
+  </data>
+  <data name="BankPaymentCreated" xml:space="preserve">
+    <value>Tạo thanh toán qua ngân hàng thành công.</value>
+  </data>
+  <data name="VnPayPaymentCreated" xml:space="preserve">
+    <value>Tạo thanh toán qua VnPay thành công.</value>
+  </data>
+  <data name="GiftCodeExists" xml:space="preserve">
+    <value>Mã quà tặng đã tồn tại.</value>
+  </data>
+  <data name="GiftCodeCreated" xml:space="preserve">
+    <value>Mã quà tặng đã được tạo thành công.</value>
+  </data>
+  <data name="InvalidGiftCode" xml:space="preserve">
+    <value>Mã quà tặng không hợp lệ hoặc không tồn tại.</value>
+  </data>
+  <data name="GiftCodeUsed" xml:space="preserve">
+    <value>Mã quà tặng đã được sử dụng.</value>
+  </data>
+  <data name="GiftCodeExpired" xml:space="preserve">
+    <value>Mã quà tặng đã hết hạn.</value>
+  </data>
+  <data name="SelectCourseForGiftCode" xml:space="preserve">
+    <value>Vui lòng chọn khóa học để áp dụng mã quà tặng.</value>
+  </data>
+  <data name="OwnedCourseConflict" xml:space="preserve">
+    <value>Bạn đã sở hữu khóa học này.</value>
+  </data>
+  <data name="GiftCodeRedeemedSuccess" xml:space="preserve">
+    <value>Bạn đã đổi mã quà tặng thành công cho khóa học: {0}</value>
+  </data>
+  <data name="GoogleAuthUrlGenerated" xml:space="preserve">
+    <value>Đã tạo URL xác thực Google.</value>
+  </data>
 </root>

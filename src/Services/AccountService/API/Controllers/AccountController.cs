@@ -76,7 +76,7 @@ namespace src.Services.AccountService.API.Controllers
 
             if (string.IsNullOrEmpty(refreshToken))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
             var (response, newRefreshToken) = await _authservice.RefreshToken(refreshToken);
@@ -127,7 +127,7 @@ namespace src.Services.AccountService.API.Controllers
 
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
             var response = await _accountRepository.GetUserProfileAsync(userId);
@@ -158,7 +158,7 @@ namespace src.Services.AccountService.API.Controllers
 
             var url = await _googleAuthService.GetAuthorizationUrlAsync(state);
 
-            return Ok(new ApiResponse("Success", "Google auth URL generated.", url, true));
+            return Ok(new ApiResponse("Success", _localizer["GoogleAuthUrlGenerated"].Value, url, true));
         }
 
         [HttpGet("google-callback")]
@@ -209,7 +209,7 @@ namespace src.Services.AccountService.API.Controllers
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
              if (string.IsNullOrEmpty(userId))
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
 
             var response = await _authservice.RequestInstructor(userId, dto);
             return response.ToActionResult();
@@ -229,7 +229,7 @@ namespace src.Services.AccountService.API.Controllers
         {
             var adminId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
              if (string.IsNullOrEmpty(adminId))
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
 
             var response = await _authservice.ApproveInstructorRequest(dto, adminId);
             return response.ToActionResult();
@@ -242,7 +242,7 @@ namespace src.Services.AccountService.API.Controllers
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new ApiResponse("Error", "Unauthorized", null, false));
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
             var response = await _authservice.LogoutAsync(userId);
