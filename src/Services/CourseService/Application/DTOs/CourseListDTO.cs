@@ -14,5 +14,10 @@ namespace CourseService.Application.DTOs
         public double Rating { get; set; }
         public decimal Price { get; set; }
         public int Progress { get; set; }
+        public int TotalLessons { get; set; }
+        public int CompletedLessons { get; set; }
+        public DateTime EnrolledAt { get; set; }
+        public DateTime LastVisit { get; set; }
+        public double TotalHours { get; set; }
     }
 }

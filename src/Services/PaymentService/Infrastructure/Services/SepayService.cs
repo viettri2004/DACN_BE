@@ -124,6 +124,7 @@ namespace PaymentService.Infrastructure.Services
                     OrderId = order.Id,
                     Status = true,
                     EnrolledAt = DateTime.UtcNow,
+                    LastVisit = DateTime.UtcNow,
                     ExpiresAt = DateTime.UtcNow.AddYears(100)
                 };
                 await _context.Enrollments.AddAsync(enrollment);

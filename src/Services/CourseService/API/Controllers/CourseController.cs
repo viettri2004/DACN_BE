@@ -151,6 +151,21 @@ namespace CourseService.API.Controllers
             return response.ToActionResult();
         }
 
+        [Authorize(Policy = "Student")]
+        [HttpGet("continue-learning")]
+        public async Task<ActionResult<ApiResponse>> GetContinueLearning()
+        {
+            var studentId = User.Claims.FirstOrDefault(c =>
+                c.Type == "id")?.Value;
+
+            if (string.IsNullOrEmpty(studentId))
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+
+            var response = await _courseRepository.GetContinueLearningCoursesAsync(studentId);
+
+            return response.ToActionResult();
+        }
+
         [Authorize]
         [HttpGet("search")]
         public async Task<ActionResult<ApiResponse>> SearchCourses([FromQuery] CourseSearchDTO queryParams)
@@ -273,8 +288,22 @@ namespace CourseService.API.Controllers
         }
 
         [Authorize(Policy = "Student")]
-        [HttpPost("mark-completed/{lectureId}")]
-        public async Task<ActionResult<ApiResponse>> MarkLectureCompleted([FromRoute] string lectureId)
+        [HttpPost("mark-completed")]
+        public async Task<ActionResult<ApiResponse>> MarkItemCompleted([FromBody] MarkItemCompletedDTO dto)
+        {
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));    
+            }
+
+            var response = await _courseRepository.MarkItemCompletedAsync(dto, studentId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Student")]
+        [HttpPost("unmark-completed")]
+        public async Task<ActionResult<ApiResponse>> UnmarkItemCompleted([FromBody] MarkItemCompletedDTO dto)
         {
             var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(studentId))
@@ -282,7 +311,53 @@ namespace CourseService.API.Controllers
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
-            var response = await _courseRepository.MarkLectureCompletedAsync(lectureId, studentId);
+            var response = await _courseRepository.UnmarkItemCompletedAsync(dto, studentId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpPost("{courseId}/faq")]
+        public async Task<ActionResult<ApiResponse>> AddCourseFaq([FromRoute] string courseId, [FromBody] CreateCourseFaqDTO faqDto)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.AddCourseFaqAsync(courseId, faqDto, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpPut("faq/{faqId}")]
+        public async Task<ActionResult<ApiResponse>> UpdateCourseFaq([FromRoute] string faqId, [FromBody] UpdateCourseFaqDTO faqDto)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.UpdateCourseFaqAsync(faqId, faqDto, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpDelete("faq/{faqId}")]
+        public async Task<ActionResult<ApiResponse>> DeleteCourseFaq([FromRoute] string faqId)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.DeleteCourseFaqAsync(faqId, instructorId);
+            return response.ToActionResult();
+        }
+
+        [HttpGet("{courseId}/faqs")]
+        public async Task<ActionResult<ApiResponse>> GetCourseFaqs([FromRoute] string courseId)
+        {
+            var response = await _courseRepository.GetCourseFaqsAsync(courseId);
             return response.ToActionResult();
         }
     }

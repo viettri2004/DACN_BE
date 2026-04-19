@@ -19,9 +19,6 @@ namespace Entities
         public CourseStatus Status { get; set; } = CourseStatus.Private;
         public DateTime CreateTime { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-        public string Level { get; set; } = "All Levels";
-        public string Language { get; set; } = "Vietnamese";
-        public string Access { get; set; } = "Lifetime";
         public string InstructorId { get; set; } = null!;
         public Instructor Instructor { get; set; } = null!;
         public ICollection<CourseTag> CourseTags { get; set; } = new List<CourseTag>();
@@ -31,6 +28,7 @@ namespace Entities
         public ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
         public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
+        public ICollection<CourseFaq> CourseFaqs { get; set; } = new List<CourseFaq>();
         public ICollection<CourseRequest> CourseRequests { get; set; } = new List<CourseRequest>();
     }
 }

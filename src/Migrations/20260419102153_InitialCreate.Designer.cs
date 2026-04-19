@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace src.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260205100556_AddQuestionAndOptionEntities")]
-    partial class AddQuestionAndOptionEntities
+    [Migration("20260419102153_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -43,9 +43,6 @@ namespace src.Migrations
 
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Reason")
-                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -126,6 +123,10 @@ namespace src.Migrations
                     b.Property<string>("ReplyId")
                         .HasColumnType("text");
 
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -172,6 +173,9 @@ namespace src.Migrations
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -242,6 +246,9 @@ namespace src.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime>("LastVisit")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("OrderId")
                         .IsRequired()
                         .HasColumnType("text");
@@ -269,6 +276,49 @@ namespace src.Migrations
                     b.ToTable("Enrollments");
                 });
 
+            modelBuilder.Entity("Entities.GiftCode", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("CourseId")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UsedByStudentId")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("CourseId");
+
+                    b.HasIndex("UsedByStudentId");
+
+                    b.ToTable("GiftCodes");
+                });
+
             modelBuilder.Entity("Entities.InstructorRequest", b =>
                 {
                     b.Property<int>("Id")
@@ -276,6 +326,9 @@ namespace src.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdminComment")
+                        .HasColumnType("text");
 
                     b.Property<string>("AdminId")
                         .HasColumnType("text");
@@ -350,6 +403,9 @@ namespace src.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
+                    b.Property<string>("AnalysisResult")
+                        .HasColumnType("jsonb");
+
                     b.Property<int>("DisplayOrder")
                         .HasColumnType("integer");
 
@@ -367,6 +423,9 @@ namespace src.Migrations
                     b.Property<string>("PublicId")
                         .HasColumnType("text");
 
+                    b.Property<string>("SubtitleUrl")
+                        .HasColumnType("text");
+
                     b.Property<string>("VideoUrl")
                         .IsRequired()
                         .HasColumnType("text");
@@ -376,6 +435,38 @@ namespace src.Migrations
                     b.HasIndex("LectureId");
 
                     b.ToTable("LectureVideos");
+                });
+
+            modelBuilder.Entity("Entities.Notification", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("Entities.Order", b =>
@@ -500,8 +591,16 @@ namespace src.Migrations
                     b.Property<int>("DisplayOrder")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Explanation")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ImagePublicId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("text");
+
                     b.Property<string>("QuizId")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -537,37 +636,10 @@ namespace src.Migrations
                     b.ToTable("QuestionOptions");
                 });
 
-            modelBuilder.Entity("Entities.Questionnaire", b =>
-                {
-                    b.Property<string>("QuizId")
-                        .HasColumnType("text");
-
-                    b.Property<int>("QuestionNumber")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Question")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("QuizId", "QuestionNumber");
-
-                    b.ToTable("Questionnaires");
-                });
-
             modelBuilder.Entity("Entities.Quiz", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
-
-                    b.Property<int>("AttemptCount")
-                        .HasColumnType("integer");
 
                     b.Property<string>("LectureId")
                         .IsRequired()
@@ -615,7 +687,73 @@ namespace src.Migrations
 
                     b.HasIndex("QuizId");
 
-                    b.ToTable("QuizAttempt");
+                    b.ToTable("QuizAttempts");
+                });
+
+            modelBuilder.Entity("Entities.QuizAttemptAnswer", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<string>("QuestionId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("QuizAttemptId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SelectedOptionId")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestionId");
+
+                    b.HasIndex("QuizAttemptId");
+
+                    b.HasIndex("SelectedOptionId");
+
+                    b.ToTable("QuizAttemptAnswers");
+                });
+
+            modelBuilder.Entity("Entities.StudentLectureProgress", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CourseId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ItemId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ItemType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("LectureId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("StudentId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CourseId");
+
+                    b.HasIndex("StudentId", "CourseId");
+
+                    b.HasIndex("StudentId", "LectureId", "ItemId", "ItemType")
+                        .IsUnique();
+
+                    b.ToTable("StudentLectureProgresses");
                 });
 
             modelBuilder.Entity("Entities.Tag", b =>
@@ -1002,7 +1140,7 @@ namespace src.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Entities.Student", "Student")
+                    b.HasOne("Entities.User", "Student")
                         .WithMany("Enrollments")
                         .HasForeignKey("StudentId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -1013,6 +1151,23 @@ namespace src.Migrations
                     b.Navigation("Order");
 
                     b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("Entities.GiftCode", b =>
+                {
+                    b.HasOne("Entities.Course", "Course")
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Entities.Student", "UsedByStudent")
+                        .WithMany()
+                        .HasForeignKey("UsedByStudentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Course");
+
+                    b.Navigation("UsedByStudent");
                 });
 
             modelBuilder.Entity("Entities.InstructorRequest", b =>
@@ -1100,8 +1255,7 @@ namespace src.Migrations
                     b.HasOne("Entities.Quiz", "Quiz")
                         .WithMany("Questions")
                         .HasForeignKey("QuizId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Quiz");
                 });
@@ -1115,17 +1269,6 @@ namespace src.Migrations
                         .IsRequired();
 
                     b.Navigation("Question");
-                });
-
-            modelBuilder.Entity("Entities.Questionnaire", b =>
-                {
-                    b.HasOne("Entities.Quiz", "Quiz")
-                        .WithMany("Questionnaires")
-                        .HasForeignKey("QuizId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Quiz");
                 });
 
             modelBuilder.Entity("Entities.Quiz", b =>
@@ -1156,6 +1299,42 @@ namespace src.Migrations
                     b.Navigation("Enrollment");
 
                     b.Navigation("Quiz");
+                });
+
+            modelBuilder.Entity("Entities.QuizAttemptAnswer", b =>
+                {
+                    b.HasOne("Entities.Question", "Question")
+                        .WithMany()
+                        .HasForeignKey("QuestionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Entities.QuizAttempt", "QuizAttempt")
+                        .WithMany("QuizAttemptAnswers")
+                        .HasForeignKey("QuizAttemptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Entities.QuestionOption", "SelectedOption")
+                        .WithMany()
+                        .HasForeignKey("SelectedOptionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Question");
+
+                    b.Navigation("QuizAttempt");
+
+                    b.Navigation("SelectedOption");
+                });
+
+            modelBuilder.Entity("Entities.StudentLectureProgress", b =>
+                {
+                    b.HasOne("Entities.Course", "Course")
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Course");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -1266,16 +1445,24 @@ namespace src.Migrations
 
             modelBuilder.Entity("Entities.Quiz", b =>
                 {
-                    b.Navigation("Questionnaires");
-
                     b.Navigation("Questions");
 
                     b.Navigation("QuizAttempts");
                 });
 
+            modelBuilder.Entity("Entities.QuizAttempt", b =>
+                {
+                    b.Navigation("QuizAttemptAnswers");
+                });
+
             modelBuilder.Entity("Entities.Tag", b =>
                 {
                     b.Navigation("Courses");
+                });
+
+            modelBuilder.Entity("Entities.User", b =>
+                {
+                    b.Navigation("Enrollments");
                 });
 
             modelBuilder.Entity("Entities.Instructor", b =>
@@ -1286,8 +1473,6 @@ namespace src.Migrations
             modelBuilder.Entity("Entities.Student", b =>
                 {
                     b.Navigation("Cart");
-
-                    b.Navigation("Enrollments");
 
                     b.Navigation("Orders");
                 });

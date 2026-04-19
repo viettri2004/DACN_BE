@@ -14,7 +14,7 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> GetCourseDetailAsync(string courseId, string studentId);
         Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId);
         Task<ApiResponse> GetRecommendedCoursesAsync();
-        Task<ApiResponse> GetCoursesByStudentIdAsync(string instructorId);
+        Task<ApiResponse> GetCoursesByStudentIdAsync(string studentId);
         Task<ApiResponse> GetCoursesAsync(CourseQueryParameters queryParams, string studentId);
         Task<ApiResponse> GetCourseContentAsync(string courseId, string userId);
         Task<ApiResponse> GetCoursesByInstructorAsync(string instructorId);
@@ -28,6 +28,12 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> UpdateCommentAsync(string commentId, UpdateCommentDTO updateCommentDTO, string userId);
         Task<ApiResponse> DeleteCommentAsync(string commentId, string userId);
         Task<ApiResponse> ReplyToCommentAsync(AddReplyCommentDTO replyDTO, string userId);
-        Task<ApiResponse> MarkLectureCompletedAsync(string lectureId, string studentId);
+        Task<ApiResponse> MarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId);
+        Task<ApiResponse> UnmarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId);
+        Task<ApiResponse> GetContinueLearningCoursesAsync(string studentId);
+        Task<ApiResponse> AddCourseFaqAsync(string courseId, CreateCourseFaqDTO faqDto, string instructorId);
+        Task<ApiResponse> UpdateCourseFaqAsync(string faqId, UpdateCourseFaqDTO faqDto, string instructorId);
+        Task<ApiResponse> DeleteCourseFaqAsync(string faqId, string instructorId);
+        Task<ApiResponse> GetCourseFaqsAsync(string courseId);
     }
 }

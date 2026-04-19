@@ -272,6 +272,7 @@ namespace PaymentService.Application.Services
                     StudentId = studentId,
                     OrderId = order.Id,
                     EnrolledAt = DateTime.UtcNow,
+                    LastVisit = DateTime.UtcNow,
                     ExpiresAt = DateTime.UtcNow.AddYears(100),
                     Status = true
                 };

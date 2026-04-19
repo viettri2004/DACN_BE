@@ -19,11 +19,17 @@ namespace CourseService.Application.DTOs
         public int TotalStudents { get; set; }
         public double TotalHours { get; set; }
         public bool IsEnrolled { get; set; }
-        public string Level { get; set; } = "Dành cho mọi người";
-        public string Access { get; set; } = "Truy cập trọn đời";
-        public string Language { get; set; } = "Tiếng Việt";
         public DateTime UpdatedAt { get; set; }
         public List<LecturePreviewDTO> Lectures { get; set; } = new List<LecturePreviewDTO>();
+        public List<CourseFaqDTO> Faqs { get; set; } = new List<CourseFaqDTO>();
+    }
+
+    public class CourseFaqDTO
+    {
+        public string Id { get; set; } = null!;
+        public string Question { get; set; } = null!;
+        public string Answer { get; set; } = null!;
+        public int DisplayOrder { get; set; }
     }
 
     public class LecturePreviewDTO

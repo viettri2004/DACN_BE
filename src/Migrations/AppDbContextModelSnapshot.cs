@@ -143,10 +143,6 @@ namespace src.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<string>("Access")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<DateTime>("CreateTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -162,14 +158,6 @@ namespace src.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("InstructorId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Language")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Level")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -253,6 +241,9 @@ namespace src.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("LastVisit")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("OrderId")
@@ -727,15 +718,20 @@ namespace src.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("CourseId")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<bool>("IsCompleted")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("ItemId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ItemType")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("LectureId")
                         .IsRequired()
@@ -751,7 +747,7 @@ namespace src.Migrations
 
                     b.HasIndex("StudentId", "CourseId");
 
-                    b.HasIndex("StudentId", "LectureId")
+                    b.HasIndex("StudentId", "LectureId", "ItemId", "ItemType")
                         .IsUnique();
 
                     b.ToTable("StudentLectureProgresses");

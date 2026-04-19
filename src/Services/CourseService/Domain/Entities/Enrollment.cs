@@ -21,6 +21,7 @@ namespace Entities
         public DateTime EnrolledAt { get; set; }
         public DateTime ExpiresAt { get; set; }
         public bool Status { get; set; }
+        public DateTime LastVisit { get; set; } = DateTime.UtcNow;
         public ICollection<Comment> Comments { get; set; } = new List<Comment>();
         public ICollection<QuizAttempt> QuizAttempts { get; set; } = new List<QuizAttempt>();
     }

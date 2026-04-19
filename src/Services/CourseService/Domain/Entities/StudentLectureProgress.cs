@@ -8,8 +8,9 @@ namespace Entities
         public string StudentId { get; set; } = null!;
         public string LectureId { get; set; } = null!;
         public string CourseId { get; set; } = null!;
+        public string ItemId { get; set; } = null!;
+        public string ItemType { get; set; } = null!; // "Video", "Document", "Quiz"
         public bool IsCompleted { get; set; } = false;
-        public DateTime? CompletedAt { get; set; }
         
         public Course Course { get; set; } = null!;
     }

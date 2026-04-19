@@ -34,6 +34,7 @@ namespace Data.Context
         public DbSet<CourseRequest> CourseRequests { get; set; } = null!;
         public DbSet<Notification> Notifications { get; set; } = null!;
         public DbSet<GiftCode> GiftCodes { get; set; } = null!;
+        public DbSet<CourseFaq> CourseFaqs { get; set; } = null!;
         public DbSet<StudentLectureProgress> StudentLectureProgresses { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -45,6 +46,17 @@ namespace Data.Context
                 .HasValue<Admin>("Admin")
                 .HasValue<Student>("Student")
                 .HasValue<Instructor>("Instructor");
+
+            modelBuilder.Entity<CourseFaq>(entity =>
+            {
+                entity.HasKey(cf => cf.Id);
+                entity.HasOne(cf => cf.Course)
+                    .WithMany(c => c.CourseFaqs)
+                    .HasForeignKey(cf => cf.CourseId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.Property(cf => cf.Question).IsRequired();
+                entity.Property(cf => cf.Answer).IsRequired();
+            });
 
             modelBuilder.Entity<Cart>(entity =>
             {
@@ -308,7 +320,7 @@ namespace Data.Context
                     .HasForeignKey(slp => slp.CourseId)
                     .OnDelete(DeleteBehavior.Cascade);
                 entity.HasIndex(slp => new { slp.StudentId, slp.CourseId });
-                entity.HasIndex(slp => new { slp.StudentId, slp.LectureId }).IsUnique();
+                entity.HasIndex(slp => new { slp.StudentId, slp.LectureId, slp.ItemId, slp.ItemType }).IsUnique();
             });
         }
     }
