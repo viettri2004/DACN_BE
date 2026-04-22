@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using CourseService.Domain.Enums;
 
 namespace CourseService.Application.DTOs
 {
@@ -10,6 +11,7 @@ namespace CourseService.Application.DTOs
         public string? AvatarUrl { get; set; }
         public int Rate { get; set; }
         public string Content { get; set; } = null!;
+        public CommentType Type { get; set; }
         public bool IsMyComment { get; set; }
         public bool CanDelete { get; set; }
         public DateTime Timestamp { get; set; }
@@ -22,6 +24,7 @@ namespace CourseService.Application.DTOs
         public DateTime Timestamp { get; set; }
         public bool IsMyComment { get; set; }
         public bool CanDelete { get; set; }
+        public CommentType Type { get; set; }
     }
 
     public class CourseCommentsResponseDTO
@@ -36,6 +39,7 @@ namespace CourseService.Application.DTOs
         public string CourseId { get; set; } = null!;
         public int Rate { get; set; }
         public string Content { get; set; } = null!;
+        public CommentType Type { get; set; } = CommentType.Review;
     }
 
     public class UpdateCommentDTO
@@ -48,5 +52,6 @@ namespace CourseService.Application.DTOs
     {
         public string ParentCommentId { get; set; } = null!;
         public string Content { get; set; } = null!;
+        public CommentType Type { get; set; } = CommentType.Reply;
     }
 }

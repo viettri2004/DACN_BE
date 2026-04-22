@@ -28,7 +28,6 @@ namespace Entities
         public ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
         public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
-        public ICollection<CourseFaq> CourseFaqs { get; set; } = new List<CourseFaq>();
         public ICollection<CourseRequest> CourseRequests { get; set; } = new List<CourseRequest>();
     }
 }

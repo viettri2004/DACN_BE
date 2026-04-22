@@ -11,6 +11,7 @@ using src.Shared.Domain.Entities;
 using Microsoft.Extensions.Localization;
 using Shared.Domain.Entities;
 using src.Shared.Resources;
+using CourseService.Domain.Enums;
 
 namespace CourseService.API.Controllers
 {
@@ -94,10 +95,10 @@ namespace CourseService.API.Controllers
         }
         
         [HttpGet("course-comments/{courseId}")]
-        public async Task<ActionResult<ApiResponse>> GetComments([FromRoute] string courseId)
+        public async Task<ActionResult<ApiResponse>> GetComments([FromRoute] string courseId, [FromQuery] CommentType type)
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            var response = await _courseRepository.GetCourseCommentsAsync(courseId, userId);
+            var response = await _courseRepository.GetCourseCommentsAsync(courseId, userId, type);
 
             return response.ToActionResult();
         }
@@ -312,52 +313,6 @@ namespace CourseService.API.Controllers
             }
 
             var response = await _courseRepository.UnmarkItemCompletedAsync(dto, studentId);
-            return response.ToActionResult();
-        }
-
-        [Authorize(Policy = "Instructor")]
-        [HttpPost("{courseId}/faq")]
-        public async Task<ActionResult<ApiResponse>> AddCourseFaq([FromRoute] string courseId, [FromBody] CreateCourseFaqDTO faqDto)
-        {
-            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            if (string.IsNullOrEmpty(instructorId))
-            {
-                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
-            }
-            var response = await _courseRepository.AddCourseFaqAsync(courseId, faqDto, instructorId);
-            return response.ToActionResult();
-        }
-
-        [Authorize(Policy = "Instructor")]
-        [HttpPut("faq/{faqId}")]
-        public async Task<ActionResult<ApiResponse>> UpdateCourseFaq([FromRoute] string faqId, [FromBody] UpdateCourseFaqDTO faqDto)
-        {
-            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            if (string.IsNullOrEmpty(instructorId))
-            {
-                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
-            }
-            var response = await _courseRepository.UpdateCourseFaqAsync(faqId, faqDto, instructorId);
-            return response.ToActionResult();
-        }
-
-        [Authorize(Policy = "Instructor")]
-        [HttpDelete("faq/{faqId}")]
-        public async Task<ActionResult<ApiResponse>> DeleteCourseFaq([FromRoute] string faqId)
-        {
-            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            if (string.IsNullOrEmpty(instructorId))
-            {
-                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
-            }
-            var response = await _courseRepository.DeleteCourseFaqAsync(faqId, instructorId);
-            return response.ToActionResult();
-        }
-
-        [HttpGet("{courseId}/faqs")]
-        public async Task<ActionResult<ApiResponse>> GetCourseFaqs([FromRoute] string courseId)
-        {
-            var response = await _courseRepository.GetCourseFaqsAsync(courseId);
             return response.ToActionResult();
         }
     }

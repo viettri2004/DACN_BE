@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using CourseService.Application.DTOs;
+using CourseService.Domain.Enums;
 using src.Shared.Domain.Entities;
 
 namespace CourseService.Application.Interfaces
@@ -12,7 +13,7 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> CreateCourseAsync(CreateCourseDTO createCourseDTO, string instructorId);
         Task<ApiResponse> UpdateCourseAsync(string courseId, UpdateCourseDTO updateCourseDTO, string instructorId);
         Task<ApiResponse> GetCourseDetailAsync(string courseId, string studentId);
-        Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId);
+        Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId, CommentType type);
         Task<ApiResponse> GetRecommendedCoursesAsync();
         Task<ApiResponse> GetCoursesByStudentIdAsync(string studentId);
         Task<ApiResponse> GetCoursesAsync(CourseQueryParameters queryParams, string studentId);
@@ -31,9 +32,5 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> MarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId);
         Task<ApiResponse> UnmarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId);
         Task<ApiResponse> GetContinueLearningCoursesAsync(string studentId);
-        Task<ApiResponse> AddCourseFaqAsync(string courseId, CreateCourseFaqDTO faqDto, string instructorId);
-        Task<ApiResponse> UpdateCourseFaqAsync(string faqId, UpdateCourseFaqDTO faqDto, string instructorId);
-        Task<ApiResponse> DeleteCourseFaqAsync(string faqId, string instructorId);
-        Task<ApiResponse> GetCourseFaqsAsync(string courseId);
     }
 }

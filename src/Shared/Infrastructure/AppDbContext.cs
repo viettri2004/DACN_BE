@@ -34,7 +34,6 @@ namespace Data.Context
         public DbSet<CourseRequest> CourseRequests { get; set; } = null!;
         public DbSet<Notification> Notifications { get; set; } = null!;
         public DbSet<GiftCode> GiftCodes { get; set; } = null!;
-        public DbSet<CourseFaq> CourseFaqs { get; set; } = null!;
         public DbSet<StudentLectureProgress> StudentLectureProgresses { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -47,15 +46,27 @@ namespace Data.Context
                 .HasValue<Student>("Student")
                 .HasValue<Instructor>("Instructor");
 
-            modelBuilder.Entity<CourseFaq>(entity =>
+            modelBuilder.Entity<Comment>(entity =>
             {
-                entity.HasKey(cf => cf.Id);
-                entity.HasOne(cf => cf.Course)
-                    .WithMany(c => c.CourseFaqs)
-                    .HasForeignKey(cf => cf.CourseId)
+                entity.HasKey(c => c.Id);
+                entity.HasOne(c => c.Enrollment)
+                    .WithMany(e => e.Comments)
+                    .HasForeignKey(c => c.EnrollmentId)
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired(false);
+
+                entity.HasOne(c => c.Parent)
+                    .WithMany(p => p.Replies)
+                    .HasForeignKey(c => c.ReplyId)
                     .OnDelete(DeleteBehavior.Cascade);
-                entity.Property(cf => cf.Question).IsRequired();
-                entity.Property(cf => cf.Answer).IsRequired();
+
+                entity.Property(c => c.Content).IsRequired();
+                entity.Property(c => c.CreatedAt).IsRequired();
+                entity.Property(c => c.Type)
+                      .HasConversion<string>()
+                      .IsRequired();
+                entity.HasIndex(c => c.EnrollmentId);
+                entity.HasIndex(c => c.ReplyId);
             });
 
             modelBuilder.Entity<Cart>(entity =>
@@ -210,26 +221,6 @@ namespace Data.Context
                 entity.Property(qa => qa.AttemptedAt).IsRequired();
                 entity.HasIndex(qa => qa.EnrollmentId);
                 entity.HasIndex(qa => qa.QuizId);
-            });
-
-            modelBuilder.Entity<Comment>(entity =>
-            {
-                entity.HasKey(c => c.Id);
-                entity.HasOne(c => c.Enrollment)
-                      .WithMany(e => e.Comments) 
-                      .HasForeignKey(c => c.EnrollmentId)
-                      .OnDelete(DeleteBehavior.Restrict); 
-                entity.HasOne(c => c.Parent)
-                      .WithMany(p => p.Replies)
-                      .HasForeignKey(c => c.ReplyId)
-                      .OnDelete(DeleteBehavior.Restrict); 
-                entity.Property(c => c.Content).IsRequired();
-                entity.Property(c => c.CreatedAt).IsRequired();
-                entity.Property(c => c.Type)
-                      .HasConversion<string>()
-                      .IsRequired();
-                entity.HasIndex(c => c.EnrollmentId);
-                entity.HasIndex(c => c.ReplyId);
             });
 
             modelBuilder.Entity<Quiz>()

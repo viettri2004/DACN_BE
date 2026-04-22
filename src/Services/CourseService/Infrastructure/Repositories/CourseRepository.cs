@@ -35,9 +35,9 @@ namespace CourseService.Infrastructure.Repositories
         private readonly IBackgroundJobClient _backgroundJobClient;
         private readonly IDistributedCache _cache;
 
-        public CourseRepository(AppDbContext context, 
-                               CloudinaryService cloudinaryService, 
-                               IStringLocalizer<SharedResources> localizer, 
+        public CourseRepository(AppDbContext context,
+                               CloudinaryService cloudinaryService,
+                               IStringLocalizer<SharedResources> localizer,
                                ILuceneSearchService luceneSearchService,
                                INotificationRepository notificationRepository,
                                IAiService aiService,
@@ -356,7 +356,6 @@ namespace CourseService.Infrastructure.Repositories
                     .ThenInclude(l => l.Quizzes)
                 .Include(c => c.Lectures)
                     .ThenInclude(l => l.Documents)
-                .Include(c => c.CourseFaqs)
                 .FirstOrDefaultAsync(c => c.Id == courseId);
 
             if (course == null)
@@ -422,13 +421,6 @@ namespace CourseService.Infrastructure.Repositories
                         // Id = d.Id,
                         Name = d.Name
                     }).ToList()
-                }).ToList(),
-                Faqs = course.CourseFaqs.OrderBy(f => f.DisplayOrder).Select(f => new CourseFaqDTO
-                {
-                    Id = f.Id,
-                    Question = f.Question,
-                    Answer = f.Answer,
-                    DisplayOrder = f.DisplayOrder
                 }).ToList()
             };
 
@@ -443,7 +435,7 @@ namespace CourseService.Infrastructure.Repositories
             return response;
         }
 
-        public async Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId)
+        public async Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId, CommentType type)
         {
             var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == courseId);
             if (course == null)
@@ -451,13 +443,14 @@ namespace CourseService.Infrastructure.Repositories
 
             bool isInstructor = userId != null && course.InstructorId == userId;
 
-            var allComments = await _context.Comments
+            var commentQuery = _context.Comments
                 .AsNoTracking()
                 .Include(c => c.Enrollment.Student)
-                .Include(c => c.Enrollment.Course)
                 .Include(c => c.Replies)
                     .ThenInclude(r => r.Enrollment.Student)
-                .Where(c => c.Enrollment.CourseId == courseId && c.ReplyId == null && c.Type == CommentType.Review)
+                .Where(c => c.Enrollment.CourseId == courseId && c.ReplyId == null && c.Type == type);
+
+            var allComments = await commentQuery
                 .OrderByDescending(c => c.CreatedAt)
                 .Select(c => new CommentDTO
                 {
@@ -466,25 +459,29 @@ namespace CourseService.Infrastructure.Repositories
                     AvatarUrl = c.Enrollment.Student.AvatarUrl,
                     Rate = c.Rate,
                     Content = c.Content,
+                    Type = c.Type,
                     IsMyComment = userId != null && c.Enrollment.StudentId == userId,
-                    CanDelete = false,
+                    CanDelete = userId != null && c.Enrollment.Course.InstructorId == userId,
                     Timestamp = c.CreatedAt,
-                    Replies = c.Replies.Select(r => new ReplyDTO
+                    Replies = c.Replies
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Select(r => new ReplyDTO
                     {
                         CommentId = r.Id,
                         Content = r.Content,
                         Timestamp = r.CreatedAt,
-                        IsMyComment = isInstructor,
-                        CanDelete = isInstructor
-                    }).OrderBy(r => r.Timestamp).ToList()
+                        Type = r.Type,
+                        IsMyComment = userId != null && r.Enrollment.StudentId == userId,
+                        CanDelete = userId != null && r.Enrollment.Course.InstructorId == userId
+                    }).ToList()
                 })
                 .ToListAsync();
 
             var response = new CourseCommentsResponseDTO
             {
                 IsInstructor = isInstructor,
-                MyComment = allComments.FirstOrDefault(c => c.IsMyComment),
-                AllComments = allComments.Where(c => !c.IsMyComment).ToList()
+                MyComment = allComments.FirstOrDefault(c => c.IsMyComment && c.Type == CommentType.Review),
+                AllComments = allComments.Where(c => !(c.IsMyComment && c.Type == CommentType.Review)).ToList()
             };
 
             return new ApiResponse("Success", _localizer["Success"].Value, response, true);
@@ -508,7 +505,7 @@ namespace CourseService.Infrastructure.Repositories
                 .Take(3)
                 .Select(c => new CourseListDTO
                 {
-                    Id = c.Id,  
+                    Id = c.Id,
                     ImageUrl = c.ImageUrl,
                     Name = c.Name,
                     InstructorName = c.Instructor.FullName,
@@ -527,7 +524,7 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse("Success", _localizer["NoData"].Value, null, true);
 
             var response = new ApiResponse("Success", _localizer["Success"].Value, courseDTOs, true);
-            
+
             var cacheOptions = new DistributedCacheEntryOptions
             {
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1)
@@ -697,9 +694,9 @@ namespace CourseService.Infrastructure.Repositories
                 .Include(c => c.Lectures.OrderBy(l => l.DisplayOrder))
                     .ThenInclude(l => l.LectureVideos.OrderBy(lv => lv.DisplayOrder))
                 .Include(c => c.Lectures)
-                    .ThenInclude(l => l.Documents)
-                .Include(c => c.Lectures)
                     .ThenInclude(l => l.Quizzes)
+                .Include(c => c.Lectures)
+                    .ThenInclude(l => l.Documents)
                 .Include(c => c.CourseTags)
                     .ThenInclude(ct => ct.Tag)
                 .FirstOrDefaultAsync(c => c.Id == courseId);
@@ -746,12 +743,12 @@ namespace CourseService.Infrastructure.Repositories
 
             var completedItemIds = new HashSet<string>(completedItems.Select(x => x.ItemId));
             var fullyCompletedLectureIds = new HashSet<string>();
-            
+
             foreach (var lecture in course.Lectures)
             {
                 int totalItemsInLecture = lecture.LectureVideos.Count + lecture.Documents.Count + lecture.Quizzes.Count;
                 int completedItemsInLecture = completedItems.Count(x => x.LectureId == lecture.Id);
-                
+
                 if (totalItemsInLecture > 0 && completedItemsInLecture == totalItemsInLecture)
                 {
                     fullyCompletedLectureIds.Add(lecture.Id);
@@ -773,12 +770,12 @@ namespace CourseService.Infrastructure.Repositories
                 .Where(x => x.ItemType == "Video")
                 .Select(x => x.ItemId)
                 .ToList();
-            
+
             var completedVideoDurations = await _context.LectureVideos
                 .Where(v => completedVideoIds.Contains(v.Id))
                 .Select(v => v.Duration)
                 .ToListAsync();
-            
+
             double totalStudyTimeHours = Math.Round(completedVideoDurations.Sum() / 3600.0, 2);
 
             var courseContent = new CourseContentDTO
@@ -861,7 +858,7 @@ namespace CourseService.Infrastructure.Repositories
 
                 _context.Courses.Remove(course);
                 await _context.SaveChangesAsync();
-                
+
                 await RemoveRecommendedCache();
                 await RemoveCourseDetailCache(courseId);
 
@@ -1076,35 +1073,39 @@ namespace CourseService.Infrastructure.Repositories
             {
                 return new ApiResponse("Forbidden", _localizer["NotEnrolledInCourse"].Value, null, false);
             }
-            var existingComment = await _context.Comments
-                .FirstOrDefaultAsync(c => c.EnrollmentId == enrollment.Id && c.Type == CommentType.Review);
 
-            if (existingComment != null)
+            if (addCommentDTO.Type == CommentType.Review)
             {
-                return new ApiResponse("Conflict", _localizer["CommentAlreadyExists"].Value, null, false);
+                var existingComment = await _context.Comments
+                    .FirstOrDefaultAsync(c => c.EnrollmentId == enrollment.Id && c.Type == CommentType.Review);
+
+                if (existingComment != null)
+                {
+                    return new ApiResponse("Conflict", _localizer["CommentAlreadyExists"].Value, null, false);
+                }
             }
 
             var comment = new Comment
             {
                 Id = Guid.NewGuid().ToString(),
                 Content = addCommentDTO.Content,
-                Rate = addCommentDTO.Rate,
+                Rate = addCommentDTO.Type == CommentType.Review ? addCommentDTO.Rate : 0,
                 EnrollmentId = enrollment.Id,
                 CreatedAt = DateTime.UtcNow,
-                Type = CommentType.Review
+                Type = addCommentDTO.Type
             };
 
             _context.Comments.Add(comment);
             await _context.SaveChangesAsync();
             await RemoveCourseDetailCache(addCommentDTO.CourseId);
 
-            return new ApiResponse("Created", _localizer["CommentAdded"].Value, null, true);
+            return new ApiResponse("Created", _localizer["Success"].Value, null, true);
         }
 
         public async Task<ApiResponse> UpdateCommentAsync(string commentId, UpdateCommentDTO updateCommentDTO, string userId)
         {
             var comment = await _context.Comments
-                .Include(c => c.Enrollment.Course)
+                .Include(c => c.Enrollment)
                 .FirstOrDefaultAsync(c => c.Id == commentId);
 
             if (comment == null)
@@ -1113,8 +1114,8 @@ namespace CourseService.Infrastructure.Repositories
             }
 
             // Student update their own comment OR Instructor update their own reply
-            bool isOwner = (comment.Type == CommentType.Review && comment.Enrollment.StudentId == userId) ||
-                          (comment.Type == CommentType.Reply && comment.Enrollment.Course.InstructorId == userId);
+            bool isOwner = (comment.Enrollment?.StudentId == userId) || 
+                          (comment.Type == CommentType.Reply && _context.Courses.Any(c => c.Id == comment.Enrollment.CourseId && c.InstructorId == userId));
 
             if (!isOwner)
             {
@@ -1129,7 +1130,8 @@ namespace CourseService.Infrastructure.Repositories
             comment.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
-            await RemoveCourseDetailCache(comment.Enrollment.CourseId);
+
+            if (comment.Enrollment != null) await RemoveCourseDetailCache(comment.Enrollment.CourseId);
 
             return new ApiResponse("Success", _localizer["CommentUpdated"].Value, null, true);
         }
@@ -1146,6 +1148,7 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse("NotFound", _localizer["CommentNotFound"].Value, null, false);
             }
 
+            // Instructor of the course can delete any comment
             if (comment.Enrollment.Course.InstructorId != userId)
             {
                 return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
@@ -1180,7 +1183,7 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse("Forbidden", _localizer["ForbiddenReply"].Value, null, false);
             }
 
-            // Use the parent's EnrollmentId since instructors don't have one
+            // Use the parent's EnrollmentId
             var reply = new Comment
             {
                 Id = Guid.NewGuid().ToString(),
@@ -1210,7 +1213,7 @@ namespace CourseService.Infrastructure.Repositories
             // unless we use a library that supports tag-based or pattern-based invalidation.
             await _cache.RemoveAsync($"course:detail:{courseId}:guest");
         }
-        
+
 
         public async Task<ApiResponse> MarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId)
         {
@@ -1244,7 +1247,7 @@ namespace CourseService.Infrastructure.Repositories
                 // Update LastVisit in Enrollment
                 var enrollment = await _context.Enrollments
                     .FirstOrDefaultAsync(e => e.StudentId == studentId && e.CourseId == lecture.CourseId);
-                
+
                 if (enrollment != null)
                 {
                     enrollment.LastVisit = DateTime.UtcNow;
@@ -1278,67 +1281,6 @@ namespace CourseService.Infrastructure.Repositories
             {
                 return new ApiResponse("Error", ex.Message, null, false);
             }
-        }
-
-        public async Task<ApiResponse> AddCourseFaqAsync(string courseId, CreateCourseFaqDTO faqDto, string instructorId)
-        {
-            var course = await _context.Courses.FirstOrDefaultAsync(c => c.Id == courseId);
-            if (course == null) return new ApiResponse("NotFound", _localizer["CourseNotFound"].Value, null, false);
-            if (course.InstructorId != instructorId) return new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false);
-
-            var faq = new CourseFaq
-            {
-                CourseId = courseId,
-                Question = faqDto.Question,
-                Answer = faqDto.Answer,
-                DisplayOrder = faqDto.DisplayOrder
-            };
-
-            _context.CourseFaqs.Add(faq);
-            await _context.SaveChangesAsync();
-            await RemoveCourseDetailCache(courseId);
-
-            return new ApiResponse("Created", _localizer["Success"].Value, faq, true);
-        }
-
-        public async Task<ApiResponse> UpdateCourseFaqAsync(string faqId, UpdateCourseFaqDTO faqDto, string instructorId)
-        {
-            var faq = await _context.CourseFaqs.Include(f => f.Course).FirstOrDefaultAsync(f => f.Id == faqId);
-            if (faq == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
-            if (faq.Course.InstructorId != instructorId) return new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false);
-
-            faq.Question = faqDto.Question;
-            faq.Answer = faqDto.Answer;
-            faq.DisplayOrder = faqDto.DisplayOrder;
-            faq.UpdatedAt = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
-            await RemoveCourseDetailCache(faq.CourseId);
-
-            return new ApiResponse("Success", _localizer["Success"].Value, faq, true);
-        }
-
-        public async Task<ApiResponse> DeleteCourseFaqAsync(string faqId, string instructorId)
-        {
-            var faq = await _context.CourseFaqs.Include(f => f.Course).FirstOrDefaultAsync(f => f.Id == faqId);
-            if (faq == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
-            if (faq.Course.InstructorId != instructorId) return new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false);
-
-            _context.CourseFaqs.Remove(faq);
-            await _context.SaveChangesAsync();
-            await RemoveCourseDetailCache(faq.CourseId);
-
-            return new ApiResponse("Success", _localizer["Success"].Value, null, true);
-        }
-
-        public async Task<ApiResponse> GetCourseFaqsAsync(string courseId)
-        {
-            var faqs = await _context.CourseFaqs
-                .Where(f => f.CourseId == courseId)
-                .OrderBy(f => f.DisplayOrder)
-                .ToListAsync();
-
-            return new ApiResponse("Success", _localizer["Success"].Value, faqs, true);
         }
     }
 }

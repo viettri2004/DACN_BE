@@ -21,7 +21,6 @@ namespace CourseService.Application.DTOs
         public bool IsEnrolled { get; set; }
         public DateTime UpdatedAt { get; set; }
         public List<LecturePreviewDTO> Lectures { get; set; } = new List<LecturePreviewDTO>();
-        public List<CourseFaqDTO> Faqs { get; set; } = new List<CourseFaqDTO>();
     }
 
     public class CourseFaqDTO
@@ -29,7 +28,6 @@ namespace CourseService.Application.DTOs
         public string Id { get; set; } = null!;
         public string Question { get; set; } = null!;
         public string Answer { get; set; } = null!;
-        public int DisplayOrder { get; set; }
     }
 
     public class LecturePreviewDTO
