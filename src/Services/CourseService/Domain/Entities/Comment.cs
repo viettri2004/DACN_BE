@@ -15,8 +15,16 @@ namespace Entities
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public CommentType Type { get; set; }
-        public string EnrollmentId { get; set; } = null!;
-        public Enrollment Enrollment { get; set; } = null!;
+
+        public string? EnrollmentId { get; set; }
+        public Enrollment? Enrollment { get; set; }
+
+        public string UserId { get; set; } = null!;
+        public User User { get; set; } = null!;
+
+        public string CourseId { get; set; } = null!;
+        public Course Course { get; set; } = null!;
+
         public string? ReplyId { get; set; }
         public Comment? Parent { get; set; }
         public ICollection<Comment> Replies { get; set; } = new List<Comment>();

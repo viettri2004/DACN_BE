@@ -56,6 +56,16 @@ namespace Data.Context
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired(false);
 
+                entity.HasOne(c => c.User)
+                    .WithMany()
+                    .HasForeignKey(c => c.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(c => c.Course)
+                    .WithMany()
+                    .HasForeignKey(c => c.CourseId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
                 entity.HasOne(c => c.Parent)
                     .WithMany(p => p.Replies)
                     .HasForeignKey(c => c.ReplyId)

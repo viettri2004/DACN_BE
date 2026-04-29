@@ -445,23 +445,23 @@ namespace CourseService.Infrastructure.Repositories
 
             var commentQuery = _context.Comments
                 .AsNoTracking()
-                .Include(c => c.Enrollment.Student)
+                .Include(c => c.User)
                 .Include(c => c.Replies)
-                    .ThenInclude(r => r.Enrollment.Student)
-                .Where(c => c.Enrollment.CourseId == courseId && c.ReplyId == null && c.Type == type);
+                    .ThenInclude(r => r.User)
+                .Where(c => c.CourseId == courseId && c.ReplyId == null && c.Type == type);
 
             var allComments = await commentQuery
                 .OrderByDescending(c => c.CreatedAt)
                 .Select(c => new CommentDTO
                 {
                     CommentId = c.Id,
-                    UserName = c.Enrollment.Student.FullName,
-                    AvatarUrl = c.Enrollment.Student.AvatarUrl,
+                    UserName = c.User.FullName,
+                    AvatarUrl = c.User.AvatarUrl,
                     Rate = c.Rate,
                     Content = c.Content,
                     Type = c.Type,
-                    IsMyComment = userId != null && c.Enrollment.StudentId == userId,
-                    CanDelete = userId != null && c.Enrollment.Course.InstructorId == userId,
+                    IsMyComment = userId != null && c.UserId == userId,
+                    CanDelete = userId != null && course.InstructorId == userId,
                     Timestamp = c.CreatedAt,
                     Replies = c.Replies
                     .OrderByDescending(r => r.CreatedAt)
@@ -471,8 +471,8 @@ namespace CourseService.Infrastructure.Repositories
                         Content = r.Content,
                         Timestamp = r.CreatedAt,
                         Type = r.Type,
-                        IsMyComment = userId != null && r.Enrollment.StudentId == userId,
-                        CanDelete = userId != null && r.Enrollment.Course.InstructorId == userId
+                        IsMyComment = userId != null && r.UserId == userId,
+                        CanDelete = userId != null && course.InstructorId == userId
                     }).ToList()
                 })
                 .ToListAsync();
@@ -1077,7 +1077,7 @@ namespace CourseService.Infrastructure.Repositories
             if (addCommentDTO.Type == CommentType.Review)
             {
                 var existingComment = await _context.Comments
-                    .FirstOrDefaultAsync(c => c.EnrollmentId == enrollment.Id && c.Type == CommentType.Review);
+                    .FirstOrDefaultAsync(c => c.UserId == userId && c.CourseId == addCommentDTO.CourseId && c.Type == CommentType.Review);
 
                 if (existingComment != null)
                 {
@@ -1091,6 +1091,8 @@ namespace CourseService.Infrastructure.Repositories
                 Content = addCommentDTO.Content,
                 Rate = addCommentDTO.Type == CommentType.Review ? addCommentDTO.Rate : 0,
                 EnrollmentId = enrollment.Id,
+                UserId = userId,
+                CourseId = addCommentDTO.CourseId,
                 CreatedAt = DateTime.UtcNow,
                 Type = addCommentDTO.Type
             };
@@ -1105,7 +1107,6 @@ namespace CourseService.Infrastructure.Repositories
         public async Task<ApiResponse> UpdateCommentAsync(string commentId, UpdateCommentDTO updateCommentDTO, string userId)
         {
             var comment = await _context.Comments
-                .Include(c => c.Enrollment)
                 .FirstOrDefaultAsync(c => c.Id == commentId);
 
             if (comment == null)
@@ -1113,11 +1114,7 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse("NotFound", _localizer["CommentNotFound"].Value, null, false);
             }
 
-            // Student update their own comment OR Instructor update their own reply
-            bool isOwner = (comment.Enrollment?.StudentId == userId) || 
-                          (comment.Type == CommentType.Reply && comment.Enrollment != null && _context.Courses.Any(c => c.Id == comment.Enrollment.CourseId && c.InstructorId == userId));
-
-            if (!isOwner)
+            if (comment.UserId != userId)
             {
                 return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
             }
@@ -1130,8 +1127,7 @@ namespace CourseService.Infrastructure.Repositories
             comment.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
-
-            if (comment.Enrollment != null) await RemoveCourseDetailCache(comment.Enrollment.CourseId);
+            await RemoveCourseDetailCache(comment.CourseId);
 
             return new ApiResponse("Success", _localizer["CommentUpdated"].Value, null, true);
         }
@@ -1139,7 +1135,7 @@ namespace CourseService.Infrastructure.Repositories
         public async Task<ApiResponse> DeleteCommentAsync(string commentId, string userId)
         {
             var comment = await _context.Comments
-                .Include(c => c.Enrollment.Course)
+                .Include(c => c.Course)
                 .Include(c => c.Replies)
                 .FirstOrDefaultAsync(c => c.Id == commentId);
 
@@ -1149,7 +1145,7 @@ namespace CourseService.Infrastructure.Repositories
             }
 
             // Instructor of the course can delete any comment
-            if (comment.Enrollment.Course.InstructorId != userId)
+            if (comment.Course.InstructorId != userId)
             {
                 return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
             }
@@ -1161,7 +1157,7 @@ namespace CourseService.Infrastructure.Repositories
 
             _context.Comments.Remove(comment);
             await _context.SaveChangesAsync();
-            await RemoveCourseDetailCache(comment.Enrollment.CourseId);
+            await RemoveCourseDetailCache(comment.CourseId);
 
             return new ApiResponse("Success", _localizer["CommentDeleted"].Value, null, true);
         }
@@ -1169,7 +1165,7 @@ namespace CourseService.Infrastructure.Repositories
         public async Task<ApiResponse> ReplyToCommentAsync(AddReplyCommentDTO replyDTO, string userId)
         {
             var parentComment = await _context.Comments
-                .Include(c => c.Enrollment.Course)
+                .Include(c => c.Course)
                 .FirstOrDefaultAsync(c => c.Id == replyDTO.ParentCommentId);
 
             if (parentComment == null)
@@ -1178,18 +1174,18 @@ namespace CourseService.Infrastructure.Repositories
             }
 
             // Only course instructor can reply
-            if (parentComment.Enrollment.Course.InstructorId != userId)
+            if (parentComment.Course.InstructorId != userId)
             {
                 return new ApiResponse("Forbidden", _localizer["ForbiddenReply"].Value, null, false);
             }
 
-            // Use the parent's EnrollmentId
             var reply = new Comment
             {
                 Id = Guid.NewGuid().ToString(),
                 Content = replyDTO.Content,
                 Rate = 0,
-                EnrollmentId = parentComment.EnrollmentId,
+                UserId = userId,
+                CourseId = parentComment.CourseId,
                 ReplyId = parentComment.Id,
                 CreatedAt = DateTime.UtcNow,
                 Type = CommentType.Reply
@@ -1197,7 +1193,7 @@ namespace CourseService.Infrastructure.Repositories
 
             _context.Comments.Add(reply);
             await _context.SaveChangesAsync();
-            await RemoveCourseDetailCache(parentComment.Enrollment.CourseId);
+            await RemoveCourseDetailCache(parentComment.CourseId);
 
             return new ApiResponse("Created", _localizer["ReplyAdded"].Value, null, true);
         }
