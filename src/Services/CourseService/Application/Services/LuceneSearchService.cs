@@ -131,7 +131,9 @@ namespace CourseService.Application.Services
                     .Where(c => courseIds.Contains(c.Id) && c.Status != CourseStatus.Private)
                     .Include(c => c.Instructor)
                     .Include(c => c.Enrollments)
-                        .ThenInclude(e => e.Comments);
+                        .ThenInclude(e => e.Comments)
+                    .Include(c => c.Lectures)
+                        .ThenInclude(l => l.LectureVideos);
 
                 var coursesFromDb = await coursesQuery.ToListAsync();
 
@@ -168,8 +170,8 @@ namespace CourseService.Application.Services
                 switch (searchDto.SortBy?.ToLower())
                 {
                     case "rating":
-                        coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.Enrollments.SelectMany(e => e.Comments).Any()
-                                                        ? x.Course.Enrollments.SelectMany(e => e.Comments).Average(cm => cm.Rate)
+                        coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.Enrollments.SelectMany(e => e.Comments).Any(cm => cm.Type == CommentType.Review)
+                                                        ? x.Course.Enrollments.SelectMany(e => e.Comments).Where(cm => cm.Type == CommentType.Review).Average(cm => cm.Rate)
                                                         : 0);
                         break;
                     case "newest":
@@ -183,7 +185,7 @@ namespace CourseService.Application.Services
                         break;
                     case "popularity":
                     default:
-                        coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.Enrollments.Count);
+                        coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.Enrollments.Count(e => e.Status));
                         break;
                 }
 
@@ -198,24 +200,29 @@ namespace CourseService.Application.Services
                 {
                     var course = x.Course;
                     var calculatedPrice = x.Price;
-                    var comments = (course.Enrollments ?? new List<Enrollment>())
+                    var reviewComments = (course.Enrollments ?? new List<Enrollment>())
                         .SelectMany(e => e.Comments ?? new List<Comment>())
+                        .Where(cm => cm.Type == CommentType.Review)
                         .ToList();
-                    var avgRating = comments.Any() ? comments.Average(cm => cm.Rate) : 0;
+                    var avgRating = reviewComments.Any() ? reviewComments.Average(cm => cm.Rate) : 0;
 
                     var dto = new CourseCardDTO
                     {
                         Id = course.Id,
                         Name = course.Name,
+                        Description = course.Description,
                         ImageUrl = course.ImageUrl,
                         InstructorName = course.Instructor?.FullName ?? string.Empty,
                         AverageRating = Math.Round(avgRating, 1),
-                        TotalReviews = comments.Count,
+                        TotalReviews = reviewComments.Count,
                         TotalStudents = course.Enrollments?.Count ?? 0,
                         OriginalPrice = course.Price,
                         Price = calculatedPrice,
                         IsBestseller = (course.Enrollments?.Count ?? 0) > 5,
-                        TotalHours = 25,
+                        TotalHours = course.Lectures.SelectMany(l => l.LectureVideos).Any()
+                                     ? (int)Math.Max(1, Math.Round(course.Lectures.SelectMany(l => l.LectureVideos).Sum(v => v.Duration) / 3600.0))
+                                     : 0,
+                        LastUpdate = course.UpdatedAt == default ? course.CreateTime : course.UpdatedAt
                         // Status = course.Status.ToString()
                     };
 
@@ -254,6 +261,51 @@ namespace CourseService.Application.Services
             };
         }
 
+        public async Task<ApiResponse> SearchCoursesPreviewAsync(string searchTerm)
+        {
+            if (string.IsNullOrWhiteSpace(searchTerm))
+            {
+                return new ApiResponse("Success", _localizer["Success"].Value, new List<CoursePreviewDTO>(), true);
+            }
+
+            _searcherManager.MaybeRefreshBlocking();
+            var searcher = _searcherManager.Acquire();
+
+            try
+            {
+                var boolQuery = new BooleanQuery();
+                var term = searchTerm.ToLowerInvariant().Trim();
+                
+                var nameQuery = new WildcardQuery(new Term("name", $"*{term}*"));
+                boolQuery.Add(nameQuery, Occur.SHOULD);
+
+                var instructorQuery = new WildcardQuery(new Term("instructorName", $"*{term}*"));
+                boolQuery.Add(instructorQuery, Occur.SHOULD);
+
+                // Limit to 5-10 results for preview
+                TopDocs topDocs = searcher.Search(boolQuery, 10);
+                
+                var results = new List<CoursePreviewDTO>();
+                foreach (var scoreDoc in topDocs.ScoreDocs)
+                {
+                    var doc = searcher.Doc(scoreDoc.Doc);
+                    results.Add(new CoursePreviewDTO
+                    {
+                        Id = doc.Get("id"),
+                        Name = doc.Get("name_stored"), // We'll add this stored field
+                        ImageUrl = doc.Get("imageUrl"),
+                        InstructorName = doc.Get("instructorName_stored")
+                    });
+                }
+
+                return new ApiResponse("Success", _localizer["Success"].Value, results, true);
+            }
+            finally
+            {
+                _searcherManager.Release(searcher);
+            }
+        }
+
         public Task IndexCourseAsync(Course course)
         {
             var calculatedPrice = CalculatePrice(course);
@@ -265,8 +317,11 @@ namespace CourseService.Application.Services
             {
                 new StringField("id", course.Id ?? string.Empty, Field.Store.YES),
                 new TextField("name", course.Name ?? string.Empty, Field.Store.NO),
+                new StringField("name_stored", course.Name ?? string.Empty, Field.Store.YES), // For preview
                 new TextField("description", course.Description ?? string.Empty, Field.Store.NO),
                 new TextField("instructorName", course.Instructor?.FullName ?? string.Empty, Field.Store.NO),
+                new StringField("instructorName_stored", course.Instructor?.FullName ?? string.Empty, Field.Store.YES), // For preview
+                new StringField("imageUrl", course.ImageUrl ?? string.Empty, Field.Store.YES), // For preview
                 new DoubleField("price", (double)course.Price, Field.Store.NO),
                 new DoubleField("calculatedPrice", (double)calculatedPrice, Field.Store.NO),
                 new DoubleField("averageRating", avgRating, Field.Store.NO),
@@ -327,8 +382,11 @@ namespace CourseService.Application.Services
                 {
                     new StringField("id", course.Id ?? string.Empty, Field.Store.YES),
                     new TextField("name", course.Name ?? string.Empty, Field.Store.NO),
+                    new StringField("name_stored", course.Name ?? string.Empty, Field.Store.YES), // For preview
                     new TextField("description", course.Description ?? string.Empty, Field.Store.NO),
                     new TextField("instructorName", course.Instructor?.FullName ?? string.Empty, Field.Store.NO),
+                    new StringField("instructorName_stored", course.Instructor?.FullName ?? string.Empty, Field.Store.YES), // For preview
+                    new StringField("imageUrl", course.ImageUrl ?? string.Empty, Field.Store.YES), // For preview
                     new DoubleField("price", (double)course.Price, Field.Store.NO),
                     new DoubleField("calculatedPrice", (double)calculatedPrice, Field.Store.NO),
                     new DoubleField("averageRating", avgRating, Field.Store.NO),

@@ -175,21 +175,29 @@ namespace CourseService.API.Controllers
 
             return response.ToActionResult();
         }
+[Authorize]
+[HttpGet("search")]
+public async Task<ActionResult<ApiResponse>> SearchCourses([FromQuery] CourseSearchDTO queryParams)
+{
+    var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+    if (string.IsNullOrEmpty(studentId))
+    {
+        return Unauthorized(new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false));
+    }
 
-        [Authorize]
-        [HttpGet("search")]
-        public async Task<ActionResult<ApiResponse>> SearchCourses([FromQuery] CourseSearchDTO queryParams)
-        {
-            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            if (string.IsNullOrEmpty(studentId))
-            {
-                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
-            }
-            var response = await _searchService.SearchCoursesAsync(queryParams, studentId);
-            return response.ToActionResult();
-        }
+    var response = await _searchService.SearchCoursesAsync(queryParams, studentId);
+    return response.ToActionResult();
+}
 
-        [Authorize(Policy = "Admin")]
+[Authorize]
+[HttpGet("search-preview")]
+public async Task<ActionResult<ApiResponse>> SearchCoursesPreview([FromQuery] string searchTerm)
+{
+    var response = await _searchService.SearchCoursesPreviewAsync(searchTerm);
+    return response.ToActionResult();
+}
+
+[Authorize(Roles = "Admin")]
         [HttpPost("re-index")]
         public async Task<IActionResult> ReIndexAllCourses()
         {
