@@ -131,7 +131,15 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
 
     services.AddScoped<DbSeeder>();
     services.AddScoped<CloudinaryService>();
-    services.AddSingleton<ILuceneSearchService, LuceneSearchService>();
+    services.AddSingleton<ILuceneSearchService>(provider =>
+    {
+        var env = provider.GetRequiredService<IWebHostEnvironment>();
+        var baseDataPath = Path.Combine(env.ContentRootPath, "lucene_data");
+
+        if (!Directory.Exists(baseDataPath)) Directory.CreateDirectory(baseDataPath);
+
+        return ActivatorUtilities.CreateInstance<LuceneSearchService>(provider);
+    });
     services.AddScoped<ISepayService, SepayService>();
     services.AddScoped<IVnPayService, VnPayService>();
     services.AddScoped<IPaymentRepository, PaymentRepository>();

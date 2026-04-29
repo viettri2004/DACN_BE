@@ -54,126 +54,6 @@ namespace CourseService.Infrastructure.Repositories
             _cache = cache;
         }
 
-        public async Task<ApiResponse> GetCoursesAsync(CourseQueryParameters queryParams, string studentId)
-        {
-            var query = _context.Courses.AsNoTracking()
-                .Where(c => c.Status != CourseStatus.Private);
-
-            if (queryParams.TagIds != null && queryParams.TagIds.Any())
-            {
-                query = query.Where(c => c.CourseTags.Any(ct => queryParams.TagIds.Contains(ct.TagId)));
-            }
-
-            var allCoursesList = await query
-                .Include(c => c.Instructor)
-                .Include(c => c.Enrollments)
-                    .ThenInclude(e => e.Comments)
-                .Include(c => c.Lectures)
-                    .ThenInclude(l => l.LectureVideos)
-                .ToListAsync();
-
-            if (!string.IsNullOrEmpty(studentId))
-            {
-                var enrolledCourseIds = await _context.Enrollments
-                    .Where(e => e.StudentId == studentId && e.Status == true)
-                    .Select(e => e.CourseId)
-                    .ToListAsync();
-
-                allCoursesList = allCoursesList.Where(c => !enrolledCourseIds.Contains(c.Id)).ToList();
-            }
-
-            var coursesWithPrice = allCoursesList.Select(c =>
-            {
-                var calculatedPrice = (int.Parse(c.Id.Substring(0, 1), System.Globalization.NumberStyles.HexNumber) % 2 != 0)
-                                    ? (c.Price * 0.5m)
-                                    : c.Price;
-
-                return new
-                {
-                    Course = c,
-                    Price = calculatedPrice
-                };
-            }).AsQueryable();
-
-            if (queryParams.MinPrice.HasValue)
-            {
-                coursesWithPrice = coursesWithPrice.Where(x => x.Price >= queryParams.MinPrice.Value);
-            }
-
-            if (queryParams.MaxPrice.HasValue)
-            {
-                coursesWithPrice = coursesWithPrice.Where(x => x.Price <= queryParams.MaxPrice.Value);
-            }
-
-            var totalCount = coursesWithPrice.Count();
-
-            switch (queryParams.SortBy?.ToLower())
-            {
-                case "rating":
-                    coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.Enrollments.SelectMany(e => e.Comments).Any(cm => cm.Type == CommentType.Review)
-                                                    ? x.Course.Enrollments.SelectMany(e => e.Comments).Where(cm => cm.Type == CommentType.Review).Average(cm => cm.Rate)
-                                                    : 0);
-                    break;
-                case "newest":
-                    coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.CreateTime);
-                    break;
-                case "priceasc":
-                    coursesWithPrice = coursesWithPrice.OrderBy(x => x.Price);
-                    break;
-                case "pricedesc":
-                    coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Price);
-                    break;
-                case "popularity":
-                default:
-                    coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.Enrollments.Count(e => e.Status));
-                    break;
-            }
-
-            var pagedData = coursesWithPrice
-                .Skip((queryParams.Page - 1) * queryParams.PageSize)
-                .Take(queryParams.PageSize)
-                .ToList();
-
-            var pagedCoursesData = pagedData.Select(x => new CourseCardDTO
-            {
-                Id = x.Course.Id,
-                Name = x.Course.Name,
-                Description = x.Course.Description,
-                ImageUrl = x.Course.ImageUrl,
-                InstructorName = x.Course.Instructor.FullName,
-                AverageRating = x.Course.Enrollments.SelectMany(e => e.Comments).Any(cm => cm.Type == CommentType.Review)
-                                     ? Math.Round(x.Course.Enrollments.SelectMany(e => e.Comments).Where(cm => cm.Type == CommentType.Review).Average(cm => cm.Rate), 1)
-                                     : 0,
-                TotalReviews = x.Course.Enrollments.SelectMany(e => e.Comments).Count(cm => cm.Type == CommentType.Review),
-                TotalStudents = x.Course.Enrollments.Count,
-                OriginalPrice = x.Course.Price,
-                Price = x.Price,
-                IsBestseller = x.Course.Enrollments.Count > 5,
-                TotalHours = x.Course.Lectures.SelectMany(l => l.LectureVideos).Any()
-                             ? (int)Math.Max(1, Math.Round(x.Course.Lectures.SelectMany(l => l.LectureVideos).Sum(v => v.Duration) / 3600.0))
-                             : 0,
-                LastUpdate = x.Course.UpdatedAt == default ? x.Course.CreateTime : x.Course.UpdatedAt,
-                // Status = x.Course.Status.ToString()
-            }).ToList();
-
-            foreach (var course in pagedCoursesData)
-            {
-                if (course.Price == course.OriginalPrice)
-                {
-                    course.OriginalPrice = null;
-                }
-            }
-
-            var pagedResult = new PagedResult<CourseCardDTO>
-            {
-                Items = pagedCoursesData,
-                Page = queryParams.Page,
-                PageSize = queryParams.PageSize,
-                TotalCount = totalCount
-            };
-
-            return new ApiResponse("Success", _localizer["Success"].Value, pagedResult, true);
-        }
         public async Task<ApiResponse> CreateCourseAsync(CreateCourseDTO createCourseDTO, string instructorId)
         {
             try
@@ -1110,6 +990,27 @@ namespace CourseService.Infrastructure.Repositories
             await _context.SaveChangesAsync();
             await RemoveCourseDetailCache(addCommentDTO.CourseId);
 
+            // Re-index to update ratings
+            try
+            {
+                var courseForIndex = await _context.Courses
+                    .AsNoTracking()
+                    .Include(c => c.Instructor)
+                    .Include(c => c.CourseTags)
+                    .Include(c => c.Enrollments)
+                        .ThenInclude(e => e.Comments)
+                    .FirstOrDefaultAsync(c => c.Id == addCommentDTO.CourseId);
+
+                if (courseForIndex != null)
+                {
+                    await _luceneSearchService.IndexCourseAsync(courseForIndex);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Indexing failed after comment: {ex.Message}");
+            }
+
             return new ApiResponse("Created", _localizer["Success"].Value, null, true);
         }
 
@@ -1137,6 +1038,27 @@ namespace CourseService.Infrastructure.Repositories
 
             await _context.SaveChangesAsync();
             await RemoveCourseDetailCache(comment.CourseId);
+
+            // Re-index to update ratings
+            try
+            {
+                var courseForIndex = await _context.Courses
+                    .AsNoTracking()
+                    .Include(c => c.Instructor)
+                    .Include(c => c.CourseTags)
+                    .Include(c => c.Enrollments)
+                        .ThenInclude(e => e.Comments)
+                    .FirstOrDefaultAsync(c => c.Id == comment.CourseId);
+
+                if (courseForIndex != null)
+                {
+                    await _luceneSearchService.IndexCourseAsync(courseForIndex);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Indexing failed after comment update: {ex.Message}");
+            }
 
             return new ApiResponse("Success", _localizer["CommentUpdated"].Value, null, true);
         }
@@ -1167,6 +1089,27 @@ namespace CourseService.Infrastructure.Repositories
             _context.Comments.Remove(comment);
             await _context.SaveChangesAsync();
             await RemoveCourseDetailCache(comment.CourseId);
+
+            // Re-index to update ratings
+            try
+            {
+                var courseForIndex = await _context.Courses
+                    .AsNoTracking()
+                    .Include(c => c.Instructor)
+                    .Include(c => c.CourseTags)
+                    .Include(c => c.Enrollments)
+                        .ThenInclude(e => e.Comments)
+                    .FirstOrDefaultAsync(c => c.Id == comment.CourseId);
+
+                if (courseForIndex != null)
+                {
+                    await _luceneSearchService.IndexCourseAsync(courseForIndex);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Indexing failed after comment deletion: {ex.Message}");
+            }
 
             return new ApiResponse("Success", _localizer["CommentDeleted"].Value, null, true);
         }

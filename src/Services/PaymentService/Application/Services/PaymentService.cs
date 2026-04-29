@@ -13,6 +13,9 @@ using Microsoft.Extensions.Localization;
 using Shared.Domain.Entities;
 using src.Shared.Resources;
 using Hangfire;
+using CourseService.Application.Interfaces;
+using Data.Context;
+using Microsoft.EntityFrameworkCore;
 
 namespace PaymentService.Application.Services
 {
@@ -24,6 +27,8 @@ namespace PaymentService.Application.Services
         private readonly IDistributedCache _cache;
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly IBackgroundJobClient _backgroundJobClient;
+        private readonly ILuceneSearchService _luceneSearchService;
+        private readonly AppDbContext _context;
 
         public PaymentService(
             IPaymentRepository paymentRepository,
@@ -31,7 +36,9 @@ namespace PaymentService.Application.Services
             IConfiguration configuration,
             IDistributedCache cache,
             IStringLocalizer<SharedResources> localizer,
-            IBackgroundJobClient backgroundJobClient)
+            IBackgroundJobClient backgroundJobClient,
+            ILuceneSearchService luceneSearchService,
+            AppDbContext context)
         {
             _paymentRepository = paymentRepository;
             _vnPayService = vnPayService;
@@ -39,6 +46,8 @@ namespace PaymentService.Application.Services
             _cache = cache;
             _localizer = localizer;
             _backgroundJobClient = backgroundJobClient;
+            _luceneSearchService = luceneSearchService;
+            _context = context;
         }
 
         public async Task<ApiResponse> CreateBankPaymentAsync(CheckoutRequestDto checkoutRequest, string studentId)
@@ -368,6 +377,27 @@ namespace PaymentService.Application.Services
                 await _paymentRepository.RemoveCartItemsAsync(studentId, new List<string> { courseIdToRedeem });
                 
                 await _paymentRepository.SaveChangesAsync();
+
+                // Re-index to update student count
+                try
+                {
+                    var courseForIndex = await _context.Courses
+                        .AsNoTracking()
+                        .Include(c => c.Instructor)
+                        .Include(c => c.CourseTags)
+                        .Include(c => c.Enrollments)
+                            .ThenInclude(e => e.Comments)
+                        .FirstOrDefaultAsync(c => c.Id == courseIdToRedeem);
+
+                    if (courseForIndex != null)
+                    {
+                        await _luceneSearchService.IndexCourseAsync(courseForIndex);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Indexing failed after gift code redemption: {ex.Message}");
+                }
 
                 return new ApiResponse("Success", _localizer["GiftCodeRedeemedSuccess", course.Name].Value, null, true);
             }

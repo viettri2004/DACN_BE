@@ -30,28 +30,6 @@ namespace CourseService.API.Controllers
             _localizer = localizer;
         }
 
-        [Authorize]
-        [HttpGet("filtered-courses")]
-        public async Task<ActionResult<ApiResponse>> GetAllCourses([FromQuery] CourseQueryParameters queryParams)
-        {
-            // Explicitly handle TagId[] if TagIds is not populated by standard binding
-            if (queryParams.TagIds == null || !queryParams.TagIds.Any())
-            {
-                if (Request.Query.TryGetValue("TagId[]", out var tagIds))
-                {
-                    queryParams.TagIds = tagIds.ToList()!;
-                }
-            }
-
-            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            if (string.IsNullOrEmpty(studentId))
-            {
-                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
-            }
-            var response = await _courseRepository.GetCoursesAsync(queryParams, studentId);
-            return response.ToActionResult();
-        }
-
         [Authorize(Policy = "Instructor")]
         [HttpPost("create")]
         public async Task<ActionResult<ApiResponse>> CreateCourse([FromForm] CreateCourseDTO createCourseDTO)
@@ -102,7 +80,7 @@ namespace CourseService.API.Controllers
 
             return response.ToActionResult();
         }
-        
+
         [HttpGet("course-comments/{courseId}")]
         public async Task<ActionResult<ApiResponse>> GetComments([FromRoute] string courseId, [FromQuery] CommentType type)
         {
@@ -175,29 +153,47 @@ namespace CourseService.API.Controllers
 
             return response.ToActionResult();
         }
-[Authorize]
-[HttpGet("search")]
-public async Task<ActionResult<ApiResponse>> SearchCourses([FromQuery] CourseSearchDTO queryParams)
-{
-    var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-    if (string.IsNullOrEmpty(studentId))
-    {
-        return Unauthorized(new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false));
-    }
+        [Authorize]
+        [HttpGet("search")]
+        public async Task<ActionResult<ApiResponse>> SearchCourses([FromQuery] CourseSearchDTO queryParams)
+        {
+            // Support both SelectedTags and TagId[] / tagIds format for compatibility
+            if (queryParams.SelectedTags == null || !queryParams.SelectedTags.Any())
+            {
+                if (Request.Query.TryGetValue("TagId[]", out var tagIds))
+                {
+                    queryParams.SelectedTags = tagIds.ToList()!;
+                }
+                else if (Request.Query.TryGetValue("tagIds", out var tIds))
+                {
+                    queryParams.SelectedTags = tIds.ToList()!;
+                }
+                else if (Request.Query.TryGetValue("SelectedTags[]", out var sTags))
+                {
+                    queryParams.SelectedTags = sTags.ToList()!;
+                }
+            }
 
-    var response = await _searchService.SearchCoursesAsync(queryParams, studentId);
-    return response.ToActionResult();
-}
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return Unauthorized(new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false));
+            }
 
-[Authorize]
-[HttpGet("search-preview")]
-public async Task<ActionResult<ApiResponse>> SearchCoursesPreview([FromQuery] string searchTerm)
-{
-    var response = await _searchService.SearchCoursesPreviewAsync(searchTerm);
-    return response.ToActionResult();
-}
+            var response = await _searchService.SearchCoursesAsync(queryParams, studentId);
+            return response.ToActionResult();
+        }
 
-[Authorize(Roles = "Admin")]
+        [Authorize]
+        [HttpGet("search-preview")]
+        public async Task<ActionResult<ApiResponse>> SearchCoursesPreview([FromQuery] string searchTerm)
+        {
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            var response = await _searchService.SearchCoursesPreviewAsync(searchTerm, studentId ?? string.Empty);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Roles = "Admin")]
         [HttpPost("re-index")]
         public async Task<IActionResult> ReIndexAllCourses()
         {
@@ -377,7 +373,7 @@ public async Task<ActionResult<ApiResponse>> SearchCoursesPreview([FromQuery] st
             var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(studentId))
             {
-                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));    
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
             var response = await _courseRepository.MarkItemCompletedAsync(dto, studentId);

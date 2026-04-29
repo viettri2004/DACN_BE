@@ -49,17 +49,21 @@ ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 WORKDIR /app
 
 # Copy everything needed to run the app from the "build" stage.
-COPY --from=build /app .
+COPY --from=build --chown=app:app /app .
 
 # Switch to a non-privileged user (defined in the base image) that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
 # and https://github.com/dotnet/dotnet-docker/discussions/4764
-USER $APP_UID
 USER root
 RUN apk add --no-cache tzdata
 
 ENV TZ=Asia/Ho_Chi_Minh
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# Ensure directories for Lucene indexes and logs exist and are writable by the app user
+RUN mkdir -p /app/lucene_data /app/logs && \
+    chmod -R 777 /app/lucene_data /app/logs && \
+    chown -R app:app /app/lucene_data /app/logs
 
 USER app
 ENTRYPOINT ["dotnet", "src.dll"]

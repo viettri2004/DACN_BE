@@ -17,10 +17,13 @@ namespace CourseService.Infrastructure.Repositories
     {
         private readonly AppDbContext _context;
         private readonly IStringLocalizer<SharedResources> _localizer;
-        public TagRepository(AppDbContext context, IStringLocalizer<SharedResources> localizer)
+        private readonly ILuceneSearchService _luceneSearchService;
+
+        public TagRepository(AppDbContext context, IStringLocalizer<SharedResources> localizer, ILuceneSearchService luceneSearchService)
         {
             _localizer = localizer;
             _context = context;
+            _luceneSearchService = luceneSearchService;
         }
         
         public async Task<ApiResponse> GetAllTagsAsync()
@@ -71,6 +74,9 @@ namespace CourseService.Infrastructure.Repositories
         {
             var course = await _context.Courses
                 .Include(c => c.CourseTags)
+                .Include(c => c.Instructor)
+                .Include(c => c.Enrollments)
+                    .ThenInclude(e => e.Comments)
                 .FirstOrDefaultAsync(c => c.Id == assignTagToCourseDTO.CourseId);
 
             if (course == null)
@@ -97,6 +103,15 @@ namespace CourseService.Infrastructure.Repositories
             }
 
             await _context.SaveChangesAsync();
+
+            try
+            {
+                await _luceneSearchService.IndexCourseAsync(course);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Indexing failed after tag assignment: {ex.Message}");
+            }
 
             return new ApiResponse("Success", _localizer["TagAssignedSuccessfully"].Value, null, true);
         }

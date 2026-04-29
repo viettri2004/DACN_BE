@@ -10,6 +10,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using PaymentService.Application.DTOs;
 using PaymentService.Application.Interfaces;
+using CourseService.Application.Interfaces;
 using Hangfire;
 
 namespace PaymentService.Infrastructure.Services
@@ -20,13 +21,15 @@ namespace PaymentService.Infrastructure.Services
         private readonly ILogger<SepayService> _logger;
         private readonly IDistributedCache _cache;
         private readonly IBackgroundJobClient _backgroundJobClient;
+        private readonly ILuceneSearchService _luceneSearchService;
 
-        public SepayService(AppDbContext context, ILogger<SepayService> logger, IDistributedCache cache, IBackgroundJobClient backgroundJobClient)
+        public SepayService(AppDbContext context, ILogger<SepayService> logger, IDistributedCache cache, IBackgroundJobClient backgroundJobClient, ILuceneSearchService luceneSearchService)
         {
             _context = context;
             _logger = logger;
             _cache = cache;
             _backgroundJobClient = backgroundJobClient;
+            _luceneSearchService = luceneSearchService;
         }
 
         public async Task ProcessSepayWebhookAsync(SepayWebhookRequest request)
@@ -163,6 +166,30 @@ namespace PaymentService.Infrastructure.Services
             }
 
             await _context.SaveChangesAsync();
+
+            // Re-index courses to update student count
+            foreach (var item in orderItems)
+            {
+                try
+                {
+                    var courseForIndex = await _context.Courses
+                        .AsNoTracking()
+                        .Include(c => c.Instructor)
+                        .Include(c => c.CourseTags)
+                        .Include(c => c.Enrollments)
+                            .ThenInclude(e => e.Comments)
+                        .FirstOrDefaultAsync(c => c.Id == item.CourseId);
+
+                    if (courseForIndex != null)
+                    {
+                        await _luceneSearchService.IndexCourseAsync(courseForIndex);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to re-index course {CourseId} after Sepay payment", item.CourseId);
+                }
+            }
 
             // Invalidate Redis cart cache
             if (!string.IsNullOrEmpty(order.StudentId))
