@@ -668,6 +668,8 @@ namespace Data.Seeding
 
             var courses = await _context.Courses.Take(3).ToListAsync();
             var students = await _context.Users.OfType<Student>().Take(3).ToListAsync();
+            var admin = await _context.Users.OfType<Admin>().FirstOrDefaultAsync();
+            var adminId = admin?.Id ?? Guid.NewGuid().ToString();
 
             // 5 Active gift codes (some linked to courses, some universal)
             for (int i = 0; i < 5; i++)
@@ -678,7 +680,9 @@ namespace Data.Seeding
                     Code = "GIFT" + (i + 1) + RandomNumberString(4),
                     CourseId = i < courses.Count ? courses[i].Id : null,
                     IsActive = true,
-                    IsUsed = false,
+                    MaxUses = 10,
+                    UsageCount = 0,
+                    CreatedByUserId = adminId,
                     CreatedAt = DateTime.UtcNow.AddDays(-_random.Next(1, 10)),
                     ExpiryDate = DateTime.UtcNow.AddMonths(1)
                 });
@@ -692,7 +696,9 @@ namespace Data.Seeding
                     Id = Guid.NewGuid().ToString(),
                     Code = "USED" + (i + 1) + RandomNumberString(4),
                     IsActive = true,
-                    IsUsed = true,
+                    MaxUses = 1,
+                    UsageCount = 1,
+                    CreatedByUserId = adminId,
                     UsedByStudentId = students[i].Id,
                     UsedAt = DateTime.UtcNow.AddDays(-_random.Next(1, 5)),
                     CreatedAt = DateTime.UtcNow.AddDays(-_random.Next(5, 15))
@@ -707,7 +713,9 @@ namespace Data.Seeding
                     Id = Guid.NewGuid().ToString(),
                     Code = "EXP" + (i + 1) + RandomNumberString(4),
                     IsActive = false,
-                    IsUsed = false,
+                    MaxUses = 1,
+                    UsageCount = 0,
+                    CreatedByUserId = adminId,
                     CreatedAt = DateTime.UtcNow.AddMonths(-2),
                     ExpiryDate = DateTime.UtcNow.AddMonths(-1)
                 });

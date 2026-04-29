@@ -312,6 +312,10 @@ namespace Data.Context
                     .WithMany()
                     .HasForeignKey(gc => gc.UsedByStudentId)
                     .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(gc => gc.CreatedBy)
+                    .WithMany()
+                    .HasForeignKey(gc => gc.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             modelBuilder.Entity<QuestionAnswer>(entity =>

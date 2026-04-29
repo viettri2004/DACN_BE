@@ -208,11 +208,16 @@ namespace src.Services.PaymentService.API.Controllers
             return response.ToActionResult();
         }
 
-        [Authorize(Policy = "Admin")]
+        [Authorize(Roles = "Admin,Instructor")]
         [HttpPost("giftcode/create")]
         public async Task<ActionResult<ApiResponse>> CreateGiftCode([FromBody] CreateGiftCodeDto createDto)
         {
-            var response = await _paymentService.CreateGiftCodeAsync(createDto);
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _paymentService.CreateGiftCodeAsync(createDto, userId);
             return response.ToActionResult();
         }
 

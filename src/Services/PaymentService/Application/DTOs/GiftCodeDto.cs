@@ -16,5 +16,6 @@ namespace PaymentService.Application.DTOs
         public string Code { get; set; } = null!;
         public string? CourseId { get; set; }
         public DateTime? ExpiryDate { get; set; }
+        public int? MaxUses { get; set; }
     }
 }

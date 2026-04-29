@@ -634,4 +634,25 @@
   <data name="ProfileUpdated" xml:space="preserve">
     <value>Profile updated successfully.</value>
   </data>
+  <data name="QuestionAdded" xml:space="preserve">
+    <value>Question added successfully.</value>
+  </data>
+  <data name="QAUpdated" xml:space="preserve">
+    <value>Q&A updated successfully.</value>
+  </data>
+  <data name="QADeleted" xml:space="preserve">
+    <value>Q&A deleted successfully.</value>
+  </data>
+  <data name="QANotFound" xml:space="preserve">
+    <value>Question or answer not found.</value>
+  </data>
+  <data name="UnauthorizedGiftCodeCreation" xml:space="preserve">
+    <value>You are not authorized to create gift codes for this course.</value>
+  </data>
+  <data name="GiftCodeUsageLimitReached" xml:space="preserve">
+    <value>This gift code has reached its usage limit.</value>
+  </data>
+  <data name="GiftCodeAlreadyUsedByYou" xml:space="preserve">
+    <value>You have already used this gift code.</value>
+  </data>
 </root>

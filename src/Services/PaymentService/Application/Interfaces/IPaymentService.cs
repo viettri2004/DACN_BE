@@ -9,7 +9,7 @@ namespace PaymentService.Application.Interfaces
         Task<ApiResponse> CreateBankPaymentAsync(CheckoutRequestDto checkoutRequest, string studentId);
         Task<ApiResponse> CreateVnPayPaymentAsync(CheckoutRequestDto checkoutRequest, string studentId);
         Task<ApiResponse> RedeemGiftCodeAsync(GiftCodeRedeemDto redeemDto, string studentId);
-        Task<ApiResponse> CreateGiftCodeAsync(CreateGiftCodeDto createDto);
+        Task<ApiResponse> CreateGiftCodeAsync(CreateGiftCodeDto createDto, string userId);
         Task<ApiResponse> GetPaymentHistoryAsync(string studentId);
     }
 }

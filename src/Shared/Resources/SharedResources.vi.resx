@@ -646,4 +646,13 @@
   <data name="QANotFound" xml:space="preserve">
     <value>Không tìm thấy câu hỏi hoặc phản hồi.</value>
   </data>
+  <data name="UnauthorizedGiftCodeCreation" xml:space="preserve">
+    <value>Bạn không có quyền tạo mã quà tặng cho khóa học này.</value>
+  </data>
+  <data name="GiftCodeUsageLimitReached" xml:space="preserve">
+    <value>Mã quà tặng này đã đạt giới hạn sử dụng.</value>
+  </data>
+  <data name="GiftCodeAlreadyUsedByYou" xml:space="preserve">
+    <value>Bạn đã sử dụng mã quà tặng này rồi.</value>
+  </data>
 </root>

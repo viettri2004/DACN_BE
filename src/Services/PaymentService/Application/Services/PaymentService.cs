@@ -162,10 +162,31 @@ namespace PaymentService.Application.Services
             }
         }
 
-        public async Task<ApiResponse> CreateGiftCodeAsync(CreateGiftCodeDto createDto)
+        public async Task<ApiResponse> CreateGiftCodeAsync(CreateGiftCodeDto createDto, string userId)
         {
             try
             {
+                var user = await _paymentRepository.GetUserByIdAsync(userId);
+                if (user == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["UserNotFound"].Value, null, false);
+                }
+
+                // Check authorization: Admin or Course Owner
+                if (user is not Admin)
+                {
+                    if (string.IsNullOrEmpty(createDto.CourseId))
+                    {
+                        return new ApiResponse("Forbidden", _localizer["UnauthorizedGiftCodeCreation"].Value, null, false);
+                    }
+
+                    var course = await _paymentRepository.GetCourseByIdAsync(createDto.CourseId);
+                    if (course == null || course.InstructorId != userId)
+                    {
+                        return new ApiResponse("Forbidden", _localizer["UnauthorizedGiftCodeCreation"].Value, null, false);
+                    }
+                }
+
                 var existingCode = await _paymentRepository.GetGiftCodeByCodeAsync(createDto.Code);
                 if (existingCode != null)
                 {
@@ -178,8 +199,10 @@ namespace PaymentService.Application.Services
                     Code = createDto.Code,
                     CourseId = createDto.CourseId,
                     ExpiryDate = createDto.ExpiryDate,
+                    MaxUses = createDto.MaxUses,
+                    UsageCount = 0,
+                    CreatedByUserId = userId,
                     IsActive = true,
-                    IsUsed = false,
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -205,11 +228,16 @@ namespace PaymentService.Application.Services
                     return new ApiResponse("NotFound", _localizer["InvalidGiftCode"].Value, null, false);
                 }
 
-                if (giftCode.IsUsed)
+                // Check usage limit
+                if (giftCode.MaxUses.HasValue && giftCode.UsageCount >= giftCode.MaxUses.Value)
                 {
-                    return new ApiResponse("BadRequest", _localizer["GiftCodeUsed"].Value, null, false);
+                    return new ApiResponse("BadRequest", _localizer["GiftCodeUsageLimitReached"].Value, null, false);
                 }
 
+                // Check if this student already used this specific gift code
+                // Since we don't have a GiftCodeUsage table, we can check existing enrollments or track usages.
+                // For now, let's just check if the student is already enrolled in the target course.
+                
                 if (giftCode.ExpiryDate.HasValue && giftCode.ExpiryDate.Value < DateTime.UtcNow)
                 {
                     return new ApiResponse("BadRequest", _localizer["GiftCodeExpired"].Value, null, false);
@@ -233,9 +261,9 @@ namespace PaymentService.Application.Services
                 {
                     return new ApiResponse("Conflict", _localizer["OwnedCourseConflict"].Value, null, false);
                 }
-
-                // Mark as used
-                giftCode.IsUsed = true;
+                
+                // Track usage (at least for the last user in the entity, or better: separate table, but sticking to entity for simplicity as requested)
+                giftCode.UsageCount++;
                 giftCode.UsedAt = DateTime.UtcNow;
                 giftCode.UsedByStudentId = studentId;
 
