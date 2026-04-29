@@ -29,6 +29,13 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> UpdateCommentAsync(string commentId, UpdateCommentDTO updateCommentDTO, string userId);
         Task<ApiResponse> DeleteCommentAsync(string commentId, string userId);
         Task<ApiResponse> ReplyToCommentAsync(AddReplyCommentDTO replyDTO, string userId);
+        
+        Task<ApiResponse> GetCourseQAsAsync(string courseId, string userId);
+        Task<ApiResponse> CreateQuestionAsync(CreateQuestionDTO createQuestionDTO, string userId);
+        Task<ApiResponse> ReplyToQAAsync(ReplyQADTO replyDTO, string userId);
+        Task<ApiResponse> UpdateQAAsync(string qaId, UpdateQADTO updateQADTO, string userId);
+        Task<ApiResponse> DeleteQAAsync(string qaId, string userId);
+
         Task<ApiResponse> MarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId);
         Task<ApiResponse> UnmarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId);
         Task<ApiResponse> GetContinueLearningCoursesAsync(string studentId);

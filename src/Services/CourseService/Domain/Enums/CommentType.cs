@@ -3,7 +3,6 @@ namespace CourseService.Domain.Enums
     public enum CommentType
     {
         Review,
-        Reply,
-        Faq
+        Reply
     }
 }

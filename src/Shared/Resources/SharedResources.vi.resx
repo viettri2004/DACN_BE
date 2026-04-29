@@ -634,4 +634,16 @@
   <data name="ProfileUpdated" xml:space="preserve">
     <value>Cập nhật thông tin cá nhân thành công.</value>
   </data>
+  <data name="QuestionAdded" xml:space="preserve">
+    <value>Câu hỏi đã được thêm thành công.</value>
+  </data>
+  <data name="QAUpdated" xml:space="preserve">
+    <value>Cập nhật câu hỏi/trả lời thành công.</value>
+  </data>
+  <data name="QADeleted" xml:space="preserve">
+    <value>Xóa câu hỏi/trả lời thành công.</value>
+  </data>
+  <data name="QANotFound" xml:space="preserve">
+    <value>Không tìm thấy câu hỏi hoặc phản hồi.</value>
+  </data>
 </root>

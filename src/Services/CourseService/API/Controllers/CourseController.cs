@@ -288,6 +288,71 @@ namespace CourseService.API.Controllers
             return response.ToActionResult();
         }
 
+        [Authorize]
+        [HttpGet("course-qas/{courseId}")]
+        public async Task<ActionResult<ApiResponse>> GetCourseQAs([FromRoute] string courseId)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.GetCourseQAsAsync(courseId, userId);
+            return response.ToActionResult();
+        }
+
+        [Authorize]
+        [HttpPost("add-question")]
+        public async Task<ActionResult<ApiResponse>> AddQuestion([FromBody] CreateQuestionDTO createQuestionDTO)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.CreateQuestionAsync(createQuestionDTO, userId);
+            return response.ToActionResult();
+        }
+
+        [Authorize]
+        [HttpPost("reply-qa")]
+        public async Task<ActionResult<ApiResponse>> ReplyQA([FromBody] ReplyQADTO replyDTO)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.ReplyToQAAsync(replyDTO, userId);
+            return response.ToActionResult();
+        }
+
+        [Authorize]
+        [HttpPut("update-qa/{qaId}")]
+        public async Task<ActionResult<ApiResponse>> UpdateQA([FromRoute] string qaId, [FromBody] UpdateQADTO updateQADTO)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.UpdateQAAsync(qaId, updateQADTO, userId);
+            return response.ToActionResult();
+        }
+
+        [Authorize]
+        [HttpDelete("delete-qa/{qaId}")]
+        public async Task<ActionResult<ApiResponse>> DeleteQA([FromRoute] string qaId)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.DeleteQAAsync(qaId, userId);
+            return response.ToActionResult();
+        }
+
         [Authorize(Policy = "Student")]
         [HttpPost("mark-completed")]
         public async Task<ActionResult<ApiResponse>> MarkItemCompleted([FromBody] MarkItemCompletedDTO dto)

@@ -23,13 +23,6 @@ namespace CourseService.Application.DTOs
         public List<LecturePreviewDTO> Lectures { get; set; } = new List<LecturePreviewDTO>();
     }
 
-    public class CourseFaqDTO
-    {
-        public string Id { get; set; } = null!;
-        public string Question { get; set; } = null!;
-        public string Answer { get; set; } = null!;
-    }
-
     public class LecturePreviewDTO
     {
         // public string Id { get; set; } = null!;

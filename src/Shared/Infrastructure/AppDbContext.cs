@@ -24,6 +24,7 @@ namespace Data.Context
         public DbSet<Document> Documents { get; set; } = null!;
         public DbSet<LectureVideo> LectureVideos { get; set; } = null!;
         public DbSet<Comment> Comments { get; set; } = null!;
+        public DbSet<QuestionAnswer> QuestionAnswers { get; set; } = null!;
         public DbSet<Quiz> Quizzes { get; set; } = null!;
         public DbSet<Question> Questions { get; set; } = null!;
         public DbSet<QuestionOption> QuestionOptions { get; set; } = null!;
@@ -301,6 +302,25 @@ namespace Data.Context
                     .WithMany()
                     .HasForeignKey(gc => gc.UsedByStudentId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<QuestionAnswer>(entity =>
+            {
+                entity.HasKey(qa => qa.Id);
+                entity.HasOne(qa => qa.Course)
+                    .WithMany()
+                    .HasForeignKey(qa => qa.CourseId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(qa => qa.User)
+                    .WithMany()
+                    .HasForeignKey(qa => qa.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(qa => qa.Parent)
+                    .WithMany(p => p.Replies)
+                    .HasForeignKey(qa => qa.ParentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.Property(qa => qa.Content).IsRequired();
+                entity.Property(qa => qa.CreatedAt).IsRequired();
             });
 
             modelBuilder.Entity<StudentLectureProgress>(entity =>

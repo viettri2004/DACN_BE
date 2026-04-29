@@ -1115,7 +1115,7 @@ namespace CourseService.Infrastructure.Repositories
 
             // Student update their own comment OR Instructor update their own reply
             bool isOwner = (comment.Enrollment?.StudentId == userId) || 
-                          (comment.Type == CommentType.Reply && _context.Courses.Any(c => c.Id == comment.Enrollment.CourseId && c.InstructorId == userId));
+                          (comment.Type == CommentType.Reply && comment.Enrollment != null && _context.Courses.Any(c => c.Id == comment.Enrollment.CourseId && c.InstructorId == userId));
 
             if (!isOwner)
             {
@@ -1200,6 +1200,144 @@ namespace CourseService.Infrastructure.Repositories
             await RemoveCourseDetailCache(parentComment.Enrollment.CourseId);
 
             return new ApiResponse("Created", _localizer["ReplyAdded"].Value, null, true);
+        }
+
+        public async Task<ApiResponse> GetCourseQAsAsync(string courseId, string userId)
+        {
+            var isEnrolled = await _context.Enrollments.AnyAsync(e => e.CourseId == courseId && e.StudentId == userId && e.Status == true);
+            var isInstructor = await _context.Courses.AnyAsync(c => c.Id == courseId && c.InstructorId == userId);
+
+            if (!isEnrolled && !isInstructor)
+            {
+                return new ApiResponse("Forbidden", _localizer["NotEnrolledInCourse"].Value, null, false);
+            }
+
+            var qas = await _context.QuestionAnswers
+                .Include(qa => qa.User)
+                .Include(qa => qa.Replies).ThenInclude(r => r.User)
+                .Where(qa => qa.CourseId == courseId && qa.ParentId == null)
+                .OrderByDescending(qa => qa.CreatedAt)
+                .Select(qa => new QuestionAnswerDTO
+                {
+                    Id = qa.Id,
+                    Title = qa.Title,
+                    Content = qa.Content,
+                    UserName = qa.User.FullName,
+                    AvatarUrl = qa.User.AvatarUrl,
+                    CreatedAt = qa.CreatedAt,
+                    IsMyQA = qa.UserId == userId,
+                    Replies = qa.Replies.OrderBy(r => r.CreatedAt).Select(r => new QuestionAnswerDTO
+                    {
+                        Id = r.Id,
+                        Content = r.Content,
+                        UserName = r.User.FullName,
+                        AvatarUrl = r.User.AvatarUrl,
+                        CreatedAt = r.CreatedAt,
+                        IsMyQA = r.UserId == userId
+                    }).ToList()
+                })
+                .ToListAsync();
+
+            return new ApiResponse("Success", _localizer["Success"].Value, qas, true);
+        }
+
+        public async Task<ApiResponse> CreateQuestionAsync(CreateQuestionDTO createQuestionDTO, string userId)
+        {
+            var isEnrolled = await _context.Enrollments.AnyAsync(e => e.CourseId == createQuestionDTO.CourseId && e.StudentId == userId && e.Status == true);
+            var isInstructor = await _context.Courses.AnyAsync(c => c.Id == createQuestionDTO.CourseId && c.InstructorId == userId);
+
+            if (!isEnrolled && !isInstructor)
+            {
+                return new ApiResponse("Forbidden", _localizer["NotEnrolledInCourse"].Value, null, false);
+            }
+
+            var qa = new QuestionAnswer
+            {
+                CourseId = createQuestionDTO.CourseId,
+                UserId = userId,
+                Title = createQuestionDTO.Title,
+                Content = createQuestionDTO.Content
+            };
+
+            _context.QuestionAnswers.Add(qa);
+            await _context.SaveChangesAsync();
+
+            return new ApiResponse("Created", _localizer["QuestionAdded"].Value, null, true);
+        }
+
+        public async Task<ApiResponse> ReplyToQAAsync(ReplyQADTO replyDTO, string userId)
+        {
+            var parent = await _context.QuestionAnswers
+                .FirstOrDefaultAsync(qa => qa.Id == replyDTO.ParentId);
+
+            if (parent == null)
+            {
+                return new ApiResponse("NotFound", _localizer["QANotFound"].Value, null, false);
+            }
+
+            var isEnrolled = await _context.Enrollments.AnyAsync(e => e.CourseId == parent.CourseId && e.StudentId == userId && e.Status == true);
+            var isInstructor = await _context.Courses.AnyAsync(c => c.Id == parent.CourseId && c.InstructorId == userId);
+
+            if (!isEnrolled && !isInstructor)
+            {
+                return new ApiResponse("Forbidden", _localizer["NotEnrolledInCourse"].Value, null, false);
+            }
+
+            var reply = new QuestionAnswer
+            {
+                CourseId = parent.CourseId,
+                UserId = userId,
+                ParentId = parent.Id,
+                Content = replyDTO.Content
+            };
+
+            _context.QuestionAnswers.Add(reply);
+            await _context.SaveChangesAsync();
+
+            return new ApiResponse("Created", _localizer["ReplyAdded"].Value, null, true);
+        }
+
+        public async Task<ApiResponse> UpdateQAAsync(string qaId, UpdateQADTO updateQADTO, string userId)
+        {
+            var qa = await _context.QuestionAnswers.FirstOrDefaultAsync(qa => qa.Id == qaId);
+            if (qa == null) return new ApiResponse("NotFound", _localizer["QANotFound"].Value, null, false);
+
+            if (qa.UserId != userId)
+            {
+                return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
+            }
+
+            qa.Title = updateQADTO.Title;
+            qa.Content = updateQADTO.Content;
+            qa.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return new ApiResponse("Success", _localizer["QAUpdated"].Value, null, true);
+        }
+
+        public async Task<ApiResponse> DeleteQAAsync(string qaId, string userId)
+        {
+            var qa = await _context.QuestionAnswers
+                .Include(q => q.Course)
+                .Include(q => q.Replies)
+                .FirstOrDefaultAsync(q => q.Id == qaId);
+                
+            if (qa == null) return new ApiResponse("NotFound", _localizer["QANotFound"].Value, null, false);
+
+            // Owner or Instructor can delete
+            if (qa.UserId != userId && qa.Course.InstructorId != userId)
+            {
+                return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
+            }
+
+            if (qa.Replies.Any())
+            {
+                _context.QuestionAnswers.RemoveRange(qa.Replies);
+            }
+            _context.QuestionAnswers.Remove(qa);
+            await _context.SaveChangesAsync();
+
+            return new ApiResponse("Success", _localizer["QADeleted"].Value, null, true);
         }
 
         private async Task RemoveRecommendedCache()
