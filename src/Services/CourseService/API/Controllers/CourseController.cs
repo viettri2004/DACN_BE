@@ -397,5 +397,44 @@ public async Task<ActionResult<ApiResponse>> SearchCoursesPreview([FromQuery] st
             var response = await _courseRepository.UnmarkItemCompletedAsync(dto, studentId);
             return response.ToActionResult();
         }
+
+        [Authorize(Policy = "Student")]
+        [HttpPost("wishlist/add/{courseId}")]
+        public async Task<ActionResult<ApiResponse>> AddToWishlist([FromRoute] string courseId)
+        {
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.AddToWishlistAsync(courseId, studentId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Student")]
+        [HttpDelete("wishlist/remove/{courseId}")]
+        public async Task<ActionResult<ApiResponse>> RemoveFromWishlist([FromRoute] string courseId)
+        {
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.RemoveFromWishlistAsync(courseId, studentId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Student")]
+        [HttpGet("wishlist")]
+        public async Task<ActionResult<ApiResponse>> GetMyWishlist()
+        {
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.GetStudentWishlistAsync(studentId);
+            return response.ToActionResult();
+        }
     }
 }

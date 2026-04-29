@@ -1425,5 +1425,131 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse("Error", ex.Message, null, false);
             }
         }
+
+        public async Task<ApiResponse> AddToWishlistAsync(string courseId, string studentId)
+        {
+            try
+            {
+                var exists = await _context.Wishlists.AnyAsync(w => w.StudentId == studentId && w.CourseId == courseId);
+                if (exists)
+                {
+                    return new ApiResponse("Conflict", _localizer["AlreadyInWishlist"].Value, null, false);
+                }
+
+                var wishlist = new Wishlist
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    StudentId = studentId,
+                    CourseId = courseId,
+                    AddedAt = DateTime.UtcNow
+                };
+
+                _context.Wishlists.Add(wishlist);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse("Created", _localizer["AddedToWishlist"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> RemoveFromWishlistAsync(string courseId, string studentId)
+        {
+            try
+            {
+                var wishlist = await _context.Wishlists.FirstOrDefaultAsync(w => w.StudentId == studentId && w.CourseId == courseId);
+                if (wishlist == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["NotInWishlist"].Value, null, false);
+                }
+
+                _context.Wishlists.Remove(wishlist);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse("Success", _localizer["RemovedFromWishlist"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> GetStudentWishlistAsync(string studentId)
+        {
+            try
+            {
+                var wishlistItems = await _context.Wishlists
+                    .AsNoTracking()
+                    .Where(w => w.StudentId == studentId)
+                    .Include(w => w.Course)
+                        .ThenInclude(c => c.Instructor)
+                    .Include(w => w.Course)
+                        .ThenInclude(c => c.Enrollments)
+                            .ThenInclude(e => e.Comments)
+                    .Include(w => w.Course)
+                        .ThenInclude(c => c.Lectures)
+                            .ThenInclude(l => l.LectureVideos)
+                    .OrderByDescending(w => w.AddedAt)
+                    .ToListAsync();
+
+                var courseDTOs = wishlistItems.Select(w =>
+                {
+                    var course = w.Course;
+                    var reviewComments = course.Enrollments
+                                        .SelectMany(e => e.Comments)
+                                        .Where(cm => cm.Type == CommentType.Review)
+                                        .ToList();
+                    
+                    var avgRating = reviewComments.Any() ? reviewComments.Average(cm => cm.Rate) : 0;
+                    var calculatedPrice = CalculatePrice(course);
+
+                    var dto = new CourseCardDTO
+                    {
+                        Id = course.Id,
+                        Name = course.Name,
+                        Description = course.Description,
+                        ImageUrl = course.ImageUrl,
+                        InstructorName = course.Instructor.FullName,
+                        AverageRating = Math.Round(avgRating, 1),
+                        TotalReviews = reviewComments.Count,
+                        TotalStudents = course.Enrollments.Count,
+                        OriginalPrice = course.Price,
+                        Price = calculatedPrice,
+                        IsBestseller = course.Enrollments.Count > 5,
+                        TotalHours = course.Lectures.SelectMany(l => l.LectureVideos).Any()
+                                     ? (int)Math.Max(1, Math.Round(course.Lectures.SelectMany(l => l.LectureVideos).Sum(v => v.Duration) / 3600.0))
+                                     : 0,
+                        LastUpdate = course.UpdatedAt == default ? course.CreateTime : course.UpdatedAt
+                    };
+
+                    if (dto.Price == dto.OriginalPrice) dto.OriginalPrice = null;
+                    return dto;
+                }).ToList();
+
+                return new ApiResponse("Success", _localizer["Success"].Value, courseDTOs, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        private decimal CalculatePrice(Course course)
+        {
+            if (course == null) return 0m;
+            if (string.IsNullOrEmpty(course.Id)) return course.Price;
+            try
+            {
+                var hexChar = course.Id.Substring(0, 1);
+                var value = int.Parse(hexChar, System.Globalization.NumberStyles.HexNumber);
+                return (value % 2 != 0) ? (course.Price * 0.5m) : course.Price;
+            }
+            catch
+            {
+                return course.Price;
+            }
+        }
     }
 }

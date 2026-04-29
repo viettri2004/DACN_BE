@@ -36,6 +36,7 @@ namespace Data.Context
         public DbSet<Notification> Notifications { get; set; } = null!;
         public DbSet<GiftCode> GiftCodes { get; set; } = null!;
         public DbSet<StudentLectureProgress> StudentLectureProgresses { get; set; } = null!;
+        public DbSet<Wishlist> Wishlists { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -338,6 +339,20 @@ namespace Data.Context
                     .OnDelete(DeleteBehavior.Cascade);
                 entity.HasIndex(slp => new { slp.StudentId, slp.CourseId });
                 entity.HasIndex(slp => new { slp.StudentId, slp.LectureId, slp.ItemId, slp.ItemType }).IsUnique();
+            });
+
+            modelBuilder.Entity<Wishlist>(entity =>
+            {
+                entity.HasKey(w => w.Id);
+                entity.HasOne(w => w.Student)
+                    .WithMany()
+                    .HasForeignKey(w => w.StudentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(w => w.Course)
+                    .WithMany()
+                    .HasForeignKey(w => w.CourseId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(w => new { w.StudentId, w.CourseId }).IsUnique();
             });
         }
     }

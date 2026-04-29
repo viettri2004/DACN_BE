@@ -39,5 +39,10 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> MarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId);
         Task<ApiResponse> UnmarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId);
         Task<ApiResponse> GetContinueLearningCoursesAsync(string studentId);
+        
+        // Wishlist
+        Task<ApiResponse> AddToWishlistAsync(string courseId, string studentId);
+        Task<ApiResponse> RemoveFromWishlistAsync(string courseId, string studentId);
+        Task<ApiResponse> GetStudentWishlistAsync(string studentId);
     }
 }
