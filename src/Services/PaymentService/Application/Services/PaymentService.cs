@@ -12,6 +12,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Localization;
 using Shared.Domain.Entities;
 using src.Shared.Resources;
+using Hangfire;
 
 namespace PaymentService.Application.Services
 {
@@ -22,19 +23,22 @@ namespace PaymentService.Application.Services
         private readonly BankConfig _bankConfig;
         private readonly IDistributedCache _cache;
         private readonly IStringLocalizer<SharedResources> _localizer;
+        private readonly IBackgroundJobClient _backgroundJobClient;
 
         public PaymentService(
             IPaymentRepository paymentRepository,
             IVnPayService vnPayService,
             IConfiguration configuration,
             IDistributedCache cache,
-            IStringLocalizer<SharedResources> localizer)
+            IStringLocalizer<SharedResources> localizer,
+            IBackgroundJobClient backgroundJobClient)
         {
             _paymentRepository = paymentRepository;
             _vnPayService = vnPayService;
             _bankConfig = configuration.GetSection("Bank").Get<BankConfig>() ?? new BankConfig();
             _cache = cache;
             _localizer = localizer;
+            _backgroundJobClient = backgroundJobClient;
         }
 
         public async Task<ApiResponse> CreateBankPaymentAsync(CheckoutRequestDto checkoutRequest, string studentId)
@@ -350,13 +354,20 @@ namespace PaymentService.Application.Services
 
                 await _paymentRepository.AddEnrollmentAsync(enrollment);
 
+                // Clear cart from Redis cache and cancel pending sync job
+                await _cache.RemoveAsync($"cart:{studentId}");
+                var jobCacheKey = $"cart:syncjob:{studentId}";
+                var jobId = await _cache.GetStringAsync(jobCacheKey);
+                if (!string.IsNullOrEmpty(jobId))
+                {
+                    _backgroundJobClient.Delete(jobId);
+                    await _cache.RemoveAsync(jobCacheKey);
+                }
+
                 // Clear cart from database
                 await _paymentRepository.RemoveCartItemsAsync(studentId, new List<string> { courseIdToRedeem });
                 
                 await _paymentRepository.SaveChangesAsync();
-
-                // Clear cart from Redis cache
-                await _cache.RemoveAsync($"cart:{studentId}");
 
                 return new ApiResponse("Success", _localizer["GiftCodeRedeemedSuccess", course.Name].Value, null, true);
             }

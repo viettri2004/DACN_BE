@@ -7,8 +7,10 @@ using Data.Context;
 using Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using PaymentService.Application.DTOs;
 using PaymentService.Application.Interfaces;
+using Hangfire;
 
 namespace PaymentService.Infrastructure.Services
 {
@@ -17,12 +19,14 @@ namespace PaymentService.Infrastructure.Services
         private readonly AppDbContext _context;
         private readonly ILogger<SepayService> _logger;
         private readonly IDistributedCache _cache;
+        private readonly IBackgroundJobClient _backgroundJobClient;
 
-        public SepayService(AppDbContext context, ILogger<SepayService> logger, IDistributedCache cache)
+        public SepayService(AppDbContext context, ILogger<SepayService> logger, IDistributedCache cache, IBackgroundJobClient backgroundJobClient)
         {
             _context = context;
             _logger = logger;
             _cache = cache;
+            _backgroundJobClient = backgroundJobClient;
         }
 
         public async Task ProcessSepayWebhookAsync(SepayWebhookRequest request)
@@ -130,9 +134,19 @@ namespace PaymentService.Infrastructure.Services
                 await _context.Enrollments.AddAsync(enrollment);
             }
 
-            // Remove items from cart
+            // Remove items from cart and cancel pending sync job
             if (!string.IsNullOrEmpty(order.StudentId))
             {
+                // Clear Redis cache and cancel pending sync job before DB changes to ensure consistency
+                await _cache.RemoveAsync($"cart:{order.StudentId}");
+                var jobCacheKey = $"cart:syncjob:{order.StudentId}";
+                var jobId = await _cache.GetStringAsync(jobCacheKey);
+                if (!string.IsNullOrEmpty(jobId))
+                {
+                    _backgroundJobClient.Delete(jobId);
+                    await _cache.RemoveAsync(jobCacheKey);
+                }
+
                 var courseIds = orderItems.Select(oi => oi.CourseId).ToList();
                 if (courseIds.Any())
                 {

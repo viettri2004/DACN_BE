@@ -6,9 +6,11 @@ using Data.Context;
 using Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using PaymentService.Application.DTOs;
 using PaymentService.Application.Interfaces;
 using PaymentService.Infrastructure.Services.Helpers;
+using Hangfire;
 
 namespace PaymentService.Infrastructure.Services
 {
@@ -18,13 +20,15 @@ namespace PaymentService.Infrastructure.Services
         private readonly AppDbContext _context;
         private readonly ILogger<VnPayService> _logger;
         private readonly IDistributedCache _cache;
+        private readonly IBackgroundJobClient _backgroundJobClient;
 
-        public VnPayService(IConfiguration config, AppDbContext context, ILogger<VnPayService> logger, IDistributedCache cache)
+        public VnPayService(IConfiguration config, AppDbContext context, ILogger<VnPayService> logger, IDistributedCache cache, IBackgroundJobClient backgroundJobClient)
         {
             _config = config;
             _context = context;
             _logger = logger;
             _cache = cache;
+            _backgroundJobClient = backgroundJobClient;
         }
 
         public string CreatePaymentUrl(HttpContext context, VnPayPaymentRequestModel model)
@@ -168,6 +172,20 @@ namespace PaymentService.Infrastructure.Services
                     order.PaymentMethod = "VnPay";
 
                     var orderItems = order.OrderItems ?? new List<OrderItem>();
+
+                    // Clear Redis cache and cancel pending sync job before DB changes to ensure consistency
+                    if (!string.IsNullOrEmpty(order.StudentId))
+                    {
+                        await _cache.RemoveAsync($"cart:{order.StudentId}");
+                        var jobCacheKey = $"cart:syncjob:{order.StudentId}";
+                        var jobId = await _cache.GetStringAsync(jobCacheKey);
+                        if (!string.IsNullOrEmpty(jobId))
+                        {
+                            _backgroundJobClient.Delete(jobId);
+                            await _cache.RemoveAsync(jobCacheKey);
+                        }
+                    }
+
                     foreach (var item in orderItems)
                     {
                         var enrollment = new Enrollment
