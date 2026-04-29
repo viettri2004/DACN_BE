@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace src.Migrations
 {
     /// <inheritdoc />
-    public partial class MakeSomeChange : Migration
+    public partial class FinalizeRefactoring : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -19,8 +19,7 @@ namespace src.Migrations
                 name: "CreatedByUserId",
                 table: "GiftCodes",
                 type: "text",
-                nullable: false,
-                defaultValue: "");
+                nullable: true);
 
             migrationBuilder.AddColumn<int>(
                 name: "MaxUses",
@@ -39,10 +38,45 @@ namespace src.Migrations
                 name: "CourseId",
                 table: "Comments",
                 type: "text",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "UserId",
+                table: "Comments",
+                type: "text",
+                nullable: true);
+
+            // Data Migration: Populate Comments.UserId and Comments.CourseId from Enrollments
+            migrationBuilder.Sql(@"
+                UPDATE ""Comments""
+                SET ""UserId"" = e.""StudentId"",
+                    ""CourseId"" = e.""CourseId""
+                FROM ""Enrollments"" e
+                WHERE ""Comments"".""EnrollmentId"" = e.""Id""
+            ");
+
+            // Data Migration: Populate GiftCodes.CreatedByUserId with the first admin found
+            migrationBuilder.Sql(@"
+                UPDATE ""GiftCodes""
+                SET ""CreatedByUserId"" = (SELECT ""Id"" FROM ""AspNetUsers"" WHERE ""UserType"" = 'Admin' LIMIT 1)
+                WHERE ""CreatedByUserId"" IS NULL
+            ");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedByUserId",
+                table: "GiftCodes",
+                type: "text",
                 nullable: false,
                 defaultValue: "");
 
-            migrationBuilder.AddColumn<string>(
+            migrationBuilder.AlterColumn<string>(
+                name: "CourseId",
+                table: "Comments",
+                type: "text",
+                nullable: false,
+                defaultValue: "");
+
+            migrationBuilder.AlterColumn<string>(
                 name: "UserId",
                 table: "Comments",
                 type: "text",
@@ -60,8 +94,7 @@ namespace src.Migrations
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CourseId = table.Column<string>(type: "text", nullable: false),
                     UserId = table.Column<string>(type: "text", nullable: false),
-                    ParentId = table.Column<string>(type: "text", nullable: true),
-                    CourseId1 = table.Column<string>(type: "text", nullable: true)
+                    ParentId = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -78,11 +111,6 @@ namespace src.Migrations
                         principalTable: "Courses",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_QuestionAnswers_Courses_CourseId1",
-                        column: x => x.CourseId1,
-                        principalTable: "Courses",
-                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_QuestionAnswers_QuestionAnswers_ParentId",
                         column: x => x.ParentId,
@@ -110,11 +138,6 @@ namespace src.Migrations
                 name: "IX_QuestionAnswers_CourseId",
                 table: "QuestionAnswers",
                 column: "CourseId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_QuestionAnswers_CourseId1",
-                table: "QuestionAnswers",
-                column: "CourseId1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_QuestionAnswers_ParentId",

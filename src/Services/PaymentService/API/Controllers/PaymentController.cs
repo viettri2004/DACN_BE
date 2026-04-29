@@ -221,6 +221,20 @@ namespace src.Services.PaymentService.API.Controllers
             return response.ToActionResult();
         }
 
+        [Authorize(Roles = "Admin,Instructor")]
+        [HttpGet("giftcode/course/{courseId}")]
+        public async Task<ActionResult<ApiResponse>> GetGiftCodesByCourse(string courseId)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false));
+            }
+
+            var response = await _paymentService.GetGiftCodesByCourseAsync(courseId, userId);
+            return response.ToActionResult();
+        }
+
         [Authorize]
         [HttpGet("history")]
         public async Task<ActionResult<ApiResponse>> GetPaymentHistory()

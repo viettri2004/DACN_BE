@@ -655,4 +655,10 @@
   <data name="GiftCodeAlreadyUsedByYou" xml:space="preserve">
     <value>Bạn đã sử dụng mã quà tặng này rồi.</value>
   </data>
+  <data name="GiftCodesRetrieved" xml:space="preserve">
+    <value>Lấy danh sách mã quà tặng thành công.</value>
+  </data>
+  <data name="GiftCodeInvalidForCourse" xml:space="preserve">
+    <value>Mã quà tặng không hợp lệ cho khóa học này.</value>
+  </data>
 </root>

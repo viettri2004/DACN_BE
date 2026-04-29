@@ -682,7 +682,6 @@ namespace Data.Seeding
                     IsActive = true,
                     MaxUses = 10,
                     UsageCount = 0,
-                    CreatedByUserId = adminId,
                     CreatedAt = DateTime.UtcNow.AddDays(-_random.Next(1, 10)),
                     ExpiryDate = DateTime.UtcNow.AddMonths(1)
                 });
@@ -698,9 +697,6 @@ namespace Data.Seeding
                     IsActive = true,
                     MaxUses = 1,
                     UsageCount = 1,
-                    CreatedByUserId = adminId,
-                    UsedByStudentId = students[i].Id,
-                    UsedAt = DateTime.UtcNow.AddDays(-_random.Next(1, 5)),
                     CreatedAt = DateTime.UtcNow.AddDays(-_random.Next(5, 15))
                 });
             }
@@ -715,7 +711,6 @@ namespace Data.Seeding
                     IsActive = false,
                     MaxUses = 1,
                     UsageCount = 0,
-                    CreatedByUserId = adminId,
                     CreatedAt = DateTime.UtcNow.AddMonths(-2),
                     ExpiryDate = DateTime.UtcNow.AddMonths(-1)
                 });

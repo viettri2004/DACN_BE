@@ -86,6 +86,19 @@ namespace PaymentService.Infrastructure.Repositories
                 .FirstOrDefaultAsync(gc => gc.Code == code);
         }
 
+        public async Task<bool> CheckGiftCodeDuplicateAsync(string code, string? courseId)
+        {
+            return await _context.GiftCodes.AnyAsync(gc => gc.Code == code && (gc.CourseId == courseId || gc.CourseId == null));
+        }
+
+        public async Task<List<GiftCode>> GetGiftCodesByCourseAsync(string courseId)
+        {
+            return await _context.GiftCodes
+                .Where(gc => gc.CourseId == courseId)
+                .OrderByDescending(gc => gc.CreatedAt)
+                .ToListAsync();
+        }
+
         public async Task AddGiftCodeAsync(GiftCode giftCode)
         {
             await _context.GiftCodes.AddAsync(giftCode);

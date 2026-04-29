@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace src.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260429094920_MakeSomeChange")]
-    partial class MakeSomeChange
+    [Migration("20260429104248_FinalizeRefactoring")]
+    partial class FinalizeRefactoring
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -643,9 +643,6 @@ namespace src.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("CourseId1")
-                        .HasColumnType("text");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -665,8 +662,6 @@ namespace src.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CourseId");
-
-                    b.HasIndex("CourseId1");
 
                     b.HasIndex("ParentId");
 
@@ -1354,14 +1349,10 @@ namespace src.Migrations
             modelBuilder.Entity("Entities.QuestionAnswer", b =>
                 {
                     b.HasOne("Entities.Course", "Course")
-                        .WithMany()
+                        .WithMany("QuestionAnswers")
                         .HasForeignKey("CourseId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("Entities.Course", null)
-                        .WithMany("QuestionAnswers")
-                        .HasForeignKey("CourseId1");
 
                     b.HasOne("Entities.QuestionAnswer", "Parent")
                         .WithMany("Replies")

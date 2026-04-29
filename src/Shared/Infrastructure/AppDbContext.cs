@@ -308,21 +308,13 @@ namespace Data.Context
                     .WithMany()
                     .HasForeignKey(gc => gc.CourseId)
                     .OnDelete(DeleteBehavior.SetNull);
-                entity.HasOne(gc => gc.UsedByStudent)
-                    .WithMany()
-                    .HasForeignKey(gc => gc.UsedByStudentId)
-                    .OnDelete(DeleteBehavior.SetNull);
-                entity.HasOne(gc => gc.CreatedBy)
-                    .WithMany()
-                    .HasForeignKey(gc => gc.CreatedByUserId)
-                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             modelBuilder.Entity<QuestionAnswer>(entity =>
             {
                 entity.HasKey(qa => qa.Id);
                 entity.HasOne(qa => qa.Course)
-                    .WithMany()
+                    .WithMany(c => c.QuestionAnswers)
                     .HasForeignKey(qa => qa.CourseId)
                     .OnDelete(DeleteBehavior.Cascade);
                 entity.HasOne(qa => qa.User)

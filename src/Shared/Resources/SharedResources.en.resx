@@ -638,10 +638,10 @@
     <value>Question added successfully.</value>
   </data>
   <data name="QAUpdated" xml:space="preserve">
-    <value>Q&A updated successfully.</value>
+    <value>QA updated successfully.</value>
   </data>
   <data name="QADeleted" xml:space="preserve">
-    <value>Q&A deleted successfully.</value>
+    <value>QA deleted successfully.</value>
   </data>
   <data name="QANotFound" xml:space="preserve">
     <value>Question or answer not found.</value>
@@ -654,5 +654,11 @@
   </data>
   <data name="GiftCodeAlreadyUsedByYou" xml:space="preserve">
     <value>You have already used this gift code.</value>
+  </data>
+  <data name="GiftCodesRetrieved" xml:space="preserve">
+    <value>Gift codes retrieved successfully.</value>
+  </data>
+  <data name="GiftCodeInvalidForCourse" xml:space="preserve">
+    <value>Gift code is not valid for this course.</value>
   </data>
 </root>

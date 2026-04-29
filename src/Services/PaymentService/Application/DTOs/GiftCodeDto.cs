@@ -8,7 +8,7 @@ namespace PaymentService.Application.DTOs
     public class GiftCodeRedeemDto
     {
         public string Code { get; set; } = null!;
-        public string? CourseId { get; set; } // Required if the gift code is for "any course"
+        public string? CourseId { get; set; } 
     }
 
     public class CreateGiftCodeDto
@@ -17,5 +17,17 @@ namespace PaymentService.Application.DTOs
         public string? CourseId { get; set; }
         public DateTime? ExpiryDate { get; set; }
         public int? MaxUses { get; set; }
+    }
+
+    public class GiftCodeViewDto
+    {
+        public string Id { get; set; } = null!;
+        public string Code { get; set; } = null!;
+        public string? CourseId { get; set; }
+        public int? MaxUses { get; set; }
+        public int UsageCount { get; set; }
+        public DateTime? ExpiryDate { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public bool IsActive { get; set; }
     }
 }
