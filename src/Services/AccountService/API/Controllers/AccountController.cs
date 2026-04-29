@@ -135,6 +135,22 @@ namespace src.Services.AccountService.API.Controllers
             return response.ToActionResult();
         }
 
+        [HttpPatch("update-profile")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse>> UpdateProfile([FromForm] UpdateUserProfileDTO dto)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+
+            var response = await _accountRepository.UpdateUserProfileAsync(userId, dto);
+
+            return response.ToActionResult();
+        }
+
         [HttpPost("reset-password")]
         public async Task<ActionResult<ApiResponse>> ResetPassword([FromBody] ResetPasswordDTO dto)
         {
@@ -249,6 +265,20 @@ namespace src.Services.AccountService.API.Controllers
 
             Response.Cookies.Delete("refreshToken");
 
+            return response.ToActionResult();
+        }
+
+        [HttpPost("change-password")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse>> ChangePassword([FromBody] ChangePasswordDTO dto)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+
+            var response = await _authservice.ChangePasswordAsync(userId, dto);
             return response.ToActionResult();
         }
 

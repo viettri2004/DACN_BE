@@ -393,6 +393,25 @@ namespace AccountService.Application.Services
             return new ApiResponse("Success", _localizer["LogoutSuccess"].Value, null, true);
         }
 
+        public async Task<ApiResponse> ChangePasswordAsync(string userId, ChangePasswordDTO dto)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                return new ApiResponse("NotFound", _localizer["UserNotFound"].Value, null, false);
+            }
+
+            var result = await _userManager.ChangePasswordAsync(user, dto.OldPassword, dto.NewPassword);
+            if (!result.Succeeded)
+            {
+                var error = result.Errors.FirstOrDefault();
+                string message = error?.Code == "PasswordMismatch" ? _localizer["InvalidOldPassword"].Value : (error?.Description ?? _localizer["UnexpectedError"].Value);
+                return new ApiResponse("BadRequest", message, null, false);
+            }
+
+            return new ApiResponse("Success", _localizer["ChangePasswordSuccess"].Value, null, true);
+        }
+
         public async Task<ApiResponse> GetAllUsersAsync()
         {
             var users = await _accountRepository.GetAllUsersAsync();

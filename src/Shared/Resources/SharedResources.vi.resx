@@ -625,4 +625,13 @@
   <data name="DefaultInstructorJobPosition" xml:space="preserve">
     <value>Giảng viên</value>
   </data>
+  <data name="ChangePasswordSuccess" xml:space="preserve">
+    <value>Đổi mật khẩu thành công.</value>
+  </data>
+  <data name="InvalidOldPassword" xml:space="preserve">
+    <value>Mật khẩu cũ không chính xác.</value>
+  </data>
+  <data name="ProfileUpdated" xml:space="preserve">
+    <value>Cập nhật thông tin cá nhân thành công.</value>
+  </data>
 </root>

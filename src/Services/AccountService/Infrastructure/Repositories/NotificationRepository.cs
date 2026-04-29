@@ -14,6 +14,7 @@ using AccountService.Domain.Enums;
 
 using Microsoft.AspNetCore.SignalR;
 using Shared.Infrastructure.Hubs;
+using Shared.Domain.Entities;
 
 namespace AccountService.Infrastructure.Repositories
 {
@@ -120,7 +121,7 @@ namespace AccountService.Infrastructure.Repositories
             return await CreateNotificationForRoleAsync(NotificationRole.All, title, message, type);
         }
 
-        public async Task<ApiResponse> GetUserNotificationsAsync(string userId)
+        public async Task<ApiResponse> GetUserNotificationsAsync(string userId, int page = 1, int pageSize = 10)
         {
             try
             {
@@ -128,9 +129,15 @@ namespace AccountService.Infrastructure.Repositories
                 if (user == null)
                     return new ApiResponse("NotFound", _localizer["UserNotFound"].Value, null, false);
 
-                var notifications = await _context.Notifications
-                    .Where(n => n.UserId == userId)
+                var query = _context.Notifications
+                    .Where(n => n.UserId == userId);
+
+                var totalCount = await query.CountAsync();
+
+                var notifications = await query
                     .OrderByDescending(n => n.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
                     .ToListAsync();
 
                 var notificationDtos = notifications.Select(n => new NotificationDTO
@@ -143,7 +150,15 @@ namespace AccountService.Infrastructure.Repositories
                     CreatedAt = n.CreatedAt
                 }).ToList();
 
-                return new ApiResponse("Success", _localizer["Success"].Value, notificationDtos, true);
+                var pagedResult = new PagedResult<NotificationDTO>
+                {
+                    Items = notificationDtos,
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalCount = totalCount
+                };
+
+                return new ApiResponse("Success", _localizer["Success"].Value, pagedResult, true);
             }
             catch (Exception ex)
             {

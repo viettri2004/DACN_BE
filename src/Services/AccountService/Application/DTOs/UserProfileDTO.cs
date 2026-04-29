@@ -15,10 +15,6 @@ namespace AccountService.Application.DTOs
         public string PhoneNumber { get; set; } = null!;
         public string Description { get; set; } = null!;
         public string AvatarUrl { get; set; } = null!;
-        public string? Location { get; set; }
-        public DateTime? BirthDate { get; set; }
-        public string? Gender { get; set; }
-        public string? Experience { get; set; }
         public int? MemberSinceYear { get; set; }
         public UserLearningStatsDTO Stats { get; set; } = null!;
     }

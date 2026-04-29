@@ -14,6 +14,7 @@ namespace AccountService.Application.Interfaces
         Task<User> FindUserByEmail(string email);
         Task ChangePassword(User user, ChangePasswordDTO changePasswordDTO);
         Task<ApiResponse> GetUserProfileAsync(string userId);
+        Task<ApiResponse> UpdateUserProfileAsync(string userId, UpdateUserProfileDTO dto);
         Task<bool> CreateInstructorRequestAsync(InstructorRequest request);
         Task<List<InstructorRequest>> GetPendingInstructorRequestsAsync();
         Task<InstructorRequest?> GetInstructorRequestByIdAsync(int id);

@@ -625,4 +625,13 @@
   <data name="DefaultInstructorJobPosition" xml:space="preserve">
     <value>Instructor</value>
   </data>
+  <data name="ChangePasswordSuccess" xml:space="preserve">
+    <value>Password changed successfully.</value>
+  </data>
+  <data name="InvalidOldPassword" xml:space="preserve">
+    <value>Incorrect old password.</value>
+  </data>
+  <data name="ProfileUpdated" xml:space="preserve">
+    <value>Profile updated successfully.</value>
+  </data>
 </root>

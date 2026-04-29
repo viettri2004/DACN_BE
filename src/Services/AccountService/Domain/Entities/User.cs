@@ -9,6 +9,7 @@ namespace Entities
         public string FullName { get; set; } = null!;
         public string? Description { get; set; }
         public string? AvatarUrl { get; set; }
+        public string? AvatarPublicId { get; set; }
         public bool IsBanned { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();

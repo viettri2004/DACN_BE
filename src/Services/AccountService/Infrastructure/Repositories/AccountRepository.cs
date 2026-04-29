@@ -12,7 +12,8 @@ using Microsoft.Extensions.Localization;
 using src.Shared.Domain.Entities;
 using src.Shared.Resources;
 using src.Shared.Infrastructure;
-
+using Shared.Infrastructure.cloudinaryService;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Caching.Distributed;
 using Newtonsoft.Json;
 
@@ -24,13 +25,19 @@ namespace AccountService.Infrastructure.Persistence.Repositories
         private readonly UserManager<User> _userManager;
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly IDistributedCache _cache;
+        private readonly CloudinaryService _cloudinaryService;
 
-        public AccountRepository(AppDbContext context, UserManager<User> userManager, IStringLocalizer<SharedResources> localizer, IDistributedCache cache)
+        public AccountRepository(AppDbContext context, 
+                                UserManager<User> userManager, 
+                                IStringLocalizer<SharedResources> localizer, 
+                                IDistributedCache cache,
+                                CloudinaryService cloudinaryService)
         {
             _userManager = userManager;
             _context = context;
             _localizer = localizer;
             _cache = cache;
+            _cloudinaryService = cloudinaryService;
         }
         
         public async Task<User> GetUserFromRefreshToken(string refreshToken)
@@ -52,7 +59,6 @@ namespace AccountService.Infrastructure.Persistence.Repositories
         }
 
         public async Task ChangePassword(User user, ChangePasswordDTO changePasswordDTO)
-
         {
             await _userManager.ChangePasswordAsync(user, changePasswordDTO.OldPassword, changePasswordDTO.NewPassword);
         }
@@ -75,10 +81,6 @@ namespace AccountService.Infrastructure.Persistence.Repositories
                 return new ApiResponse("NotFound", _localizer["UserNotFound"].Value, null, false);
             }
 
-            var userComments = await _context.Comments
-                .Where(c => c.Enrollment.StudentId == userId && c.Rate > 0)
-                .ToListAsync();
-
             var stats = new UserLearningStatsDTO
             {
                 CompletionProgress = 0,    
@@ -98,13 +100,7 @@ namespace AccountService.Infrastructure.Persistence.Repositories
                 PhoneNumber = user.PhoneNumber ?? "",
                 Description = user.Description ?? "",
                 AvatarUrl = user.AvatarUrl ?? "",
-
-                Location = "Hồ Chí Minh, Việt Nam",
-                BirthDate = new DateTime(2004, 6, 13),
-                Gender = "Nam",
-                Experience = "Chưa cập nhật",
-                MemberSinceYear = 2025,
-
+                MemberSinceYear = user.CreatedAt.Year,
                 Stats = stats
             };
 
@@ -117,6 +113,46 @@ namespace AccountService.Infrastructure.Persistence.Repositories
             await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response, JsonSettings.CamelCase), cacheOptions);
 
             return response;
+        }
+
+        public async Task<ApiResponse> UpdateUserProfileAsync(string userId, UpdateUserProfileDTO dto)
+        {
+            try
+            {
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+                if (user == null)
+                    return new ApiResponse("NotFound", _localizer["UserNotFound"].Value, null, false);
+
+                if (!string.IsNullOrEmpty(dto.FullName)) user.FullName = dto.FullName;
+                if (!string.IsNullOrEmpty(dto.JobPosition)) user.JobPosition = dto.JobPosition;
+                if (!string.IsNullOrEmpty(dto.Organization)) user.Organization = dto.Organization;
+                if (!string.IsNullOrEmpty(dto.PhoneNumber)) user.PhoneNumber = dto.PhoneNumber;
+                if (!string.IsNullOrEmpty(dto.Description)) user.Description = dto.Description;
+
+                if (dto.Avatar != null)
+                {
+                    // Delete old image if exists
+                    if (!string.IsNullOrEmpty(user.AvatarPublicId))
+                    {
+                        await _cloudinaryService.DeleteImageAsync(user.AvatarPublicId);
+                    }
+
+                    // Upload new image
+                    var (imageUrl, imagePublicId) = await _cloudinaryService.UploadImageAsync(dto.Avatar);
+                    user.AvatarUrl = imageUrl;
+                    user.AvatarPublicId = imagePublicId;
+                }
+
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+                await RemoveProfileCache(userId);
+
+                return new ApiResponse("Success", _localizer["ProfileUpdated"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
         }
 
         public async Task<bool> CreateInstructorRequestAsync(InstructorRequest request)
