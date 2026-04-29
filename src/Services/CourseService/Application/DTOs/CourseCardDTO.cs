@@ -9,6 +9,7 @@ namespace CourseService.Application.DTOs
     {
         public string Id { get; set; } = null!;
         public string Name { get; set; } = null!;
+        public string Description { get; set; } = null!;
         public string ImageUrl { get; set; } = null!;
         public string InstructorName { get; set; } = null!;
         public double AverageRating { get; set; }
@@ -18,5 +19,6 @@ namespace CourseService.Application.DTOs
         public decimal? OriginalPrice { get; set; }
         public int TotalHours { get; set; }
         public bool IsBestseller { get; set; }
+        public DateTime LastUpdate { get; set; }
     }
 }

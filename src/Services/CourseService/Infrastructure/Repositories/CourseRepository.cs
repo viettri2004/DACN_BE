@@ -68,6 +68,8 @@ namespace CourseService.Infrastructure.Repositories
                 .Include(c => c.Instructor)
                 .Include(c => c.Enrollments)
                     .ThenInclude(e => e.Comments)
+                .Include(c => c.Lectures)
+                    .ThenInclude(l => l.LectureVideos)
                 .ToListAsync();
 
             if (!string.IsNullOrEmpty(studentId))
@@ -123,7 +125,7 @@ namespace CourseService.Infrastructure.Repositories
                     break;
                 case "popularity":
                 default:
-                    coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.Enrollments.Count);
+                    coursesWithPrice = coursesWithPrice.OrderByDescending(x => x.Course.Enrollments.Count(e => e.Status));
                     break;
             }
 
@@ -136,6 +138,7 @@ namespace CourseService.Infrastructure.Repositories
             {
                 Id = x.Course.Id,
                 Name = x.Course.Name,
+                Description = x.Course.Description,
                 ImageUrl = x.Course.ImageUrl,
                 InstructorName = x.Course.Instructor.FullName,
                 AverageRating = x.Course.Enrollments.SelectMany(e => e.Comments).Any(cm => cm.Type == CommentType.Review)
@@ -146,7 +149,10 @@ namespace CourseService.Infrastructure.Repositories
                 OriginalPrice = x.Course.Price,
                 Price = x.Price,
                 IsBestseller = x.Course.Enrollments.Count > 5,
-                TotalHours = 25,
+                TotalHours = x.Course.Lectures.SelectMany(l => l.LectureVideos).Any()
+                             ? (int)Math.Max(1, Math.Round(x.Course.Lectures.SelectMany(l => l.LectureVideos).Sum(v => v.Duration) / 3600.0))
+                             : 0,
+                LastUpdate = x.Course.UpdatedAt == default ? x.Course.CreateTime : x.Course.UpdatedAt,
                 // Status = x.Course.Status.ToString()
             }).ToList();
 
@@ -267,6 +273,7 @@ namespace CourseService.Infrastructure.Repositories
                 course.Name = updateCourseDTO.name;
                 course.Price = updateCourseDTO.price;
                 course.Description = updateCourseDTO.description ?? string.Empty;
+                course.UpdatedAt = DateTime.UtcNow;
 
                 if (updateCourseDTO.image != null)
                 {
@@ -396,6 +403,7 @@ namespace CourseService.Infrastructure.Repositories
                 TotalHours = totalSeconds > 0 ? Math.Max(0.1, Math.Round(totalHours, 2)) : 0,
                 IsEnrolled = isEnrolled,
                 UpdatedAt = course.UpdatedAt == default ? course.CreateTime : course.UpdatedAt,
+                LastUpdate = course.UpdatedAt == default ? course.CreateTime : course.UpdatedAt,
                 Lectures = course.Lectures.OrderBy(l => l.DisplayOrder).Select(l => new LecturePreviewDTO
                 {
                     // Id = l.Id,
@@ -967,6 +975,7 @@ namespace CourseService.Infrastructure.Repositories
             if (request.Course != null)
             {
                 request.Course.Status = CourseStatus.Public;
+                request.Course.UpdatedAt = DateTime.UtcNow;
 
                 // Enqueue AI processing jobs for each video using Hangfire
                 var videoIds = await _context.LectureVideos

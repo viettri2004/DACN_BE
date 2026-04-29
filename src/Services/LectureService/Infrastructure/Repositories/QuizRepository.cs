@@ -30,10 +30,20 @@ namespace LectureService.Infrastructure.Repositories
             _context = context;
             _localizer = localizer;
             _cloudinaryService = cloudinaryService;
-            _cache = cache;
-        }
+            _localizer = localizer;
+            }
 
-        public async Task<ApiResponse> CreateQuizAsync(CreateQuizDTO createQuizDTO, string instructorId)
+            private async Task UpdateCourseTimestampAsync(string courseId)
+            {
+            var course = await _context.Courses.FindAsync(courseId);
+            if (course != null)
+            {
+                course.UpdatedAt = DateTime.UtcNow;
+                _context.Courses.Update(course);
+            }
+            }
+
+            public async Task<ApiResponse> CreateQuizAsync(CreateQuizDTO createQuizDTO, string instructorId)
         {
             try
             {
@@ -97,6 +107,7 @@ namespace LectureService.Infrastructure.Repositories
                 }
 
                 _context.Quizzes.Add(quiz);
+                await UpdateCourseTimestampAsync(lecture.CourseId);
                 await _context.SaveChangesAsync();
 
                 return new ApiResponse("Created", _localizer["CreateQuizSuccess"].Value, quiz.Id, true);
@@ -179,6 +190,7 @@ namespace LectureService.Infrastructure.Repositories
                     }
                 }
 
+                await UpdateCourseTimestampAsync(quiz.Lecture.CourseId);
                 await _context.SaveChangesAsync();
                 await RemoveQuizCache(quizId);
 
@@ -217,6 +229,7 @@ namespace LectureService.Infrastructure.Repositories
                 _context.QuizAttempts.RemoveRange(quiz.QuizAttempts);
 
                 _context.Quizzes.Remove(quiz);
+                await UpdateCourseTimestampAsync(quiz.Lecture.CourseId);
                 await _context.SaveChangesAsync();
                 await RemoveQuizCache(quizId);
 

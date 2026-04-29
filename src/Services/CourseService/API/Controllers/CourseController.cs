@@ -34,6 +34,15 @@ namespace CourseService.API.Controllers
         [HttpGet("filtered-courses")]
         public async Task<ActionResult<ApiResponse>> GetAllCourses([FromQuery] CourseQueryParameters queryParams)
         {
+            // Explicitly handle TagId[] if TagIds is not populated by standard binding
+            if (queryParams.TagIds == null || !queryParams.TagIds.Any())
+            {
+                if (Request.Query.TryGetValue("TagId[]", out var tagIds))
+                {
+                    queryParams.TagIds = tagIds.ToList()!;
+                }
+            }
+
             var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(studentId))
             {

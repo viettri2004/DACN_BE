@@ -34,6 +34,16 @@ namespace LectureService.Infrastructure.Repositories
             _aiService = aiService;
         }
 
+        private async Task UpdateCourseTimestampAsync(string courseId)
+        {
+            var course = await _context.Courses.FindAsync(courseId);
+            if (course != null)
+            {
+                course.UpdatedAt = DateTime.UtcNow;
+                _context.Courses.Update(course);
+            }
+        }
+
         public async Task<ApiResponse> CreateLectureAsync(CreateLectureDTO createLectureDTO, string instructorId)
         {
             try
@@ -81,6 +91,7 @@ namespace LectureService.Infrastructure.Repositories
                 };
                 
                 _context.Lectures.Add(lecture);
+                await UpdateCourseTimestampAsync(createLectureDTO.CourseId);
                 await _context.SaveChangesAsync();
 
                 return new ApiResponse("Success", _localizer["LectureCreated"].Value, lecture.Id, true);
@@ -153,6 +164,7 @@ namespace LectureService.Infrastructure.Repositories
                 };
 
                 _context.LectureVideos.Add(lectureVideo);
+                await UpdateCourseTimestampAsync(lecture.CourseId);
                 await _context.SaveChangesAsync();
 
                 return new ApiResponse("Success", _localizer["VideoAdded"].Value, new { VideoId = lectureVideo.Id, Duration = duration }, true);
@@ -190,6 +202,7 @@ namespace LectureService.Infrastructure.Repositories
                 }
 
                 _context.Lectures.UpdateRange(lectures);
+                await UpdateCourseTimestampAsync(lectures.First().CourseId);
                 await _context.SaveChangesAsync();
 
                 return new ApiResponse("Success", _localizer["LectureUpdated"].Value, null, true);
@@ -229,6 +242,7 @@ namespace LectureService.Infrastructure.Repositories
                 }
 
                 _context.LectureVideos.UpdateRange(videos);
+                await UpdateCourseTimestampAsync(videos.First().Lecture.CourseId);
                 await _context.SaveChangesAsync();
 
                 return new ApiResponse("Success", _localizer["VideoUpdated"].Value, null, true);
@@ -310,6 +324,7 @@ namespace LectureService.Infrastructure.Repositories
                 };
 
                 _context.Documents.Add(document);
+                await UpdateCourseTimestampAsync(lecture.CourseId);
                 await _context.SaveChangesAsync();
 
                 return new ApiResponse("Success", _localizer["DocumentAdded"].Value, document.Id, true);
@@ -339,6 +354,7 @@ namespace LectureService.Infrastructure.Repositories
                 lecture.Description = updateLectureDTO.Description;
 
                 _context.Lectures.Update(lecture);
+                await UpdateCourseTimestampAsync(lecture.CourseId);
                 await _context.SaveChangesAsync();
 
                 return new ApiResponse("Success", _localizer["LectureUpdated"].Value, lecture.Id, true);
@@ -408,6 +424,7 @@ namespace LectureService.Infrastructure.Repositories
                 }
 
                 _context.Lectures.Remove(lecture);
+                await UpdateCourseTimestampAsync(lecture.CourseId);
                 await _context.SaveChangesAsync();
 
                 return new ApiResponse("Success", _localizer["LectureDeleted"].Value, null, true);
@@ -450,6 +467,7 @@ namespace LectureService.Infrastructure.Repositories
                 }
 
                 _context.Documents.Remove(document);
+                await UpdateCourseTimestampAsync(document.Lecture.CourseId);
                 await _context.SaveChangesAsync();
 
                 return new ApiResponse("Success", _localizer["DocumentDeleted"].Value, null, true);
@@ -509,6 +527,7 @@ namespace LectureService.Infrastructure.Repositories
                 }
 
                 _context.Documents.Update(document);
+                await UpdateCourseTimestampAsync(document.Lecture.CourseId);
                 await _context.SaveChangesAsync();
 
                 return new ApiResponse("Success", _localizer["DocumentUpdated"].Value, document.Id, true);
@@ -579,6 +598,7 @@ namespace LectureService.Infrastructure.Repositories
                 }
 
                 _context.LectureVideos.Update(video);
+                await UpdateCourseTimestampAsync(video.Lecture.CourseId);
                 await _context.SaveChangesAsync();
 
                 return new ApiResponse("Success", _localizer["VideoUpdated"].Value, video.Id, true);
@@ -630,6 +650,7 @@ namespace LectureService.Infrastructure.Repositories
                 }
 
                 _context.LectureVideos.Remove(video);
+                await UpdateCourseTimestampAsync(video.Lecture.CourseId);
                 await _context.SaveChangesAsync();
 
                 return new ApiResponse("Success", _localizer["VideoDeleted"].Value, null, true);

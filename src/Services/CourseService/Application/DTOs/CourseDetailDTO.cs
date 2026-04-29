@@ -20,6 +20,7 @@ namespace CourseService.Application.DTOs
         public double TotalHours { get; set; }
         public bool IsEnrolled { get; set; }
         public DateTime UpdatedAt { get; set; }
+        public DateTime LastUpdate { get; set; }
         public List<LecturePreviewDTO> Lectures { get; set; } = new List<LecturePreviewDTO>();
     }
 

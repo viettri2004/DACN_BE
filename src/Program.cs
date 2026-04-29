@@ -224,6 +224,7 @@ static void ConfigureSwagger(IServiceCollection services)
     services.AddSwaggerGen(option =>
     {
         option.SwaggerDoc("v1", new OpenApiInfo { Title = "Demo API", Version = "v1" });
+        option.CustomSchemaIds(type => type.FullName);
         option.AddSecurityDefinition(BearerScheme, new OpenApiSecurityScheme
         {
             In = ParameterLocation.Header,
