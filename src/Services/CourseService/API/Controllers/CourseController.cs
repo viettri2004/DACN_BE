@@ -32,7 +32,7 @@ namespace CourseService.API.Controllers
 
         [Authorize(Policy = "Instructor")]
         [HttpPost("create")]
-        public async Task<ActionResult<ApiResponse>> CreateCourse([FromForm] CreateCourseDTO createCourseDTO)
+        public async Task<ActionResult<ApiResponse>> CreateCourse([FromBody] CreateCourseDTO createCourseDTO)
         {
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
@@ -46,7 +46,7 @@ namespace CourseService.API.Controllers
 
         [Authorize(Policy = "Instructor")]
         [HttpPut("{courseId}")]
-        public async Task<ActionResult<ApiResponse>> UpdateCourse([FromRoute] string courseId, [FromForm] UpdateCourseDTO updateCourseDTO)
+        public async Task<ActionResult<ApiResponse>> UpdateCourse([FromRoute] string courseId, [FromBody] UpdateCourseDTO updateCourseDTO)
         {
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
@@ -302,15 +302,28 @@ namespace CourseService.API.Controllers
         }
 
         [Authorize]
-        [HttpGet("course-qas/{courseId}")]
-        public async Task<ActionResult<ApiResponse>> GetCourseQAs([FromRoute] string courseId)
+        [HttpGet("course-qa-threads/{courseId}")]
+        public async Task<ActionResult<ApiResponse>> GetCourseQAThreads([FromRoute] string courseId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.GetCourseQAsAsync(courseId, userId);
+            var response = await _courseRepository.GetCourseQAThreadsAsync(courseId, userId, pageNumber, pageSize);
+            return response.ToActionResult();
+        }
+
+        [Authorize]
+        [HttpGet("thread-messages/{threadId}")]
+        public async Task<ActionResult<ApiResponse>> GetThreadMessages([FromRoute] string threadId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.GetThreadMessagesAsync(threadId, userId, pageNumber, pageSize);
             return response.ToActionResult();
         }
 
@@ -448,14 +461,14 @@ namespace CourseService.API.Controllers
 
         [Authorize(Policy = "Student")]
         [HttpGet("wishlist")]
-        public async Task<ActionResult<ApiResponse>> GetMyWishlist()
+        public async Task<ActionResult<ApiResponse>> GetMyWishlist([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(studentId))
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.GetStudentWishlistAsync(studentId);
+            var response = await _courseRepository.GetStudentWishlistAsync(studentId, pageNumber, pageSize);
             return response.ToActionResult();
         }
     }

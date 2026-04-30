@@ -129,7 +129,7 @@ namespace AccountService.Infrastructure.Persistence.Repositories
                 if (!string.IsNullOrEmpty(dto.PhoneNumber)) user.PhoneNumber = dto.PhoneNumber;
                 if (!string.IsNullOrEmpty(dto.Description)) user.Description = dto.Description;
 
-                if (dto.Avatar != null)
+                if (!string.IsNullOrEmpty(dto.AvatarUrl) && !string.IsNullOrEmpty(dto.AvatarPublicId))
                 {
                     // Delete old image if exists
                     if (!string.IsNullOrEmpty(user.AvatarPublicId))
@@ -137,10 +137,8 @@ namespace AccountService.Infrastructure.Persistence.Repositories
                         await _cloudinaryService.DeleteImageAsync(user.AvatarPublicId);
                     }
 
-                    // Upload new image
-                    var (imageUrl, imagePublicId) = await _cloudinaryService.UploadImageAsync(dto.Avatar);
-                    user.AvatarUrl = imageUrl;
-                    user.AvatarPublicId = imagePublicId;
+                    user.AvatarUrl = dto.AvatarUrl;
+                    user.AvatarPublicId = dto.AvatarPublicId;
                 }
 
                 _context.Users.Update(user);

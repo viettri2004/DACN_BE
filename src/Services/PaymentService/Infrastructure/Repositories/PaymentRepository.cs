@@ -149,5 +149,17 @@ namespace PaymentService.Infrastructure.Repositories
         {
             return await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
         }
+
+        public async Task RemoveFromWishlistAsync(string studentId, List<string> courseIds)
+        {
+            var wishlistItems = await _context.Wishlists
+                .Where(w => w.StudentId == studentId && courseIds.Contains(w.CourseId))
+                .ToListAsync();
+
+            if (wishlistItems.Any())
+            {
+                _context.Wishlists.RemoveRange(wishlistItems);
+            }
+        }
     }
 }

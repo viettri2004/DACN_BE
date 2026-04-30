@@ -17,6 +17,7 @@ namespace LectureService.Application.DTOs
         public int DisplayOrder { get; set; }
         public string? Explanation { get; set; }
         public string? ImageUrl { get; set; }
+        public string? ImagePublicId { get; set; }
         public List<QuestionOptionDTO> Options { get; set; } = new List<QuestionOptionDTO>();
     }
 

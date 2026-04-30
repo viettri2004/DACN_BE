@@ -7,6 +7,9 @@ using Microsoft.Extensions.Configuration;
 using PaymentService.Application.DTOs;
 using PaymentService.Application.Interfaces;
 using src.Shared.Domain.Entities;
+using CartService.Application.DTOs;
+using Newtonsoft.Json;
+using src.Shared.Infrastructure;
 
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Localization;
@@ -469,8 +472,43 @@ namespace PaymentService.Application.Services
 
                 await _paymentRepository.AddEnrollmentAsync(enrollment);
 
-                // Clear cart from Redis cache and cancel pending sync job
-                await _cache.RemoveAsync($"cart:{studentId}");
+                // Remove from wishlist
+                await _paymentRepository.RemoveFromWishlistAsync(studentId, new List<string> { courseIdToRedeem });
+
+                // Remove specific item from Redis cart
+                string cacheKey = $"cart:{studentId}";
+                var cachedData = await _cache.GetStringAsync(cacheKey);
+                if (!string.IsNullOrEmpty(cachedData))
+                {
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse>(cachedData, JsonSettings.CamelCase);
+                    if (apiResponse != null && apiResponse.Data != null)
+                    {
+                        CartDTO? cartDto = null;
+                        if (apiResponse.Data is Newtonsoft.Json.Linq.JObject jObject)
+                        {
+                            cartDto = jObject.ToObject<CartDTO>();
+                        }
+                        else if (apiResponse.Data is CartDTO dto)
+                        {
+                            cartDto = dto;
+                        }
+
+                        if (cartDto != null && cartDto.Items.Any(i => i.Id == courseIdToRedeem))
+                        {
+                            cartDto.Items.RemoveAll(i => i.Id == courseIdToRedeem);
+                            cartDto.TotalItems = cartDto.Items.Count;
+                            cartDto.TotalPrice = cartDto.Items.Sum(i => i.Price);
+
+                            var updateResponse = new ApiResponse("Success", _localizer["Success"].Value, cartDto, true);
+                            var cacheOptions = new DistributedCacheEntryOptions
+                            {
+                                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
+                            };
+                            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(updateResponse, JsonSettings.CamelCase), cacheOptions);
+                        }
+                    }
+                }
+
                 var jobCacheKey = $"cart:syncjob:{studentId}";
                 var jobId = await _cache.GetStringAsync(jobCacheKey);
                 if (!string.IsNullOrEmpty(jobId))

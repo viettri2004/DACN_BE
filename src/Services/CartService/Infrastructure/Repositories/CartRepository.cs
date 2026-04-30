@@ -69,6 +69,14 @@ namespace CartService.Infrastructure.Repositories
             cartDto.TotalPrice = cartDto.Items.Sum(i => i.Price);
             await UpdateCartCache(studentId, cartDto);
 
+            // If item is in wishlist, remove it
+            var wishlistItem = await _context.Wishlists.FirstOrDefaultAsync(w => w.StudentId == studentId && w.CourseId == courseId);
+            if (wishlistItem != null)
+            {
+                _context.Wishlists.Remove(wishlistItem);
+                await _context.SaveChangesAsync();
+            }
+
             return new ApiResponse("Success", _localizer["ItemAddedToCart"].Value, null, true);
         }
 

@@ -14,7 +14,8 @@ namespace CourseService.Application.DTOs
 
         public string? description { get; set; }
 
-        public IFormFile? image { get; set; }
+        public string? imageUrl { get; set; }
+        public string? imagePublicId { get; set; }
         public List<string>? TagIds { get; set; }
     }
 }

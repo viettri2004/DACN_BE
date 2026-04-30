@@ -103,27 +103,27 @@ namespace LectureService.API.Controllers
 
         [Authorize(Policy = "Instructor")]
         [HttpPost("add-video/{lectureId}")]
-        public async Task<ActionResult<ApiResponse>> AddVideo([FromRoute] string lectureId, IFormFile videoFile)
+        public async Task<ActionResult<ApiResponse>> AddVideo([FromRoute] string lectureId, [FromBody] AddMediaDTO addVideoDTO)
         {
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _lectureRepository.AddVideoToLectureAsync(lectureId, videoFile, instructorId);
+            var response = await _lectureRepository.AddVideoToLectureAsync(lectureId, addVideoDTO.Name, addVideoDTO.Url, addVideoDTO.PublicId, addVideoDTO.Duration, instructorId);
             return response.ToActionResult();
         }
 
         [Authorize(Policy = "Instructor")]
         [HttpPut("update-video/{videoId}")]
-        public async Task<ActionResult<ApiResponse>> UpdateVideo([FromRoute] string videoId, [FromForm] UpdateLectureFileDTO updateLectureVideoDTO)
+        public async Task<ActionResult<ApiResponse>> UpdateVideo([FromRoute] string videoId, [FromBody] UpdateMediaDTO updateVideoDTO)
         {
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _lectureRepository.UpdateVideoAsync(videoId, updateLectureVideoDTO.Name, updateLectureVideoDTO.File, instructorId);
+            var response = await _lectureRepository.UpdateVideoAsync(videoId, updateVideoDTO.Name, updateVideoDTO.Url, updateVideoDTO.PublicId, updateVideoDTO.Duration, instructorId);
             return response.ToActionResult();
         }
 
@@ -163,27 +163,27 @@ namespace LectureService.API.Controllers
 
         [Authorize(Policy = "Instructor")]
         [HttpPost("add-document/{lectureId}")]
-        public async Task<ActionResult<ApiResponse>> AddDocument([FromRoute] string lectureId, IFormFile documentFile)
+        public async Task<ActionResult<ApiResponse>> AddDocument([FromRoute] string lectureId, [FromBody] AddMediaDTO addDocumentDTO)
         {
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _lectureRepository.AddDocumentToLectureAsync(lectureId, documentFile, instructorId);
+            var response = await _lectureRepository.AddDocumentToLectureAsync(lectureId, addDocumentDTO.Name, addDocumentDTO.Url, addDocumentDTO.PublicId, addDocumentDTO.Type ?? "", instructorId);
             return response.ToActionResult();
         }
 
         [Authorize(Policy = "Instructor")]
         [HttpPut("update-document/{documentId}")]
-        public async Task<ActionResult<ApiResponse>> UpdateDocument([FromRoute] string documentId, [FromForm] UpdateLectureFileDTO updateDocumentDTO)
+        public async Task<ActionResult<ApiResponse>> UpdateDocument([FromRoute] string documentId, [FromBody] UpdateMediaDTO updateDocumentDTO)
         {
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _lectureRepository.UpdateDocumentAsync(documentId, updateDocumentDTO.Name, updateDocumentDTO.File, instructorId);
+            var response = await _lectureRepository.UpdateDocumentAsync(documentId, updateDocumentDTO.Name, updateDocumentDTO.Url, updateDocumentDTO.PublicId, updateDocumentDTO.Type, instructorId);
             return response.ToActionResult();
         }
 

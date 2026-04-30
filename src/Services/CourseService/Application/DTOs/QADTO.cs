@@ -12,7 +12,7 @@ namespace CourseService.Application.DTOs
         public DateTime CreatedAt { get; set; }
         public DateTime LastActivityAt { get; set; }
         public bool IsMyThread { get; set; }
-        public List<QAMessageDTO> Messages { get; set; } = new List<QAMessageDTO>();
+        public int TotalMessages { get; set; }
     }
 
     public class QAMessageDTO
@@ -24,6 +24,16 @@ namespace CourseService.Application.DTOs
         public DateTime CreatedAt { get; set; }
         public bool IsMyMessage { get; set; }
         public bool IsInstructor { get; set; }
+    }
+
+    public class QAThreadDetailDTO
+    {
+        public string Id { get; set; } = null!;
+        public string Title { get; set; } = null!;
+        public string CreatorName { get; set; } = null!;
+        public string? CreatorAvatarUrl { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public bool IsMyThread { get; set; }
     }
 
     public class CreateThreadDTO

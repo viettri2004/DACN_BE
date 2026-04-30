@@ -16,6 +16,7 @@ using src.Shared.Domain.Entities;
 using src.Shared.Resources;
 using AccountService.Application.Interfaces;
 using AccountService.Domain.Enums;
+using CartService.Application.DTOs;
 using System.Text;
 using Hangfire;
 using Microsoft.Extensions.Caching.Distributed;
@@ -58,21 +59,14 @@ namespace CourseService.Infrastructure.Repositories
         {
             try
             {
-                string imageUrl = string.Empty;
-                string imagePublicId = string.Empty;
-                if (createCourseDTO.image != null)
-                {
-                    (imageUrl, imagePublicId) = await _cloudinaryService.UploadImageAsync(createCourseDTO.image);
-                }
-
                 var newCourse = new Course
                 {
                     Id = Guid.NewGuid().ToString(),
                     Name = createCourseDTO.name,
                     Price = createCourseDTO.price,
                     Description = createCourseDTO.description ?? string.Empty,
-                    ImageUrl = imageUrl,
-                    ImagePublicId = imagePublicId,
+                    ImageUrl = createCourseDTO.imageUrl ?? string.Empty,
+                    ImagePublicId = createCourseDTO.imagePublicId ?? string.Empty,
                     InstructorId = instructorId,
                     CreateTime = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow,
@@ -122,7 +116,16 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse(
                     "Created",
                     _localizer["CreateCourseSuccess"].Value,
-                    null,
+                    new InstructorCourseListDTO
+                    {
+                        Id = newCourse.Id,
+                        Name = newCourse.Name,
+                        ImageUrl = newCourse.ImageUrl,
+                        Price = newCourse.Price,
+                        TotalStudents = 0,
+                        Rating = 0,
+                        Status = newCourse.Status.ToString()
+                    },
                     true
                 );
             }
@@ -155,7 +158,7 @@ namespace CourseService.Infrastructure.Repositories
                 course.Description = updateCourseDTO.description ?? string.Empty;
                 course.UpdatedAt = DateTime.UtcNow;
 
-                if (updateCourseDTO.image != null)
+                if (!string.IsNullOrEmpty(updateCourseDTO.imageUrl) && !string.IsNullOrEmpty(updateCourseDTO.imagePublicId))
                 {
                     // Delete old image if exists
                     if (!string.IsNullOrEmpty(course.ImagePublicId))
@@ -163,10 +166,8 @@ namespace CourseService.Infrastructure.Repositories
                         await _cloudinaryService.DeleteImageAsync(course.ImagePublicId);
                     }
 
-                    // Upload new image
-                    var (imageUrl, imagePublicId) = await _cloudinaryService.UploadImageAsync(updateCourseDTO.image);
-                    course.ImageUrl = imageUrl;
-                    course.ImagePublicId = imagePublicId;
+                    course.ImageUrl = updateCourseDTO.imageUrl;
+                    course.ImagePublicId = updateCourseDTO.imagePublicId;
                 }
 
                 // Update tags
@@ -1151,7 +1152,7 @@ namespace CourseService.Infrastructure.Repositories
             return new ApiResponse("Created", _localizer["ReplyAdded"].Value, null, true);
         }
 
-        public async Task<ApiResponse> GetCourseQAsAsync(string courseId, string userId)
+        public async Task<ApiResponse> GetCourseQAThreadsAsync(string courseId, string userId, int pageNumber, int pageSize)
         {
             var isEnrolled = await _context.Enrollments.AnyAsync(e => e.CourseId == courseId && e.StudentId == userId && e.Status == true);
             var isInstructor = await _context.Courses.AnyAsync(c => c.Id == courseId && c.InstructorId == userId);
@@ -1161,11 +1162,17 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse("Forbidden", _localizer["NotEnrolledInCourse"].Value, null, false);
             }
 
-            var threads = await _context.QAThreads
+            var query = _context.QAThreads
+                .AsNoTracking()
+                .Where(t => t.CourseId == courseId);
+
+            var totalCount = await query.CountAsync();
+
+            var threads = await query
                 .Include(t => t.Creator)
-                .Include(t => t.Messages).ThenInclude(m => m.User)
-                .Where(t => t.CourseId == courseId)
                 .OrderByDescending(t => t.LastActivityAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .Select(t => new QAThreadDTO
                 {
                     Id = t.Id,
@@ -1175,20 +1182,82 @@ namespace CourseService.Infrastructure.Repositories
                     CreatedAt = t.CreatedAt,
                     LastActivityAt = t.LastActivityAt,
                     IsMyThread = t.CreatorId == userId,
-                    Messages = t.Messages.OrderBy(m => m.CreatedAt).Select(m => new QAMessageDTO
-                    {
-                        Id = m.Id,
-                        Content = m.Content,
-                        UserName = m.User.FullName,
-                        AvatarUrl = m.User.AvatarUrl,
-                        CreatedAt = m.CreatedAt,
-                        IsMyMessage = m.UserId == userId,
-                        IsInstructor = m.User is Instructor || m.User is Admin
-                    }).ToList()
+                    TotalMessages = _context.QAMessages.Count(m => m.ThreadId == t.Id)
                 })
                 .ToListAsync();
 
-            return new ApiResponse("Success", _localizer["Success"].Value, threads, true);
+            var pagedResult = new PagedResult<QAThreadDTO>
+            {
+                Items = threads,
+                Page = pageNumber,
+                PageSize = pageSize,
+                TotalCount = totalCount
+            };
+
+            return new ApiResponse("Success", _localizer["Success"].Value, pagedResult, true);
+        }
+
+        public async Task<ApiResponse> GetThreadMessagesAsync(string threadId, string userId, int pageNumber, int pageSize)
+        {
+            var thread = await _context.QAThreads
+                .Include(t => t.Creator)
+                .FirstOrDefaultAsync(t => t.Id == threadId);
+
+            if (thread == null)
+            {
+                return new ApiResponse("NotFound", _localizer["QANotFound"].Value, null, false);
+            }
+
+            var isEnrolled = await _context.Enrollments.AnyAsync(e => e.CourseId == thread.CourseId && e.StudentId == userId && e.Status == true);
+            var isInstructor = await _context.Courses.AnyAsync(c => c.Id == thread.CourseId && c.InstructorId == userId);
+
+            if (!isEnrolled && !isInstructor)
+            {
+                return new ApiResponse("Forbidden", _localizer["NotEnrolledInCourse"].Value, null, false);
+            }
+
+            var query = _context.QAMessages
+                .AsNoTracking()
+                .Where(m => m.ThreadId == threadId);
+
+            var totalCount = await query.CountAsync();
+
+            var messages = await query
+                .Include(m => m.User)
+                .OrderBy(m => m.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(m => new QAMessageDTO
+                {
+                    Id = m.Id,
+                    Content = m.Content,
+                    UserName = m.User.FullName,
+                    AvatarUrl = m.User.AvatarUrl,
+                    CreatedAt = m.CreatedAt,
+                    IsMyMessage = m.UserId == userId,
+                    IsInstructor = m.User is Instructor || m.User is Admin
+                })
+                .ToListAsync();
+
+            var threadDetail = new QAThreadDetailDTO
+            {
+                Id = thread.Id,
+                Title = thread.Title,
+                CreatorName = thread.Creator.FullName,
+                CreatorAvatarUrl = thread.Creator.AvatarUrl,
+                CreatedAt = thread.CreatedAt,
+                IsMyThread = thread.CreatorId == userId
+            };
+
+            var pagedResult = new PagedResult<QAMessageDTO>
+            {
+                Items = messages,
+                Page = pageNumber,
+                PageSize = pageSize,
+                TotalCount = totalCount
+            };
+
+            return new ApiResponse("Success", _localizer["Success"].Value, new { thread = threadDetail, messages = pagedResult }, true);
         }
 
         public async Task<ApiResponse> CreateQAThreadAsync(CreateThreadDTO createThreadDTO, string userId)
@@ -1427,6 +1496,40 @@ namespace CourseService.Infrastructure.Repositories
                 _context.Wishlists.Add(wishlist);
                 await _context.SaveChangesAsync();
 
+                // If item is in cart, remove it
+                string cacheKey = $"cart:{studentId}";
+                var cachedData = await _cache.GetStringAsync(cacheKey);
+                if (!string.IsNullOrEmpty(cachedData))
+                {
+                    var apiResponse = JsonConvert.DeserializeObject<ApiResponse>(cachedData, JsonSettings.CamelCase);
+                    if (apiResponse != null && apiResponse.Data != null)
+                    {
+                        CartDTO? cartDto = null;
+                        if (apiResponse.Data is Newtonsoft.Json.Linq.JObject jObject)
+                        {
+                            cartDto = jObject.ToObject<CartDTO>();
+                        }
+                        else if (apiResponse.Data is CartDTO dto)
+                        {
+                            cartDto = dto;
+                        }
+
+                        if (cartDto != null && cartDto.Items.Any(i => i.Id == courseId))
+                        {
+                            cartDto.Items.RemoveAll(i => i.Id == courseId);
+                            cartDto.TotalItems = cartDto.Items.Count;
+                            cartDto.TotalPrice = cartDto.Items.Sum(i => i.Price);
+
+                            var updateResponse = new ApiResponse("Success", _localizer["Success"].Value, cartDto, true);
+                            var cacheOptions = new DistributedCacheEntryOptions
+                            {
+                                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
+                            };
+                            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(updateResponse, JsonSettings.CamelCase), cacheOptions);
+                        }
+                    }
+                }
+
                 return new ApiResponse("Created", _localizer["AddedToWishlist"].Value, null, true);
             }
             catch (Exception ex)
@@ -1456,13 +1559,17 @@ namespace CourseService.Infrastructure.Repositories
             }
         }
 
-        public async Task<ApiResponse> GetStudentWishlistAsync(string studentId)
+        public async Task<ApiResponse> GetStudentWishlistAsync(string studentId, int pageNumber, int pageSize)
         {
             try
             {
-                var wishlistItems = await _context.Wishlists
+                var query = _context.Wishlists
                     .AsNoTracking()
-                    .Where(w => w.StudentId == studentId)
+                    .Where(w => w.StudentId == studentId);
+
+                var totalCount = await query.CountAsync();
+
+                var wishlistItems = await query
                     .Include(w => w.Course)
                         .ThenInclude(c => c.Instructor)
                     .Include(w => w.Course)
@@ -1472,6 +1579,8 @@ namespace CourseService.Infrastructure.Repositories
                         .ThenInclude(c => c.Lectures)
                             .ThenInclude(l => l.LectureVideos)
                     .OrderByDescending(w => w.AddedAt)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
                     .ToListAsync();
 
                 var courseDTOs = wishlistItems.Select(w =>
@@ -1508,7 +1617,15 @@ namespace CourseService.Infrastructure.Repositories
                     return dto;
                 }).ToList();
 
-                return new ApiResponse("Success", _localizer["Success"].Value, courseDTOs, true);
+                var pagedResult = new PagedResult<CourseCardDTO>
+                {
+                    Items = courseDTOs,
+                    Page = pageNumber,
+                    PageSize = pageSize,
+                    TotalCount = totalCount
+                };
+
+                return new ApiResponse("Success", _localizer["Success"].Value, pagedResult, true);
             }
             catch (Exception ex)
             {

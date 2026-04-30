@@ -175,10 +175,22 @@ namespace PaymentService.Infrastructure.Services
                     order.PaymentMethod = "VnPay";
 
                     var orderItems = order.OrderItems ?? new List<OrderItem>();
+                    var courseIds = orderItems.Select(oi => oi.CourseId).ToList();
 
-                    // Clear Redis cache and cancel pending sync job before DB changes to ensure consistency
+                    // Remove items from cart and wishlist
                     if (!string.IsNullOrEmpty(order.StudentId))
                     {
+                        // Remove from Wishlist
+                        var wishlistItems = await _context.Wishlists
+                            .Where(w => w.StudentId == order.StudentId && courseIds.Contains(w.CourseId))
+                            .ToListAsync();
+                        
+                        if (wishlistItems.Any())
+                        {
+                            _context.Wishlists.RemoveRange(wishlistItems);
+                        }
+
+                        // Clear Redis cache and cancel pending sync job
                         await _cache.RemoveAsync($"cart:{order.StudentId}");
                         var jobCacheKey = $"cart:syncjob:{order.StudentId}";
                         var jobId = await _cache.GetStringAsync(jobCacheKey);
@@ -187,6 +199,8 @@ namespace PaymentService.Infrastructure.Services
                             _backgroundJobClient.Delete(jobId);
                             await _cache.RemoveAsync(jobCacheKey);
                         }
+
+                        _logger.LogInformation("Invalidated Redis cart cache and removed {Count} wishlist items for student {StudentId} via VnPay", wishlistItems.Count, order.StudentId);
                     }
 
                     foreach (var item in orderItems)
@@ -204,15 +218,6 @@ namespace PaymentService.Infrastructure.Services
                         };
 
                         await _context.Enrollments.AddAsync(enrollment);
-                    }
-
-                    if (!string.IsNullOrEmpty(order.StudentId))
-                    {
-                        var courseIds = orderItems.Select(oi => oi.CourseId).ToList();
-                        if (courseIds.Any())
-                        {
-                            _logger.LogInformation("Cart items will be invalidated from Redis for student {StudentId} via VnPay", order.StudentId);
-                        }
                     }
                 }
                 else
@@ -249,12 +254,6 @@ namespace PaymentService.Infrastructure.Services
                             _logger.LogError(ex, "Failed to re-index course {CourseId} after VnPay payment", item.CourseId);
                         }
                     }
-                }
-
-                if (response.VnPayResponseCode == "00" && !string.IsNullOrEmpty(order.StudentId))
-                {
-                    await _cache.RemoveAsync($"cart:{order.StudentId}");
-                    _logger.LogInformation("Invalidated Redis cart cache for student {StudentId}", order.StudentId);
                 }
 
                 _logger.LogInformation("Processed VnPay IPN for Order {OrderId} with status {Status}", response.OrderId, order.Status);

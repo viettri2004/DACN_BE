@@ -44,8 +44,7 @@ namespace Shared.Infrastructure.cloudinaryService
                 long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 string folder = "videos";
                 string contextStr = $"lecture_id={lectureId}";
-                string targetPreset = "lecture_video_preset";
-                string stringToSign = $"context={contextStr}&folder={folder}&timestamp={timestamp}&upload_preset={targetPreset}";
+                string stringToSign = $"context={contextStr}&folder={folder}&timestamp={timestamp}";
 
                 string apiSecret = _cloudinary.Api.Account.ApiSecret;
 
@@ -59,7 +58,6 @@ namespace Shared.Infrastructure.cloudinaryService
                     Timestamp = timestamp,
                     Folder = folder,
                     Context = contextStr,
-                    TargetPreset = targetPreset,
                     ApiKey = _cloudinary.Api.Account.ApiKey,
                     CloudName = _cloudinary.Api.Account.Cloud
                 };
@@ -69,6 +67,68 @@ namespace Shared.Infrastructure.cloudinaryService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating upload signature");
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> GetImageUploadSignatureAsync(string folder = "uploads")
+        {
+            try
+            {
+                long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                string stringToSign = $"folder={folder}&timestamp={timestamp}";
+
+                string apiSecret = _cloudinary.Api.Account.ApiSecret;
+
+                using var sha1 = SHA1.Create();
+                var hashBytes = sha1.ComputeHash(Encoding.UTF8.GetBytes(stringToSign + apiSecret));
+                string signature = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+
+                var uploadCredentials = new
+                {
+                    Signature = signature,
+                    Timestamp = timestamp,
+                    Folder = folder,
+                    ApiKey = _cloudinary.Api.Account.ApiKey,
+                    CloudName = _cloudinary.Api.Account.Cloud
+                };
+
+                return new ApiResponse("Success", "Signature generated", uploadCredentials, true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating image upload signature");
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> GetRawUploadSignatureAsync(string folder = "documents")
+        {
+            try
+            {
+                long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                string stringToSign = $"folder={folder}&timestamp={timestamp}";
+
+                string apiSecret = _cloudinary.Api.Account.ApiSecret;
+
+                using var sha1 = SHA1.Create();
+                var hashBytes = sha1.ComputeHash(Encoding.UTF8.GetBytes(stringToSign + apiSecret));
+                string signature = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+
+                var uploadCredentials = new
+                {
+                    Signature = signature,
+                    Timestamp = timestamp,
+                    Folder = folder,
+                    ApiKey = _cloudinary.Api.Account.ApiKey,
+                    CloudName = _cloudinary.Api.Account.Cloud
+                };
+
+                return new ApiResponse("Success", "Signature generated", uploadCredentials, true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating raw upload signature");
                 return new ApiResponse("Error", ex.Message, null, false);
             }
         }
@@ -136,24 +196,37 @@ namespace Shared.Infrastructure.cloudinaryService
                     return false;
                 }
 
-                var maxDisplayOrder = await _context.LectureVideos
-                    .Where(v => v.LectureId == lectureId)
-                    .MaxAsync(v => (int?)v.DisplayOrder) ?? 0;
+                var existingVideo = await _context.LectureVideos
+                    .FirstOrDefaultAsync(v => v.PublicId == publicId);
 
-                var lectureVideo = new LectureVideo
+                if (existingVideo != null)
                 {
-                    Id = Guid.NewGuid().ToString(),
-                    Name = originalFilename,
-                    VideoUrl = secureUrl,
-                    PublicId = publicId,
-                    Duration = duration,
-                    DisplayOrder = maxDisplayOrder + 1,
-                    LectureId = lectureId
-                };
+                    _logger.LogInformation("Video {PublicId} đã được FE thêm trước đó. Cập nhật thêm thông tin từ Webhook.", publicId);
+                    existingVideo.Duration = duration;
+                    existingVideo.VideoUrl = secureUrl; // Đảm bảo URL mới nhất
+                    _context.LectureVideos.Update(existingVideo);
+                }
+                else
+                {
+                    _logger.LogInformation("Video {PublicId} chưa tồn tại. Tạo mới từ Webhook (Trường hợp dự phòng).", publicId);
+                    var maxDisplayOrder = await _context.LectureVideos
+                        .Where(v => v.LectureId == lectureId)
+                        .MaxAsync(v => (int?)v.DisplayOrder) ?? 0;
 
-                _context.LectureVideos.Add(lectureVideo);
+                    var lectureVideo = new LectureVideo
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        Name = originalFilename,
+                        VideoUrl = secureUrl,
+                        PublicId = publicId,
+                        Duration = duration,
+                        DisplayOrder = maxDisplayOrder + 1,
+                        LectureId = lectureId
+                    };
+                    _context.LectureVideos.Add(lectureVideo);
+                }
+
                 await _context.SaveChangesAsync();
-
                 _logger.LogInformation("Successfully processed Cloudinary upload for lecture {LectureId}, Video: {PublicId}", lectureId, publicId);
 
                 return true;

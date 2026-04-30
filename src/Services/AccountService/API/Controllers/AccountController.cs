@@ -137,7 +137,7 @@ namespace src.Services.AccountService.API.Controllers
 
         [HttpPatch("update-profile")]
         [Authorize]
-        public async Task<ActionResult<ApiResponse>> UpdateProfile([FromForm] UpdateUserProfileDTO dto)
+        public async Task<ActionResult<ApiResponse>> UpdateProfile([FromBody] UpdateUserProfileDTO dto)
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
 

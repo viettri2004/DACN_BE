@@ -107,7 +107,7 @@ namespace LectureService.Infrastructure.Repositories
             return await _cloudinaryService.GetVideoUploadSignatureAsync(lectureId, instructorId);
         }
 
-        public async Task<ApiResponse> AddVideoToLectureAsync(string lectureId, IFormFile videoFile, string instructorId)
+        public async Task<ApiResponse> AddVideoToLectureAsync(string lectureId, string name, string videoUrl, string publicId, double duration, string instructorId)
         {
             try
             {
@@ -122,31 +122,6 @@ namespace LectureService.Infrastructure.Repositories
                     return new ApiResponse("Forbidden", _localizer["ForbiddenAddVideo"].Value, null, false);
                 }
 
-                if (videoFile == null || videoFile.Length == 0)
-                {
-                    return new ApiResponse("BadRequest", _localizer["VideoFileEmpty"].Value, null, false);
-                }
-
-                var allowedExtensions = new[] { ".mp4", ".avi", ".mov", ".wmv", ".flv", ".mkv" };
-                var extension = Path.GetExtension(videoFile.FileName).ToLowerInvariant();
-                if (!allowedExtensions.Contains(extension))
-                {
-                    return new ApiResponse("BadRequest", _localizer["InvalidFileType"].Value, null, false);
-                }
-
-                var (videoUrl, publicId, duration) = await _cloudinaryService.UploadVideoAsync(videoFile);
-
-                // string? analysisJson = null;
-                // try
-                // {
-                //     var aiResult = await _aiService.ProcessVideo(videoUrl);
-                //     analysisJson = JsonConvert.SerializeObject(aiResult);
-                // }
-                // catch (Exception aiEx)
-                // {   
-                //     Console.WriteLine($"AI Analysis failed: {aiEx.Message}");
-                // }
-
                 var maxDisplayOrder = await _context.LectureVideos
                     .Where(v => v.LectureId == lectureId)
                     .MaxAsync(v => (int?)v.DisplayOrder) ?? 0;
@@ -154,13 +129,12 @@ namespace LectureService.Infrastructure.Repositories
                 var lectureVideo = new LectureVideo
                 {
                     Id = Guid.NewGuid().ToString(),
-                    Name = videoFile.FileName,
+                    Name = name,
                     VideoUrl = videoUrl,
                     PublicId = publicId,
                     Duration = duration,
                     DisplayOrder = maxDisplayOrder + 1,
-                    LectureId = lectureId,
-                    // AnalysisResult = analysisJson
+                    LectureId = lectureId
                 };
 
                 _context.LectureVideos.Add(lectureVideo);
@@ -174,6 +148,7 @@ namespace LectureService.Infrastructure.Repositories
                 return new ApiResponse("Error", ex.Message, null, false);
             }
         }
+
         public async Task<ApiResponse> UpdateLectureOrdersAsync(List<UpdateOrderDTO> lectureOrders, string instructorId)
         {
             try
@@ -284,7 +259,7 @@ namespace LectureService.Infrastructure.Repositories
             }
         }
 
-        public async Task<ApiResponse> AddDocumentToLectureAsync(string lectureId, IFormFile documentFile, string instructorId)
+        public async Task<ApiResponse> AddDocumentToLectureAsync(string lectureId, string name, string docUrl, string publicId, string type, string instructorId)
         {
             try
             {
@@ -299,27 +274,13 @@ namespace LectureService.Infrastructure.Repositories
                     return new ApiResponse("Forbidden", _localizer["ForbiddenUpdateLecture"].Value, null, false);
                 }
 
-                if (documentFile == null || documentFile.Length == 0)
-                {
-                    return new ApiResponse("BadRequest", _localizer["DocumentFileEmpty"].Value, null, false);
-                }
-
-                var allowedExtensions = new[] { ".pdf", ".doc", ".docx" };
-                var extension = System.IO.Path.GetExtension(documentFile.FileName).ToLowerInvariant();
-                if (!allowedExtensions.Contains(extension))
-                {
-                    return new ApiResponse("BadRequest", _localizer["InvalidFileType"].Value, null, false);
-                }
-
-                var (docUrl, publicId) = await _cloudinaryService.UploadDocumentAsync(documentFile);
-
                 var document = new Document
                 {
                     Id = Guid.NewGuid().ToString(),
-                    Name = documentFile.FileName,
+                    Name = name,
                     Url = docUrl,
                     PublicId = publicId,
-                    Type = System.IO.Path.GetExtension(documentFile.FileName),
+                    Type = type,
                     LectureId = lectureId
                 };
 
@@ -478,7 +439,7 @@ namespace LectureService.Infrastructure.Repositories
             }
         }
 
-        public async Task<ApiResponse> UpdateDocumentAsync(string documentId, string name, IFormFile? documentFile, string instructorId)
+        public async Task<ApiResponse> UpdateDocumentAsync(string documentId, string name, string? docUrl, string? publicId, string? type, string instructorId)
         {
             try
             {
@@ -499,15 +460,8 @@ namespace LectureService.Infrastructure.Repositories
 
                 document.Name = name;
 
-                if (documentFile != null && documentFile.Length > 0)
+                if (!string.IsNullOrEmpty(docUrl) && !string.IsNullOrEmpty(publicId))
                 {
-                    var allowedExtensions = new[] { ".pdf", ".doc", ".docx" };
-                    var extension = System.IO.Path.GetExtension(documentFile.FileName).ToLowerInvariant();
-                    if (!allowedExtensions.Contains(extension))
-                    {
-                        return new ApiResponse("BadRequest", _localizer["InvalidFileType"].Value, null, false);
-                    }
-
                     if (!string.IsNullOrEmpty(document.PublicId))
                     {
                         try
@@ -520,10 +474,9 @@ namespace LectureService.Infrastructure.Repositories
                         }
                     }
 
-                    var (docUrl, publicId) = await _cloudinaryService.UploadDocumentAsync(documentFile);
                     document.Url = docUrl;
                     document.PublicId = publicId;
-                    document.Type = extension;
+                    document.Type = type ?? string.Empty;
                 }
 
                 _context.Documents.Update(document);
@@ -538,7 +491,7 @@ namespace LectureService.Infrastructure.Repositories
             }
         }
 
-        public async Task<ApiResponse> UpdateVideoAsync(string videoId, string name, IFormFile? videoFile, string instructorId)
+        public async Task<ApiResponse> UpdateVideoAsync(string videoId, string name, string? videoUrl, string? publicId, double? duration, string instructorId)
         {
             try
             {
@@ -559,15 +512,8 @@ namespace LectureService.Infrastructure.Repositories
 
                 video.Name = name;
 
-                if (videoFile != null && videoFile.Length > 0)
+                if (!string.IsNullOrEmpty(videoUrl) && !string.IsNullOrEmpty(publicId))
                 {
-                    var allowedExtensions = new[] { ".mp4", ".avi", ".mov", ".wmv", ".flv", ".mkv" };
-                    var extension = System.IO.Path.GetExtension(videoFile.FileName).ToLowerInvariant();
-                    if (!allowedExtensions.Contains(extension))
-                    {
-                        return new ApiResponse("BadRequest", _localizer["InvalidFileType"].Value, null, false);
-                    }
-
                     if (!string.IsNullOrEmpty(video.PublicId))
                     {
                         try
@@ -580,21 +526,9 @@ namespace LectureService.Infrastructure.Repositories
                         }
                     }
 
-                    var (videoUrl, publicId, duration) = await _cloudinaryService.UploadVideoAsync(videoFile);
                     video.VideoUrl = videoUrl;
                     video.PublicId = publicId;
-                    video.Duration = duration;
-
-                    // Re-process AI Analysis for the new video
-                    // try
-                    // {
-                    //    var aiResult = await _aiService.ProcessVideo(videoUrl);
-                    //    video.AnalysisResult = JsonConvert.SerializeObject(aiResult);
-                    // }
-                    // catch (Exception aiEx)
-                    // {
-                    //    Console.WriteLine($"AI Analysis failed during update: {aiEx.Message}");
-                    // }
+                    video.Duration = duration ?? 0;
                 }
 
                 _context.LectureVideos.Update(video);

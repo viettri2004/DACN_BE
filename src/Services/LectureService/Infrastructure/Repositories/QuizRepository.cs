@@ -10,7 +10,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using src.Shared.Domain.Entities;
 using src.Shared.Resources;
-using Shared.Infrastructure.cloudinaryService;
 using src.Shared.Infrastructure;
 
 using Microsoft.Extensions.Caching.Distributed;
@@ -22,16 +21,14 @@ namespace LectureService.Infrastructure.Repositories
     {
         private readonly AppDbContext _context;
         private readonly IStringLocalizer<SharedResources> _localizer;
-        private readonly CloudinaryService _cloudinaryService;
         private readonly IDistributedCache _cache;
 
-        public QuizRepository(AppDbContext context, IStringLocalizer<SharedResources> localizer, CloudinaryService cloudinaryService, IDistributedCache cache)
+        public QuizRepository(AppDbContext context, IStringLocalizer<SharedResources> localizer, IDistributedCache cache)
         {
             _context = context;
             _localizer = localizer;
-            _cloudinaryService = cloudinaryService;
-            _localizer = localizer;
-            }
+            _cache = cache;
+        }
 
             private async Task UpdateCourseTimestampAsync(string courseId)
             {
@@ -81,12 +78,8 @@ namespace LectureService.Infrastructure.Repositories
                             QuestionOptions = new List<QuestionOption>()
                         };
 
-                        if (qDto.Image != null)
-                        {
-                            var uploadResult = await _cloudinaryService.UploadImageAsync(qDto.Image);
-                            question.ImageUrl = uploadResult.Url;
-                            question.ImagePublicId = uploadResult.PublicId;
-                        }
+                        question.ImageUrl = qDto.ImageUrl;
+                        question.ImagePublicId = qDto.ImagePublicId;
 
                         if (qDto.Options != null)
                         {
@@ -165,12 +158,8 @@ namespace LectureService.Infrastructure.Repositories
                             QuestionOptions = new List<QuestionOption>()
                         };
 
-                        if (qDto.Image != null)
-                        {
-                            var uploadResult = await _cloudinaryService.UploadImageAsync(qDto.Image);
-                            question.ImageUrl = uploadResult.Url;
-                            question.ImagePublicId = uploadResult.PublicId;
-                        }
+                        question.ImageUrl = qDto.ImageUrl;
+                        question.ImagePublicId = qDto.ImagePublicId;
 
                         if (qDto.Options != null)
                         {
@@ -275,6 +264,7 @@ namespace LectureService.Infrastructure.Repositories
                         DisplayOrder = q.DisplayOrder,
                         Explanation = q.Explanation,
                         ImageUrl = q.ImageUrl,
+                        ImagePublicId = q.ImagePublicId,
                         Options = q.QuestionOptions.Select(o => new QuestionOptionDTO
                         {
                             Id = o.Id,
@@ -351,6 +341,7 @@ namespace LectureService.Infrastructure.Repositories
                         Content = q.Content,
                         DisplayOrder = q.DisplayOrder,
                         ImageUrl = q.ImageUrl,
+                        ImagePublicId = q.ImagePublicId,
                         Options = q.QuestionOptions.Select(o => new QuestionOptionDTO
                         {
                             Id = o.Id,

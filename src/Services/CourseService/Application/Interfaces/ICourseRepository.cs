@@ -29,7 +29,8 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> DeleteCommentAsync(string commentId, string userId);
         Task<ApiResponse> ReplyToCommentAsync(AddReplyCommentDTO replyDTO, string userId);
         
-        Task<ApiResponse> GetCourseQAsAsync(string courseId, string userId);
+        Task<ApiResponse> GetCourseQAThreadsAsync(string courseId, string userId, int pageNumber, int pageSize);
+        Task<ApiResponse> GetThreadMessagesAsync(string threadId, string userId, int pageNumber, int pageSize);
         Task<ApiResponse> CreateQAThreadAsync(CreateThreadDTO createThreadDTO, string userId);
         Task<ApiResponse> AddMessageToThreadAsync(AddMessageDTO addMessageDTO, string userId);
         Task<ApiResponse> UpdateQAThreadAsync(string threadId, UpdateThreadDTO updateThreadDTO, string userId);
@@ -44,6 +45,6 @@ namespace CourseService.Application.Interfaces
         // Wishlist
         Task<ApiResponse> AddToWishlistAsync(string courseId, string studentId);
         Task<ApiResponse> RemoveFromWishlistAsync(string courseId, string studentId);
-        Task<ApiResponse> GetStudentWishlistAsync(string studentId);
+        Task<ApiResponse> GetStudentWishlistAsync(string studentId, int pageNumber, int pageSize);
     }
 }
