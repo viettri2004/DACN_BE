@@ -13,8 +13,5 @@ namespace CartService.Application.Interfaces
         Task<ApiResponse> AddToCartAsync(string courseId, string studentId);
         Task<ApiResponse> RemoveFromCartAsync(string courseId, string studentId);
         Task<ApiResponse> GetAllItemsAsync(string studentId);
-
-        [Queue("critical")]
-        Task SyncCartToDbAsync(string studentId);
     }
 }

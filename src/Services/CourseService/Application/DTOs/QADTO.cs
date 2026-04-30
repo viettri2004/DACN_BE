@@ -3,34 +3,49 @@ using System.Collections.Generic;
 
 namespace CourseService.Application.DTOs
 {
-    public class QuestionAnswerDTO
+    public class QAThreadDTO
     {
         public string Id { get; set; } = null!;
-        public string? Title { get; set; }
+        public string Title { get; set; } = null!;
+        public string CreatorName { get; set; } = null!;
+        public string? CreatorAvatarUrl { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime LastActivityAt { get; set; }
+        public bool IsMyThread { get; set; }
+        public List<QAMessageDTO> Messages { get; set; } = new List<QAMessageDTO>();
+    }
+
+    public class QAMessageDTO
+    {
+        public string Id { get; set; } = null!;
         public string Content { get; set; } = null!;
         public string UserName { get; set; } = null!;
         public string? AvatarUrl { get; set; }
         public DateTime CreatedAt { get; set; }
-        public bool IsMyQA { get; set; }
-        public List<QuestionAnswerDTO> Replies { get; set; } = new List<QuestionAnswerDTO>();
+        public bool IsMyMessage { get; set; }
+        public bool IsInstructor { get; set; }
     }
 
-    public class CreateQuestionDTO
+    public class CreateThreadDTO
     {
         public string CourseId { get; set; } = null!;
-        public string? Title { get; set; }
+        public string Title { get; set; } = null!;
+        public string Content { get; set; } = null!; // First message content
+    }
+
+    public class AddMessageDTO
+    {
+        public string ThreadId { get; set; } = null!;
         public string Content { get; set; } = null!;
     }
 
-    public class ReplyQADTO
+    public class UpdateThreadDTO
     {
-        public string ParentId { get; set; } = null!;
-        public string Content { get; set; } = null!;
+        public string Title { get; set; } = null!;
     }
 
-    public class UpdateQADTO
+    public class UpdateMessageDTO
     {
-        public string? Title { get; set; }
         public string Content { get; set; } = null!;
     }
 }

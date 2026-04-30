@@ -14,7 +14,6 @@ using src.Shared.Infrastructure;
 
 using Microsoft.Extensions.Caching.Distributed;
 using Newtonsoft.Json;
-using Hangfire;
 
 namespace CartService.Infrastructure.Repositories
 {
@@ -23,17 +22,14 @@ namespace CartService.Infrastructure.Repositories
         private readonly AppDbContext _context;
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly IDistributedCache _cache;
-        private readonly IBackgroundJobClient _backgroundJobClient;
 
         public CartRepository(AppDbContext context, 
                              IStringLocalizer<SharedResources> localizer, 
-                             IDistributedCache cache,
-                             IBackgroundJobClient backgroundJobClient)
+                             IDistributedCache cache)
         {
             _context = context;
             _localizer = localizer;
             _cache = cache;
-            _backgroundJobClient = backgroundJobClient;
         }
 
         public async Task<ApiResponse> AddToCartAsync(string courseId, string studentId)
@@ -73,8 +69,6 @@ namespace CartService.Infrastructure.Repositories
             cartDto.TotalPrice = cartDto.Items.Sum(i => i.Price);
             await UpdateCartCache(studentId, cartDto);
 
-            await ScheduleSyncJobAsync(studentId);
-
             return new ApiResponse("Success", _localizer["ItemAddedToCart"].Value, null, true);
         }
 
@@ -91,8 +85,6 @@ namespace CartService.Infrastructure.Repositories
             cartDto.TotalPrice = cartDto.Items.Sum(i => i.Price);
 
             await UpdateCartCache(studentId, cartDto);
-
-            await ScheduleSyncJobAsync(studentId);
 
             return new ApiResponse("Success", _localizer["ItemRemovedFromCart"].Value, null, true);
         }
@@ -114,117 +106,9 @@ namespace CartService.Infrastructure.Repositories
                 return apiResponse;
             }
 
-            var cart = await _context.Carts
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.StudentId == studentId);
-
+            // If not in cache, return an empty cart since we no longer store it in DB
             var cartDto = new CartDTO();
-
-            if (cart == null)
-            {
-                return new ApiResponse("Success", _localizer["CartIsEmpty"].Value, cartDto, true);
-            }
-            var cartItemsQuery = _context.CartItems
-                .AsNoTracking()
-                .Where(ci => ci.CartId == cart.Id)
-                .Include(ci => ci.Course)
-                    .ThenInclude(c => c.Instructor)
-                .Include(ci => ci.Course)
-                    .ThenInclude(c => c.Enrollments)
-                        .ThenInclude(e => e.Comments);
-
-            var items = await cartItemsQuery
-                .Select(ci => new CartItemDTO
-                {
-                    Id = ci.Course.Id,
-                    Name = ci.Course.Name,
-                    ImageUrl = ci.Course.ImageUrl,
-                    InstructorName = ci.Course.Instructor.FullName,
-
-                    AverageRating = ci.Course.Enrollments.SelectMany(e => e.Comments).Any()
-                        ? Math.Round(ci.Course.Enrollments.SelectMany(e => e.Comments).Average(cm => cm.Rate), 1)
-                        : 0,
-                    TotalReviews = ci.Course.Enrollments.SelectMany(e => e.Comments).Count(),
-                    TotalStudents = ci.Course.Enrollments.Count,
-
-                    Price = ci.Price,
-
-                    OriginalPrice = (ci.Price < ci.Course.Price) ? ci.Course.Price : null,
-
-                    IsBestseller = ci.Course.Enrollments.Count > 5,
-                })
-                .ToListAsync();
-
-            cartDto.Items = items;
-            cartDto.TotalItems = items.Count;
-            cartDto.TotalPrice = items.Sum(item => item.Price);
-
-            var response = new ApiResponse("Success", _localizer["Success"].Value, cartDto, true);
-
-            var cacheOptions = new DistributedCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) // Tăng TTL để tránh mất dữ liệu khi chưa kịp sync
-            };
-            await _cache.SetStringAsync(cacheKey, JsonConvert.SerializeObject(response, JsonSettings.CamelCase), cacheOptions);
-
-            return response;
-        }
-
-        public async Task SyncCartToDbAsync(string studentId)
-        {
-            var cartResponse = await GetAllItemsAsync(studentId);
-            var cartDto = cartResponse.Data as CartDTO;
-
-            if (cartDto == null) return;
-
-            var cart = await _context.Carts.FirstOrDefaultAsync(c => c.StudentId == studentId);
-            if (cart == null)
-            {
-                cart = new Cart
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    StudentId = studentId
-                };
-                await _context.Carts.AddAsync(cart);
-            }
-
-            var oldItems = _context.CartItems.Where(ci => ci.CartId == cart.Id);
-            _context.CartItems.RemoveRange(oldItems);
-
-            foreach (var item in cartDto.Items)
-            {
-                await _context.CartItems.AddAsync(new CartItem
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    CartId = cart.Id,
-                    CourseId = item.Id,
-                    Price = item.Price
-                });
-            }
-
-            await _context.SaveChangesAsync();
-        }
-
-        private async Task ScheduleSyncJobAsync(string studentId)
-        {
-            string jobCacheKey = $"cart:syncjob:{studentId}";
-            var existingJobId = await _cache.GetStringAsync(jobCacheKey);
-
-            if (!string.IsNullOrEmpty(existingJobId))
-            {
-                _backgroundJobClient.Delete(existingJobId);
-            }
-
-            var newJobId = _backgroundJobClient.Schedule<ICartRepository>(repo => repo.SyncCartToDbAsync(studentId), TimeSpan.FromMinutes(15));
-
-            if (!string.IsNullOrEmpty(newJobId))
-            {
-                var cacheOptions = new DistributedCacheEntryOptions
-                {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30)
-                };
-                await _cache.SetStringAsync(jobCacheKey, newJobId, cacheOptions);
-            }
+            return new ApiResponse("Success", _localizer["CartIsEmpty"].Value, cartDto, true);
         }
 
         private async Task UpdateCartCache(string studentId, CartDTO cartDto)

@@ -134,18 +134,6 @@ namespace PaymentService.Infrastructure.Repositories
             return await _context.Courses.FirstOrDefaultAsync(c => c.Id == courseId);
         }
 
-        public async Task RemoveCartItemsAsync(string studentId, List<string> courseIds)
-        {
-            var cartItemsToRemove = await _context.CartItems
-                .Where(ci => ci.Cart.StudentId == studentId && courseIds.Contains(ci.CourseId))
-                .ToListAsync();
-
-            if (cartItemsToRemove.Any())
-            {
-                _context.CartItems.RemoveRange(cartItemsToRemove);
-            }
-        }
-
         public async Task<List<Order>> GetOrdersByStudentIdAsync(string studentId)
         {
             return await _context.Orders

@@ -147,9 +147,6 @@ namespace Data.Seeding
                     Description = "Yêu thích lập trình và luôn mong muốn học hỏi kỹ năng mới."
                 };
                 await CreateUserWithRoles(student, "Password123@", new[] { "Student" });
-
-                // Create a shopping cart for each student
-                _context.Carts.Add(new Cart { Id = Guid.NewGuid().ToString(), StudentId = student.Id });
             }
 
             await _context.SaveChangesAsync();

@@ -14,8 +14,6 @@ namespace Data.Context
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
         public DbSet<Course> Courses { get; set; } = null!;
         public DbSet<Enrollment> Enrollments { get; set; } = null!;
-        public DbSet<Cart> Carts { get; set; } = null!;
-        public DbSet<CartItem> CartItems { get; set; } = null!;
         public DbSet<Order> Orders { get; set; } = null!;
         public DbSet<OrderItem> OrderItems { get; set; } = null!;
         public DbSet<Tag> Tags { get; set; } = null!;
@@ -24,7 +22,8 @@ namespace Data.Context
         public DbSet<Document> Documents { get; set; } = null!;
         public DbSet<LectureVideo> LectureVideos { get; set; } = null!;
         public DbSet<Comment> Comments { get; set; } = null!;
-        public DbSet<QuestionAnswer> QuestionAnswers { get; set; } = null!;
+        public DbSet<QAThread> QAThreads { get; set; } = null!;
+        public DbSet<QAMessage> QAMessages { get; set; } = null!;
         public DbSet<Quiz> Quizzes { get; set; } = null!;
         public DbSet<Question> Questions { get; set; } = null!;
         public DbSet<QuestionOption> QuestionOptions { get; set; } = null!;
@@ -79,31 +78,6 @@ namespace Data.Context
                       .IsRequired();
                 entity.HasIndex(c => c.EnrollmentId);
                 entity.HasIndex(c => c.ReplyId);
-            });
-
-            modelBuilder.Entity<Cart>(entity =>
-            {
-                entity.HasKey(c => c.Id);
-                entity.HasOne(c => c.Student)
-                    .WithOne(s => s.Cart)
-                    .HasForeignKey<Cart>(c => c.StudentId)
-                    .OnDelete(DeleteBehavior.Cascade);
-                entity.HasIndex(c => c.StudentId).IsUnique();
-            });
-
-            modelBuilder.Entity<CartItem>(entity =>
-            {
-                entity.HasKey(ci => ci.Id);
-                entity.HasOne(ci => ci.Cart)
-                    .WithMany(c => c.CartItems)
-                    .HasForeignKey(ci => ci.CartId)
-                    .OnDelete(DeleteBehavior.Cascade);
-                entity.HasOne(ci => ci.Course)
-                    .WithMany(c => c.CartItems)
-                    .HasForeignKey(ci => ci.CourseId)
-                    .OnDelete(DeleteBehavior.Restrict);
-                entity.HasIndex(ci => new { ci.CartId, ci.CourseId }).IsUnique();
-                entity.Property(ci => ci.Price).HasColumnType("decimal(18,2)").IsRequired();
             });
 
             modelBuilder.Entity<Order>(entity =>
@@ -311,23 +285,34 @@ namespace Data.Context
                     .OnDelete(DeleteBehavior.SetNull);
             });
 
-            modelBuilder.Entity<QuestionAnswer>(entity =>
+            modelBuilder.Entity<QAThread>(entity =>
             {
-                entity.HasKey(qa => qa.Id);
-                entity.HasOne(qa => qa.Course)
-                    .WithMany(c => c.QuestionAnswers)
-                    .HasForeignKey(qa => qa.CourseId)
+                entity.HasKey(t => t.Id);
+                entity.HasOne(t => t.Course)
+                    .WithMany(c => c.QAThreads)
+                    .HasForeignKey(t => t.CourseId)
                     .OnDelete(DeleteBehavior.Cascade);
-                entity.HasOne(qa => qa.User)
+                entity.HasOne(t => t.Creator)
                     .WithMany()
-                    .HasForeignKey(qa => qa.UserId)
+                    .HasForeignKey(t => t.CreatorId)
                     .OnDelete(DeleteBehavior.Cascade);
-                entity.HasOne(qa => qa.Parent)
-                    .WithMany(p => p.Replies)
-                    .HasForeignKey(qa => qa.ParentId)
+                entity.Property(t => t.Title).IsRequired();
+                entity.HasIndex(t => t.CourseId);
+            });
+
+            modelBuilder.Entity<QAMessage>(entity =>
+            {
+                entity.HasKey(m => m.Id);
+                entity.HasOne(m => m.Thread)
+                    .WithMany(t => t.Messages)
+                    .HasForeignKey(m => m.ThreadId)
                     .OnDelete(DeleteBehavior.Cascade);
-                entity.Property(qa => qa.Content).IsRequired();
-                entity.Property(qa => qa.CreatedAt).IsRequired();
+                entity.HasOne(m => m.User)
+                    .WithMany()
+                    .HasForeignKey(m => m.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.Property(m => m.Content).IsRequired();
+                entity.HasIndex(m => m.ThreadId);
             });
 
             modelBuilder.Entity<StudentLectureProgress>(entity =>

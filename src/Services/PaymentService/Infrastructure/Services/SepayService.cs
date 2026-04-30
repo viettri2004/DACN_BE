@@ -153,15 +153,7 @@ namespace PaymentService.Infrastructure.Services
                 var courseIds = orderItems.Select(oi => oi.CourseId).ToList();
                 if (courseIds.Any())
                 {
-                    var cartItemsToRemove = await _context.CartItems
-                        .Where(ci => ci.Cart.StudentId == order.StudentId && courseIds.Contains(ci.CourseId))
-                        .ToListAsync();
-
-                    if (cartItemsToRemove.Any())
-                    {
-                        _context.CartItems.RemoveRange(cartItemsToRemove);
-                        _logger.LogInformation("Removed {Count} items from cart for student {StudentId} via Sepay", cartItemsToRemove.Count, order.StudentId);
-                    }
+                    _logger.LogInformation("Cart items will be invalidated from Redis for student {StudentId} via Sepay", order.StudentId);
                 }
             }
 

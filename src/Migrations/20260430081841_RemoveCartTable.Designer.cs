@@ -3,6 +3,7 @@ using System;
 using Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace src.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260430081841_RemoveCartTable")]
+    partial class RemoveCartTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -539,70 +542,6 @@ namespace src.Migrations
                     b.ToTable("PaymentTransactions");
                 });
 
-            modelBuilder.Entity("Entities.QAMessage", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ThreadId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ThreadId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("QAMessages");
-                });
-
-            modelBuilder.Entity("Entities.QAThread", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<string>("CourseId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatorId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("LastActivityAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CourseId");
-
-                    b.HasIndex("CreatorId");
-
-                    b.ToTable("QAThreads");
-                });
-
             modelBuilder.Entity("Entities.Question", b =>
                 {
                     b.Property<string>("Id")
@@ -632,6 +571,46 @@ namespace src.Migrations
                     b.HasIndex("QuizId");
 
                     b.ToTable("Questions");
+                });
+
+            modelBuilder.Entity("Entities.QuestionAnswer", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CourseId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ParentId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CourseId");
+
+                    b.HasIndex("ParentId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("QuestionAnswers");
                 });
 
             modelBuilder.Entity("Entities.QuestionOption", b =>
@@ -1281,44 +1260,6 @@ namespace src.Migrations
                     b.Navigation("Order");
                 });
 
-            modelBuilder.Entity("Entities.QAMessage", b =>
-                {
-                    b.HasOne("Entities.QAThread", "Thread")
-                        .WithMany("Messages")
-                        .HasForeignKey("ThreadId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Thread");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Entities.QAThread", b =>
-                {
-                    b.HasOne("Entities.Course", "Course")
-                        .WithMany("QAThreads")
-                        .HasForeignKey("CourseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Entities.User", "Creator")
-                        .WithMany()
-                        .HasForeignKey("CreatorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Course");
-
-                    b.Navigation("Creator");
-                });
-
             modelBuilder.Entity("Entities.Question", b =>
                 {
                     b.HasOne("Entities.Quiz", "Quiz")
@@ -1327,6 +1268,32 @@ namespace src.Migrations
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Quiz");
+                });
+
+            modelBuilder.Entity("Entities.QuestionAnswer", b =>
+                {
+                    b.HasOne("Entities.Course", "Course")
+                        .WithMany("QuestionAnswers")
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Entities.QuestionAnswer", "Parent")
+                        .WithMany("Replies")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Course");
+
+                    b.Navigation("Parent");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Entities.QuestionOption", b =>
@@ -1493,7 +1460,7 @@ namespace src.Migrations
 
                     b.Navigation("OrderItems");
 
-                    b.Navigation("QAThreads");
+                    b.Navigation("QuestionAnswers");
                 });
 
             modelBuilder.Entity("Entities.Enrollment", b =>
@@ -1521,14 +1488,14 @@ namespace src.Migrations
                     b.Navigation("PaymentTransactions");
                 });
 
-            modelBuilder.Entity("Entities.QAThread", b =>
-                {
-                    b.Navigation("Messages");
-                });
-
             modelBuilder.Entity("Entities.Question", b =>
                 {
                     b.Navigation("QuestionOptions");
+                });
+
+            modelBuilder.Entity("Entities.QuestionAnswer", b =>
+                {
+                    b.Navigation("Replies");
                 });
 
             modelBuilder.Entity("Entities.Quiz", b =>

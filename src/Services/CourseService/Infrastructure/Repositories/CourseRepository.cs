@@ -1160,129 +1160,165 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse("Forbidden", _localizer["NotEnrolledInCourse"].Value, null, false);
             }
 
-            var qas = await _context.QuestionAnswers
-                .Include(qa => qa.User)
-                .Include(qa => qa.Replies).ThenInclude(r => r.User)
-                .Where(qa => qa.CourseId == courseId && qa.ParentId == null)
-                .OrderByDescending(qa => qa.CreatedAt)
-                .Select(qa => new QuestionAnswerDTO
+            var threads = await _context.QAThreads
+                .Include(t => t.Creator)
+                .Include(t => t.Messages).ThenInclude(m => m.User)
+                .Where(t => t.CourseId == courseId)
+                .OrderByDescending(t => t.LastActivityAt)
+                .Select(t => new QAThreadDTO
                 {
-                    Id = qa.Id,
-                    Title = qa.Title,
-                    Content = qa.Content,
-                    UserName = qa.User.FullName,
-                    AvatarUrl = qa.User.AvatarUrl,
-                    CreatedAt = qa.CreatedAt,
-                    IsMyQA = qa.UserId == userId,
-                    Replies = qa.Replies.OrderBy(r => r.CreatedAt).Select(r => new QuestionAnswerDTO
+                    Id = t.Id,
+                    Title = t.Title,
+                    CreatorName = t.Creator.FullName,
+                    CreatorAvatarUrl = t.Creator.AvatarUrl,
+                    CreatedAt = t.CreatedAt,
+                    LastActivityAt = t.LastActivityAt,
+                    IsMyThread = t.CreatorId == userId,
+                    Messages = t.Messages.OrderBy(m => m.CreatedAt).Select(m => new QAMessageDTO
                     {
-                        Id = r.Id,
-                        Content = r.Content,
-                        UserName = r.User.FullName,
-                        AvatarUrl = r.User.AvatarUrl,
-                        CreatedAt = r.CreatedAt,
-                        IsMyQA = r.UserId == userId
+                        Id = m.Id,
+                        Content = m.Content,
+                        UserName = m.User.FullName,
+                        AvatarUrl = m.User.AvatarUrl,
+                        CreatedAt = m.CreatedAt,
+                        IsMyMessage = m.UserId == userId,
+                        IsInstructor = m.User is Instructor || m.User is Admin
                     }).ToList()
                 })
                 .ToListAsync();
 
-            return new ApiResponse("Success", _localizer["Success"].Value, qas, true);
+            return new ApiResponse("Success", _localizer["Success"].Value, threads, true);
         }
 
-        public async Task<ApiResponse> CreateQuestionAsync(CreateQuestionDTO createQuestionDTO, string userId)
+        public async Task<ApiResponse> CreateQAThreadAsync(CreateThreadDTO createThreadDTO, string userId)
         {
-            var isEnrolled = await _context.Enrollments.AnyAsync(e => e.CourseId == createQuestionDTO.CourseId && e.StudentId == userId && e.Status == true);
-            var isInstructor = await _context.Courses.AnyAsync(c => c.Id == createQuestionDTO.CourseId && c.InstructorId == userId);
+            var isEnrolled = await _context.Enrollments.AnyAsync(e => e.CourseId == createThreadDTO.CourseId && e.StudentId == userId && e.Status == true);
+            var isInstructor = await _context.Courses.AnyAsync(c => c.Id == createThreadDTO.CourseId && c.InstructorId == userId);
 
             if (!isEnrolled && !isInstructor)
             {
                 return new ApiResponse("Forbidden", _localizer["NotEnrolledInCourse"].Value, null, false);
             }
 
-            var qa = new QuestionAnswer
+            var thread = new QAThread
             {
-                CourseId = createQuestionDTO.CourseId,
-                UserId = userId,
-                Title = createQuestionDTO.Title,
-                Content = createQuestionDTO.Content
+                CourseId = createThreadDTO.CourseId,
+                CreatorId = userId,
+                Title = createThreadDTO.Title
             };
 
-            _context.QuestionAnswers.Add(qa);
+            var message = new QAMessage
+            {
+                ThreadId = thread.Id,
+                UserId = userId,
+                Content = createThreadDTO.Content
+            };
+
+            _context.QAThreads.Add(thread);
+            _context.QAMessages.Add(message);
             await _context.SaveChangesAsync();
 
             return new ApiResponse("Created", _localizer["QuestionAdded"].Value, null, true);
         }
 
-        public async Task<ApiResponse> ReplyToQAAsync(ReplyQADTO replyDTO, string userId)
+        public async Task<ApiResponse> AddMessageToThreadAsync(AddMessageDTO addMessageDTO, string userId)
         {
-            var parent = await _context.QuestionAnswers
-                .FirstOrDefaultAsync(qa => qa.Id == replyDTO.ParentId);
-
-            if (parent == null)
+            var thread = await _context.QAThreads.FirstOrDefaultAsync(t => t.Id == addMessageDTO.ThreadId);
+            if (thread == null)
             {
                 return new ApiResponse("NotFound", _localizer["QANotFound"].Value, null, false);
             }
 
-            var isEnrolled = await _context.Enrollments.AnyAsync(e => e.CourseId == parent.CourseId && e.StudentId == userId && e.Status == true);
-            var isInstructor = await _context.Courses.AnyAsync(c => c.Id == parent.CourseId && c.InstructorId == userId);
+            var isEnrolled = await _context.Enrollments.AnyAsync(e => e.CourseId == thread.CourseId && e.StudentId == userId && e.Status == true);
+            var isInstructor = await _context.Courses.AnyAsync(c => c.Id == thread.CourseId && c.InstructorId == userId);
 
             if (!isEnrolled && !isInstructor)
             {
                 return new ApiResponse("Forbidden", _localizer["NotEnrolledInCourse"].Value, null, false);
             }
 
-            var reply = new QuestionAnswer
+            var message = new QAMessage
             {
-                CourseId = parent.CourseId,
+                ThreadId = thread.Id,
                 UserId = userId,
-                ParentId = parent.Id,
-                Content = replyDTO.Content
+                Content = addMessageDTO.Content
             };
 
-            _context.QuestionAnswers.Add(reply);
+            thread.LastActivityAt = DateTime.UtcNow;
+            _context.QAMessages.Add(message);
             await _context.SaveChangesAsync();
 
             return new ApiResponse("Created", _localizer["ReplyAdded"].Value, null, true);
         }
 
-        public async Task<ApiResponse> UpdateQAAsync(string qaId, UpdateQADTO updateQADTO, string userId)
+        public async Task<ApiResponse> UpdateQAThreadAsync(string threadId, UpdateThreadDTO updateThreadDTO, string userId)
         {
-            var qa = await _context.QuestionAnswers.FirstOrDefaultAsync(qa => qa.Id == qaId);
-            if (qa == null) return new ApiResponse("NotFound", _localizer["QANotFound"].Value, null, false);
+            var thread = await _context.QAThreads.FirstOrDefaultAsync(t => t.Id == threadId);
+            if (thread == null) return new ApiResponse("NotFound", _localizer["QANotFound"].Value, null, false);
 
-            if (qa.UserId != userId)
+            if (thread.CreatorId != userId)
             {
                 return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
             }
 
-            qa.Title = updateQADTO.Title;
-            qa.Content = updateQADTO.Content;
-            qa.UpdatedAt = DateTime.UtcNow;
+            thread.Title = updateThreadDTO.Title;
+            await _context.SaveChangesAsync();
+            return new ApiResponse("Success", _localizer["QAUpdated"].Value, null, true);
+        }
+
+        public async Task<ApiResponse> UpdateQAMessageAsync(string messageId, UpdateMessageDTO updateMessageDTO, string userId)
+        {
+            var message = await _context.QAMessages.FirstOrDefaultAsync(m => m.Id == messageId);
+            if (message == null) return new ApiResponse("NotFound", _localizer["QANotFound"].Value, null, false);
+
+            if (message.UserId != userId)
+            {
+                return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
+            }
+
+            message.Content = updateMessageDTO.Content;
+            message.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
             return new ApiResponse("Success", _localizer["QAUpdated"].Value, null, true);
         }
 
-        public async Task<ApiResponse> DeleteQAAsync(string qaId, string userId)
+        public async Task<ApiResponse> DeleteQAThreadAsync(string threadId, string userId)
         {
-            var qa = await _context.QuestionAnswers
-                .Include(q => q.Course)
-                .Include(q => q.Replies)
-                .FirstOrDefaultAsync(q => q.Id == qaId);
+            var thread = await _context.QAThreads
+                .Include(t => t.Course)
+                .FirstOrDefaultAsync(t => t.Id == threadId);
                 
-            if (qa == null) return new ApiResponse("NotFound", _localizer["QANotFound"].Value, null, false);
+            if (thread == null) return new ApiResponse("NotFound", _localizer["QANotFound"].Value, null, false);
 
-            // Owner or Instructor can delete
-            if (qa.UserId != userId && qa.Course.InstructorId != userId)
+            // Creator or Instructor can delete the entire thread
+            if (thread.CreatorId != userId && thread.Course.InstructorId != userId)
             {
                 return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
             }
 
-            if (qa.Replies.Any())
+            _context.QAThreads.Remove(thread);
+            await _context.SaveChangesAsync();
+
+            return new ApiResponse("Success", _localizer["QADeleted"].Value, null, true);
+        }
+
+        public async Task<ApiResponse> DeleteQAMessageAsync(string messageId, string userId)
+        {
+            var message = await _context.QAMessages
+                .Include(m => m.Thread)
+                    .ThenInclude(t => t.Course)
+                .FirstOrDefaultAsync(m => m.Id == messageId);
+                
+            if (message == null) return new ApiResponse("NotFound", _localizer["QANotFound"].Value, null, false);
+
+            // Message creator, Thread creator, or Course Instructor can delete a message
+            if (message.UserId != userId && message.Thread.CreatorId != userId && message.Thread.Course.InstructorId != userId)
             {
-                _context.QuestionAnswers.RemoveRange(qa.Replies);
+                return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
             }
-            _context.QuestionAnswers.Remove(qa);
+
+            _context.QAMessages.Remove(message);
             await _context.SaveChangesAsync();
 
             return new ApiResponse("Success", _localizer["QADeleted"].Value, null, true);

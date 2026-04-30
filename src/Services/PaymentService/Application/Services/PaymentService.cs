@@ -478,9 +478,6 @@ namespace PaymentService.Application.Services
                     _backgroundJobClient.Delete(jobId);
                     await _cache.RemoveAsync(jobCacheKey);
                 }
-
-                // Clear cart from database
-                await _paymentRepository.RemoveCartItemsAsync(studentId, new List<string> { courseIdToRedeem });
                 
                 await _paymentRepository.SaveChangesAsync();
 

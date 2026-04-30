@@ -316,53 +316,79 @@ namespace CourseService.API.Controllers
 
         [Authorize]
         [HttpPost("add-question")]
-        public async Task<ActionResult<ApiResponse>> AddQuestion([FromBody] CreateQuestionDTO createQuestionDTO)
+        public async Task<ActionResult<ApiResponse>> CreateThread([FromBody] CreateThreadDTO createThreadDTO)
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.CreateQuestionAsync(createQuestionDTO, userId);
+            var response = await _courseRepository.CreateQAThreadAsync(createThreadDTO, userId);
             return response.ToActionResult();
         }
 
         [Authorize]
         [HttpPost("reply-qa")]
-        public async Task<ActionResult<ApiResponse>> ReplyQA([FromBody] ReplyQADTO replyDTO)
+        public async Task<ActionResult<ApiResponse>> AddMessage([FromBody] AddMessageDTO addMessageDTO)
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.ReplyToQAAsync(replyDTO, userId);
+            var response = await _courseRepository.AddMessageToThreadAsync(addMessageDTO, userId);
             return response.ToActionResult();
         }
 
         [Authorize]
-        [HttpPut("update-qa/{qaId}")]
-        public async Task<ActionResult<ApiResponse>> UpdateQA([FromRoute] string qaId, [FromBody] UpdateQADTO updateQADTO)
+        [HttpPut("update-thread/{threadId}")]
+        public async Task<ActionResult<ApiResponse>> UpdateThread([FromRoute] string threadId, [FromBody] UpdateThreadDTO updateThreadDTO)
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.UpdateQAAsync(qaId, updateQADTO, userId);
+            var response = await _courseRepository.UpdateQAThreadAsync(threadId, updateThreadDTO, userId);
             return response.ToActionResult();
         }
 
         [Authorize]
-        [HttpDelete("delete-qa/{qaId}")]
-        public async Task<ActionResult<ApiResponse>> DeleteQA([FromRoute] string qaId)
+        [HttpPut("update-message/{messageId}")]
+        public async Task<ActionResult<ApiResponse>> UpdateMessage([FromRoute] string messageId, [FromBody] UpdateMessageDTO updateMessageDTO)
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.DeleteQAAsync(qaId, userId);
+            var response = await _courseRepository.UpdateQAMessageAsync(messageId, updateMessageDTO, userId);
+            return response.ToActionResult();
+        }
+
+        [Authorize]
+        [HttpDelete("delete-thread/{threadId}")]
+        public async Task<ActionResult<ApiResponse>> DeleteThread([FromRoute] string threadId)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.DeleteQAThreadAsync(threadId, userId);
+            return response.ToActionResult();
+        }
+
+        [Authorize]
+        [HttpDelete("delete-message/{messageId}")]
+        public async Task<ActionResult<ApiResponse>> DeleteMessage([FromRoute] string messageId)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.DeleteQAMessageAsync(messageId, userId);
             return response.ToActionResult();
         }
 
