@@ -149,12 +149,13 @@ namespace CourseService.Application.Services
                     finalBoolQuery.Add(NumericRangeQuery.NewDoubleRange("calculatedPrice", min, max, true, true), Occur.MUST);
                 }
 
+                using var scope = _scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
                 // Filter out enrolled courses
                 if (!string.IsNullOrEmpty(studentId))
                 {
-                    using var enrolledScope = _scopeFactory.CreateScope();
-                    var enrolledContext = enrolledScope.ServiceProvider.GetRequiredService<AppDbContext>();
-                    var enrolledCourseIds = await enrolledContext.Enrollments
+                    var enrolledCourseIds = await context.Enrollments
                         .Where(e => e.StudentId == studentId && e.Status == true)
                         .Select(e => e.CourseId)
                         .ToListAsync();
@@ -188,9 +189,7 @@ namespace CourseService.Application.Services
                 var facets = new FastTaxonomyFacetCounts(_taxonomyReader, _facetsConfig, facetsCollector);
                 var tagResults = facets.GetTopChildren(100, "tags");
                 
-                using var tagScope = _scopeFactory.CreateScope();
-                var tagContext = tagScope.ServiceProvider.GetRequiredService<AppDbContext>();
-                var allTagsFromDb = await tagContext.Tags.AsNoTracking().ToListAsync();
+                var allTagsFromDb = await context.Tags.AsNoTracking().ToListAsync();
 
                 var availableTags = allTagsFromDb.Select(t => new TagFacetDTO
                 {
@@ -284,11 +283,9 @@ namespace CourseService.Application.Services
                     return new ApiResponse("Success", _localizer["Success"].Value, responseData, true);
                 }
 
-                using var scope = _scopeFactory.CreateScope();
-                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
                 var coursesQuery = context.Courses
                     .AsNoTracking()
+                    .AsSplitQuery()
                     .Where(c => courseIds.Contains(c.Id) && c.Status != CourseStatus.Private)
                     .Include(c => c.Instructor)
                     .Include(c => c.Enrollments)

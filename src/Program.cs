@@ -179,13 +179,6 @@ static void ConfigureHangfire(IServiceCollection services, IConfiguration config
 
     services.AddHangfireServer(options =>
     {
-        options.ServerName = "CartProcessor";
-        options.WorkerCount = 5;
-        options.Queues = new[] { "critical" };
-    });
-
-    services.AddHangfireServer(options =>
-    {
         options.ServerName = "VideoProcessor";
         options.WorkerCount = 2;
         options.Queues = new[] { "video" };

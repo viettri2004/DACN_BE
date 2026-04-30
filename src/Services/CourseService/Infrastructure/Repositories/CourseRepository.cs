@@ -234,6 +234,7 @@ namespace CourseService.Infrastructure.Repositories
 
             var course = await _context.Courses
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(c => c.Instructor)
                 .Include(c => c.Enrollments)
                     .ThenInclude(e => e.Comments)
