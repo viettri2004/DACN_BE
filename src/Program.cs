@@ -135,8 +135,10 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     {
         var env = provider.GetRequiredService<IWebHostEnvironment>();
         var baseDataPath = Path.Combine(env.ContentRootPath, "lucene_data");
+        var spellcheckerPath = Path.Combine(baseDataPath, "spellchecker");
 
         if (!Directory.Exists(baseDataPath)) Directory.CreateDirectory(baseDataPath);
+        if (!Directory.Exists(spellcheckerPath)) Directory.CreateDirectory(spellcheckerPath);
 
         return ActivatorUtilities.CreateInstance<LuceneSearchService>(provider);
     });

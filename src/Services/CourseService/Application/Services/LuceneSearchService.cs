@@ -19,6 +19,7 @@ using Lucene.Net.QueryParsers.Classic;
 using Lucene.Net.Facet;
 using Lucene.Net.Facet.Taxonomy;
 using Lucene.Net.Facet.Taxonomy.Directory;
+using Lucene.Net.Search.Spell;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,6 +35,7 @@ namespace CourseService.Application.Services
         private const LuceneVersion LUCENE_VERSION = LuceneVersion.LUCENE_48;
         private readonly FSDirectory _directory;
         private readonly FSDirectory _taxonomyDirectory;
+        private readonly FSDirectory _spellDirectory;
         private readonly StandardAnalyzer _analyzer;
         private readonly IndexWriter _writer;
         private readonly DirectoryTaxonomyWriter _taxonomyWriter;
@@ -41,6 +43,7 @@ namespace CourseService.Application.Services
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly SearcherManager _searcherManager;
+        private readonly SpellChecker _spellChecker;
         private DirectoryTaxonomyReader? _taxonomyReader;
 
         public LuceneSearchService(
@@ -54,13 +57,16 @@ namespace CourseService.Application.Services
             var baseDataPath = Path.Combine(env.ContentRootPath, "lucene_data");
             var indexPath = Path.Combine(baseDataPath, "main");
             var taxonomyPath = Path.Combine(baseDataPath, "taxonomy");
+            var spellcheckerPath = Path.Combine(baseDataPath, "spellchecker");
 
             if (!System.IO.Directory.Exists(baseDataPath)) System.IO.Directory.CreateDirectory(baseDataPath);
             if (!System.IO.Directory.Exists(indexPath)) System.IO.Directory.CreateDirectory(indexPath);
             if (!System.IO.Directory.Exists(taxonomyPath)) System.IO.Directory.CreateDirectory(taxonomyPath);
+            if (!System.IO.Directory.Exists(spellcheckerPath)) System.IO.Directory.CreateDirectory(spellcheckerPath);
             
             _directory = FSDirectory.Open(new DirectoryInfo(indexPath), new SimpleFSLockFactory());
             _taxonomyDirectory = FSDirectory.Open(new DirectoryInfo(taxonomyPath), new SimpleFSLockFactory());
+            _spellDirectory = FSDirectory.Open(new DirectoryInfo(spellcheckerPath), new SimpleFSLockFactory());
 
             _analyzer = new StandardAnalyzer(LUCENE_VERSION);
 
@@ -71,6 +77,8 @@ namespace CourseService.Application.Services
 
             _writer = new IndexWriter(_directory, indexConfig);
             _taxonomyWriter = new DirectoryTaxonomyWriter(_taxonomyDirectory, OpenMode.CREATE_OR_APPEND);
+            _spellChecker = new SpellChecker(_spellDirectory);
+            _spellChecker.Accuracy = 0.7f; // Google-like accuracy
             
             _facetsConfig = new FacetsConfig();
             _facetsConfig.SetMultiValued("tags", true);
@@ -226,6 +234,40 @@ namespace CourseService.Application.Services
 
                 if (courseIds.Count == 0)
                 {
+                    string? suggestion = null;
+                    if (!string.IsNullOrWhiteSpace(searchDto?.SearchTerm))
+                    {
+                        var words = searchDto.SearchTerm.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        var suggestedWords = new List<string>();
+
+                        foreach (var word in words)
+                        {
+                            var suggestions = _spellChecker.SuggestSimilar(word, 1);
+                            suggestedWords.Add(suggestions.Length > 0 ? suggestions[0] : word);
+                        }
+
+                        var suggestedPhrase = string.Join(" ", suggestedWords);
+                        if (suggestedPhrase != searchDto.SearchTerm.ToLowerInvariant())
+                        {
+                            // Validate that the suggestion actually returns results
+                            var suggestionQuery = new BooleanQuery();
+                            var suggestionTerms = suggestedPhrase.Split(' ');
+                            foreach (var sTerm in suggestionTerms)
+                            {
+                                var sTermBoolQuery = new BooleanQuery();
+                                sTermBoolQuery.Add(new WildcardQuery(new Term("name", $"*{sTerm}*")), Occur.SHOULD);
+                                sTermBoolQuery.Add(new WildcardQuery(new Term("instructorName", $"*{sTerm}*")), Occur.SHOULD);
+                                suggestionQuery.Add(sTermBoolQuery, Occur.MUST);
+                            }
+                            
+                            var validatedTopDocs = searcher.Search(suggestionQuery, 1);
+                            if (validatedTopDocs.TotalHits > 0)
+                            {
+                                suggestion = suggestedPhrase;
+                            }
+                        }
+                    }
+
                     var emptyResult = new PagedResult<CourseCardDTO>
                     {
                         Items = new List<CourseCardDTO>(),
@@ -236,7 +278,8 @@ namespace CourseService.Application.Services
                     var responseData = new CourseSearchResponseDTO
                     {
                         Courses = emptyResult,
-                        AvailableTags = availableTags
+                        AvailableTags = availableTags,
+                        DidYouMean = suggestion
                     };
                     return new ApiResponse("Success", _localizer["Success"].Value, responseData, true);
                 }
@@ -599,6 +642,12 @@ namespace CourseService.Application.Services
                 } while (courses.Count == batchSize);
 
                 _searcherManager.MaybeRefresh();
+                
+                // Build SpellChecker dictionary from the 'name' field
+                using (var reader = DirectoryReader.Open(_directory))
+                {
+                    _spellChecker.IndexDictionary(new LuceneDictionary(reader, "name"), new IndexWriterConfig(LUCENE_VERSION, _analyzer), true);
+                }
 
                 Console.WriteLine($"Successfully indexed {totalIndexed} courses");
             }
@@ -643,6 +692,8 @@ namespace CourseService.Application.Services
             _analyzer?.Dispose();
             _directory?.Dispose();
             _taxonomyDirectory?.Dispose();
+            _spellDirectory?.Dispose();
+            _spellChecker?.Dispose();
             GC.SuppressFinalize(this);
         }
     }

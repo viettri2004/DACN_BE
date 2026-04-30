@@ -61,7 +61,7 @@ ENV TZ=Asia/Ho_Chi_Minh
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Ensure directories for Lucene indexes and logs exist and are writable by the app user
-RUN mkdir -p /app/lucene_data /app/logs && \
+RUN mkdir -p /app/lucene_data /app/lucene_data/main /app/lucene_data/taxonomy /app/lucene_data/spellchecker /app/logs && \
     chmod -R 777 /app/lucene_data /app/logs && \
     chown -R app:app /app/lucene_data /app/logs
 

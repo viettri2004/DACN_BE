@@ -7,5 +7,6 @@ namespace CourseService.Application.DTOs
     {
         public PagedResult<CourseCardDTO> Courses { get; set; } = default!;
         public List<TagFacetDTO> AvailableTags { get; set; } = new();
+        public string? DidYouMean { get; set; }
     }
 }
