@@ -86,9 +86,23 @@ namespace PaymentService.Infrastructure.Repositories
                 .FirstOrDefaultAsync(gc => gc.Code == code);
         }
 
+        public async Task<GiftCode?> GetGiftCodeByCodeAndCourseAsync(string code, string? courseId)
+        {
+            return await _context.GiftCodes
+                .Include(gc => gc.Course)
+                .FirstOrDefaultAsync(gc => gc.Code == code && gc.CourseId == courseId);
+        }
+
+        public async Task<GiftCode?> GetGiftCodeByIdAsync(string id)
+        {
+            return await _context.GiftCodes
+                .Include(gc => gc.Course)
+                .FirstOrDefaultAsync(gc => gc.Id == id);
+        }
+
         public async Task<bool> CheckGiftCodeDuplicateAsync(string code, string? courseId)
         {
-            return await _context.GiftCodes.AnyAsync(gc => gc.Code == code && (gc.CourseId == courseId || gc.CourseId == null));
+            return await _context.GiftCodes.AnyAsync(gc => gc.Code == code && gc.CourseId == courseId);
         }
 
         public async Task<List<GiftCode>> GetGiftCodesByCourseAsync(string courseId)
@@ -102,6 +116,12 @@ namespace PaymentService.Infrastructure.Repositories
         public async Task AddGiftCodeAsync(GiftCode giftCode)
         {
             await _context.GiftCodes.AddAsync(giftCode);
+        }
+
+        public async Task DeleteGiftCodeAsync(GiftCode giftCode)
+        {
+            _context.GiftCodes.Remove(giftCode);
+            await Task.CompletedTask;
         }
 
         public async Task AddEnrollmentAsync(Enrollment enrollment)

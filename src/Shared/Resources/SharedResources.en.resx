@@ -661,4 +661,13 @@
   <data name="GiftCodeInvalidForCourse" xml:space="preserve">
     <value>Gift code is not valid for this course.</value>
   </data>
+  <data name="GiftCodeUpdated" xml:space="preserve">
+    <value>Gift code updated successfully.</value>
+  </data>
+  <data name="GiftCodeDeleted" xml:space="preserve">
+    <value>Gift code deleted successfully.</value>
+  </data>
+  <data name="GiftCodeNotFound" xml:space="preserve">
+    <value>Gift code not found.</value>
+  </data>
 </root>

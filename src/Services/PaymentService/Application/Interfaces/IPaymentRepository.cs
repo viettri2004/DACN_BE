@@ -16,9 +16,12 @@ namespace PaymentService.Application.Interfaces
         Task UpdateOrderStatusAsync(string orderId, string status, DateTime? paidAt);
         Task<List<Enrollment>> GetEnrollmentsByStudentAndCoursesAsync(string studentId, List<string> courseIds);
         Task<GiftCode?> GetGiftCodeByCodeAsync(string code);
+        Task<GiftCode?> GetGiftCodeByCodeAndCourseAsync(string code, string? courseId);
+        Task<GiftCode?> GetGiftCodeByIdAsync(string id);
         Task<bool> CheckGiftCodeDuplicateAsync(string code, string? courseId);
         Task<List<GiftCode>> GetGiftCodesByCourseAsync(string courseId);
         Task AddGiftCodeAsync(GiftCode giftCode);
+        Task DeleteGiftCodeAsync(GiftCode giftCode);
         Task AddEnrollmentAsync(Enrollment enrollment);
         Task<Course?> GetCourseByIdAsync(string courseId);
         Task RemoveCartItemsAsync(string studentId, List<string> courseIds);

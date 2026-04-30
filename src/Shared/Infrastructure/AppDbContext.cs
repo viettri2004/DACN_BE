@@ -304,7 +304,7 @@ namespace Data.Context
             {
                 entity.HasKey(gc => gc.Id);
                 entity.Property(gc => gc.Code).IsRequired().HasMaxLength(50);
-                entity.HasIndex(gc => gc.Code).IsUnique();
+                entity.HasIndex(gc => new { gc.Code, gc.CourseId }).IsUnique();
                 entity.HasOne(gc => gc.Course)
                     .WithMany()
                     .HasForeignKey(gc => gc.CourseId)

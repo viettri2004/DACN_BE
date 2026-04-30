@@ -230,6 +230,104 @@ namespace PaymentService.Application.Services
             }
         }
 
+        public async Task<ApiResponse> UpdateGiftCodeAsync(string giftCodeId, UpdateGiftCodeDto updateDto, string userId)
+        {
+            try
+            {
+                var giftCode = await _paymentRepository.GetGiftCodeByIdAsync(giftCodeId);
+                if (giftCode == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["GiftCodeNotFound"].Value, null, false);
+                }
+
+                var user = await _paymentRepository.GetUserByIdAsync(userId);
+                if (user == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["UserNotFound"].Value, null, false);
+                }
+
+                // Authorization: Admin or Course Owner
+                if (user is not Admin)
+                {
+                    if (string.IsNullOrEmpty(giftCode.CourseId))
+                    {
+                        return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
+                    }
+
+                    var course = await _paymentRepository.GetCourseByIdAsync(giftCode.CourseId);
+                    if (course == null || course.InstructorId != userId)
+                    {
+                        return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
+                    }
+                }
+
+                // If code is being changed, check for duplicates
+                if (!string.IsNullOrEmpty(updateDto.Code) && updateDto.Code != giftCode.Code)
+                {
+                    var isDuplicate = await _paymentRepository.CheckGiftCodeDuplicateAsync(updateDto.Code, giftCode.CourseId);
+                    if (isDuplicate)
+                    {
+                        return new ApiResponse("Conflict", _localizer["GiftCodeExists"].Value, null, false);
+                    }
+                    giftCode.Code = updateDto.Code;
+                }
+
+                if (updateDto.ExpiryDate.HasValue) giftCode.ExpiryDate = updateDto.ExpiryDate;
+                if (updateDto.MaxUses.HasValue) giftCode.MaxUses = updateDto.MaxUses;
+                if (updateDto.IsActive.HasValue) giftCode.IsActive = updateDto.IsActive.Value;
+
+                await _paymentRepository.SaveChangesAsync();
+
+                return new ApiResponse("Success", _localizer["GiftCodeUpdated"].Value, giftCode, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> DeleteGiftCodeAsync(string giftCodeId, string userId)
+        {
+            try
+            {
+                var giftCode = await _paymentRepository.GetGiftCodeByIdAsync(giftCodeId);
+                if (giftCode == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["GiftCodeNotFound"].Value, null, false);
+                }
+
+                var user = await _paymentRepository.GetUserByIdAsync(userId);
+                if (user == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["UserNotFound"].Value, null, false);
+                }
+
+                // Authorization: Admin or Course Owner
+                if (user is not Admin)
+                {
+                    if (string.IsNullOrEmpty(giftCode.CourseId))
+                    {
+                        return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
+                    }
+
+                    var course = await _paymentRepository.GetCourseByIdAsync(giftCode.CourseId);
+                    if (course == null || course.InstructorId != userId)
+                    {
+                        return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
+                    }
+                }
+
+                await _paymentRepository.DeleteGiftCodeAsync(giftCode);
+                await _paymentRepository.SaveChangesAsync();
+
+                return new ApiResponse("Success", _localizer["GiftCodeDeleted"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
         public async Task<ApiResponse> GetGiftCodesByCourseAsync(string courseId, string userId)
         {
             try
@@ -276,14 +374,22 @@ namespace PaymentService.Application.Services
         {
             try
             {
-                var giftCode = await _paymentRepository.GetGiftCodeByCodeAsync(redeemDto.Code);
+                // Logic: 
+                // 1. Try to find a gift code specifically for this course
+                // 2. If not found, try to find a general gift code (CourseId == null)
+                var giftCode = await _paymentRepository.GetGiftCodeByCodeAndCourseAsync(redeemDto.Code, redeemDto.CourseId);
+                
+                if (giftCode == null)
+                {
+                    giftCode = await _paymentRepository.GetGiftCodeByCodeAndCourseAsync(redeemDto.Code, null);
+                }
 
                 if (giftCode == null || !giftCode.IsActive)
                 {
                     return new ApiResponse("NotFound", _localizer["InvalidGiftCode"].Value, null, false);
                 }
 
-                // If gift code is bound to a specific course, it must match the DTO courseId
+                // If gift code is bound to a specific course, it must match the DTO courseId (this is already covered by the query above, but keeping as safeguard)
                 if (!string.IsNullOrEmpty(giftCode.CourseId) && giftCode.CourseId != redeemDto.CourseId)
                 {
                     return new ApiResponse("BadRequest", _localizer["GiftCodeInvalidForCourse"].Value, null, false);

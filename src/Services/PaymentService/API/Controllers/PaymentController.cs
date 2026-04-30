@@ -222,6 +222,32 @@ namespace src.Services.PaymentService.API.Controllers
         }
 
         [Authorize(Roles = "Admin,Instructor")]
+        [HttpPut("giftcode/{giftCodeId}")]
+        public async Task<ActionResult<ApiResponse>> UpdateGiftCode(string giftCodeId, [FromBody] UpdateGiftCodeDto updateDto)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _paymentService.UpdateGiftCodeAsync(giftCodeId, updateDto, userId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Roles = "Admin,Instructor")]
+        [HttpDelete("giftcode/{giftCodeId}")]
+        public async Task<ActionResult<ApiResponse>> DeleteGiftCode(string giftCodeId)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _paymentService.DeleteGiftCodeAsync(giftCodeId, userId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Roles = "Admin,Instructor")]
         [HttpGet("giftcode/course/{courseId}")]
         public async Task<ActionResult<ApiResponse>> GetGiftCodesByCourse(string courseId)
         {

@@ -19,6 +19,14 @@ namespace PaymentService.Application.DTOs
         public int? MaxUses { get; set; }
     }
 
+    public class UpdateGiftCodeDto
+    {
+        public string? Code { get; set; }
+        public DateTime? ExpiryDate { get; set; }
+        public int? MaxUses { get; set; }
+        public bool? IsActive { get; set; }
+    }
+
     public class GiftCodeViewDto
     {
         public string Id { get; set; } = null!;
