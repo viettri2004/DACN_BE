@@ -670,4 +670,16 @@
   <data name="GiftCodeNotFound" xml:space="preserve">
     <value>Không tìm thấy mã quà tặng.</value>
   </data>
+  <data name="AlreadyInWishlist" xml:space="preserve">
+    <value>Khóa học đã có trong danh sách yêu thích.</value>
+  </data>
+  <data name="AddedToWishlist" xml:space="preserve">
+    <value>Đã thêm vào danh sách yêu thích.</value>
+  </data>
+  <data name="NotInWishlist" xml:space="preserve">
+    <value>Khóa học không có trong danh sách yêu thích.</value>
+  </data>
+  <data name="RemovedFromWishlist" xml:space="preserve">
+    <value>Đã xóa khỏi danh sách yêu thích.</value>
+  </data>
 </root>

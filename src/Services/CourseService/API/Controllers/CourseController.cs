@@ -82,10 +82,10 @@ namespace CourseService.API.Controllers
         }
 
         [HttpGet("course-comments/{courseId}")]
-        public async Task<ActionResult<ApiResponse>> GetComments([FromRoute] string courseId, [FromQuery] CommentType type)
+        public async Task<ActionResult<ApiResponse>> GetComments([FromRoute] string courseId, [FromQuery] CommentType type, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            var response = await _courseRepository.GetCourseCommentsAsync(courseId, userId, type);
+            var response = await _courseRepository.GetCourseCommentsAsync(courseId, userId, type, pageNumber, pageSize);
 
             return response.ToActionResult();
         }
@@ -103,7 +103,7 @@ namespace CourseService.API.Controllers
             return response.ToActionResult();
         }
 
-        [Authorize(Policy = "Instructor")]
+        [Authorize]
         [HttpDelete("delete-comment/{commentId}")]
         public async Task<ActionResult<ApiResponse>> DeleteComment([FromRoute] string commentId)
         {

@@ -27,16 +27,35 @@ using Microsoft.AspNetCore.Hosting;
 using Shared.Domain.Entities;
 using src.Shared.Domain.Entities;
 using src.Shared.Resources;
+using Lucene.Net.Analysis;
+using Lucene.Net.Analysis.Core;
+using Lucene.Net.Analysis.Standard;
 
 namespace CourseService.Application.Services
 {
+    // Custom analyzer to preserve special characters (Whitespace) but convert to lowercase
+    public class CaseInsensitiveAnalyzer : Analyzer
+    {
+        private readonly LuceneVersion _version;
+        public CaseInsensitiveAnalyzer(LuceneVersion version)
+        {
+            _version = version;
+        }
+        protected override TokenStreamComponents CreateComponents(string fieldName, TextReader reader)
+        {
+            Tokenizer tokenizer = new WhitespaceTokenizer(_version, reader);
+            TokenStream filter = new LowerCaseFilter(_version, tokenizer);
+            return new TokenStreamComponents(tokenizer, filter);
+        }
+    }
+
     public class LuceneSearchService : ILuceneSearchService
     {
         private const LuceneVersion LUCENE_VERSION = LuceneVersion.LUCENE_48;
         private readonly FSDirectory _directory;
         private readonly FSDirectory _taxonomyDirectory;
         private readonly FSDirectory _spellDirectory;
-        private readonly StandardAnalyzer _analyzer;
+        private readonly CaseInsensitiveAnalyzer _analyzer;
         private readonly IndexWriter _writer;
         private readonly DirectoryTaxonomyWriter _taxonomyWriter;
         private readonly FacetsConfig _facetsConfig;
@@ -68,7 +87,7 @@ namespace CourseService.Application.Services
             _taxonomyDirectory = FSDirectory.Open(new DirectoryInfo(taxonomyPath), new SimpleFSLockFactory());
             _spellDirectory = FSDirectory.Open(new DirectoryInfo(spellcheckerPath), new SimpleFSLockFactory());
 
-            _analyzer = new StandardAnalyzer(LUCENE_VERSION);
+            _analyzer = new CaseInsensitiveAnalyzer(LUCENE_VERSION);
 
             var indexConfig = new IndexWriterConfig(LUCENE_VERSION, _analyzer)
             {
@@ -113,6 +132,9 @@ namespace CourseService.Application.Services
                 {
                     var boolQuery = new BooleanQuery();
                     var searchTerm = searchDto.SearchTerm.ToLowerInvariant().Trim();
+                    
+                    // Escape Lucene special characters
+                    searchTerm = QueryParserBase.Escape(searchTerm);
 
                     var terms = searchTerm.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
@@ -439,6 +461,9 @@ namespace CourseService.Application.Services
             {
                 var boolQuery = new BooleanQuery();
                 var term = searchTerm.ToLowerInvariant().Trim();
+                
+                // Escape Lucene special characters
+                term = QueryParserBase.Escape(term);
                 
                 var nameQuery = new WildcardQuery(new Term("name", $"*{term}*"));
                 boolQuery.Add(nameQuery, Occur.SHOULD);

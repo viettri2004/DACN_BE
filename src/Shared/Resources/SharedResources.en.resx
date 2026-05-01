@@ -670,4 +670,16 @@
   <data name="GiftCodeNotFound" xml:space="preserve">
     <value>Gift code not found.</value>
   </data>
+  <data name="AlreadyInWishlist" xml:space="preserve">
+    <value>Course is already in your wishlist.</value>
+  </data>
+  <data name="AddedToWishlist" xml:space="preserve">
+    <value>Added to wishlist successfully.</value>
+  </data>
+  <data name="NotInWishlist" xml:space="preserve">
+    <value>Course is not in your wishlist.</value>
+  </data>
+  <data name="RemovedFromWishlist" xml:space="preserve">
+    <value>Removed from wishlist successfully.</value>
+  </data>
 </root>

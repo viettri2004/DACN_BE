@@ -9,14 +9,8 @@ namespace CourseService.Application.DTOs
         public string Name { get; set; } = null!;
         public IEnumerable<string> Tags { get; set; } = new List<string>();
         public int Progress { get; set; }
-        public string InstructorName { get; set; } = null!;
-        public string InstructorJobPosition { get; set; } = null!;
-        public int InstructorTotalCourses { get; set; }
-        public double Rating { get; set; }
-        public int TotalReviews { get; set; }
-        public int TotalStudents { get; set; }
+        public int TotalSections { get; set; }
         public double TotalHours { get; set; }
-        public DateTime UpdatedAt { get; set; }
         public int TotalLessons { get; set; }
         public int CompletedLessons { get; set; }
         public double TotalStudyTime { get; set; }

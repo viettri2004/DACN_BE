@@ -13,7 +13,7 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> CreateCourseAsync(CreateCourseDTO createCourseDTO, string instructorId);
         Task<ApiResponse> UpdateCourseAsync(string courseId, UpdateCourseDTO updateCourseDTO, string instructorId);
         Task<ApiResponse> GetCourseDetailAsync(string courseId, string studentId);
-        Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId, CommentType type);
+        Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId, CommentType type, int pageNumber, int pageSize);
         Task<ApiResponse> GetRecommendedCoursesAsync();
         Task<ApiResponse> GetCoursesByStudentIdAsync(string studentId);
         Task<ApiResponse> GetCourseContentAsync(string courseId, string userId);

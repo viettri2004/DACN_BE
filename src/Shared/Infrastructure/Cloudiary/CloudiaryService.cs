@@ -44,7 +44,8 @@ namespace Shared.Infrastructure.cloudinaryService
                 long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 string folder = "videos";
                 string contextStr = $"lecture_id={lectureId}";
-                string stringToSign = $"context={contextStr}&folder={folder}&timestamp={timestamp}";
+                string allowedFormats = "mp4,webm,mov";
+                string stringToSign = $"allowed_formats={allowedFormats}&context={contextStr}&folder={folder}&timestamp={timestamp}";
 
                 string apiSecret = _cloudinary.Api.Account.ApiSecret;
 
@@ -58,6 +59,7 @@ namespace Shared.Infrastructure.cloudinaryService
                     Timestamp = timestamp,
                     Folder = folder,
                     Context = contextStr,
+                    AllowedFormats = allowedFormats,
                     ApiKey = _cloudinary.Api.Account.ApiKey,
                     CloudName = _cloudinary.Api.Account.Cloud
                 };
@@ -76,7 +78,8 @@ namespace Shared.Infrastructure.cloudinaryService
             try
             {
                 long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                string stringToSign = $"folder={folder}&timestamp={timestamp}";
+                string allowedFormats = "jpg,jpeg,png,webp";
+                string stringToSign = $"allowed_formats={allowedFormats}&folder={folder}&timestamp={timestamp}";
 
                 string apiSecret = _cloudinary.Api.Account.ApiSecret;
 
@@ -89,6 +92,7 @@ namespace Shared.Infrastructure.cloudinaryService
                     Signature = signature,
                     Timestamp = timestamp,
                     Folder = folder,
+                    AllowedFormats = allowedFormats,
                     ApiKey = _cloudinary.Api.Account.ApiKey,
                     CloudName = _cloudinary.Api.Account.Cloud
                 };
@@ -107,7 +111,8 @@ namespace Shared.Infrastructure.cloudinaryService
             try
             {
                 long timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                string stringToSign = $"folder={folder}&timestamp={timestamp}";
+                string allowedFormats = "pdf,doc,docx,xls,xlsx,ppt,pptx,txt";
+                string stringToSign = $"allowed_formats={allowedFormats}&folder={folder}&timestamp={timestamp}";
 
                 string apiSecret = _cloudinary.Api.Account.ApiSecret;
 
@@ -120,6 +125,7 @@ namespace Shared.Infrastructure.cloudinaryService
                     Signature = signature,
                     Timestamp = timestamp,
                     Folder = folder,
+                    AllowedFormats = allowedFormats,
                     ApiKey = _cloudinary.Api.Account.ApiKey,
                     CloudName = _cloudinary.Api.Account.Cloud
                 };

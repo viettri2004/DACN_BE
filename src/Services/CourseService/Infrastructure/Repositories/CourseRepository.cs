@@ -325,7 +325,7 @@ namespace CourseService.Infrastructure.Repositories
             return response;
         }
 
-        public async Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId, CommentType type)
+        public async Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId, CommentType type, int pageNumber, int pageSize)
         {
             var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == courseId);
             if (course == null)
@@ -340,8 +340,12 @@ namespace CourseService.Infrastructure.Repositories
                     .ThenInclude(r => r.User)
                 .Where(c => c.CourseId == courseId && c.ReplyId == null && c.Type == type);
 
-            var allComments = await commentQuery
+            var totalCount = await commentQuery.CountAsync();
+
+            var comments = await commentQuery
                 .OrderByDescending(c => c.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .Select(c => new CommentDTO
                 {
                     CommentId = c.Id,
@@ -351,7 +355,7 @@ namespace CourseService.Infrastructure.Repositories
                     Content = c.Content,
                     Type = c.Type,
                     IsMyComment = userId != null && c.UserId == userId,
-                    CanDelete = userId != null && course.InstructorId == userId,
+                    CanDelete = userId != null && (course.InstructorId == userId || c.UserId == userId),
                     Timestamp = c.CreatedAt,
                     Replies = c.Replies
                     .OrderByDescending(r => r.CreatedAt)
@@ -362,7 +366,7 @@ namespace CourseService.Infrastructure.Repositories
                         Timestamp = r.CreatedAt,
                         Type = r.Type,
                         IsMyComment = userId != null && r.UserId == userId,
-                        CanDelete = userId != null && course.InstructorId == userId
+                        CanDelete = userId != null && (course.InstructorId == userId || r.UserId == userId)
                     }).ToList()
                 })
                 .ToListAsync();
@@ -370,11 +374,45 @@ namespace CourseService.Infrastructure.Repositories
             var response = new CourseCommentsResponseDTO
             {
                 IsInstructor = isInstructor,
-                MyComment = allComments.FirstOrDefault(c => c.IsMyComment && c.Type == CommentType.Review),
-                AllComments = allComments.Where(c => !(c.IsMyComment && c.Type == CommentType.Review)).ToList()
+                MyComment = userId != null ? await _context.Comments
+                    .AsNoTracking()
+                    .Include(c => c.User)
+                    .Where(c => c.CourseId == courseId && c.UserId == userId && c.Type == CommentType.Review && c.ReplyId == null)
+                    .Select(c => new CommentDTO
+                    {
+                        CommentId = c.Id,
+                        UserName = c.User.FullName,
+                        AvatarUrl = c.User.AvatarUrl,
+                        Rate = c.Rate,
+                        Content = c.Content,
+                        Type = c.Type,
+                        IsMyComment = true,
+                        CanDelete = true,
+                        Timestamp = c.CreatedAt,
+                        Replies = c.Replies
+                        .OrderByDescending(r => r.CreatedAt)
+                        .Select(r => new ReplyDTO
+                        {
+                            CommentId = r.Id,
+                            Content = r.Content,
+                            Timestamp = r.CreatedAt,
+                            Type = r.Type,
+                            IsMyComment = userId != null && r.UserId == userId,
+                            CanDelete = true
+                        }).ToList()
+                    }).FirstOrDefaultAsync() : null,
+                AllComments = comments.Where(c => !(userId != null && c.IsMyComment && c.Type == CommentType.Review)).ToList()
             };
 
-            return new ApiResponse("Success", _localizer["Success"].Value, response, true);
+            var pagedResult = new PagedResult<CourseCommentsResponseDTO>
+            {
+                Items = new List<CourseCommentsResponseDTO> { response },
+                Page = pageNumber,
+                PageSize = pageSize,
+                TotalCount = totalCount
+            };
+
+            return new ApiResponse("Success", _localizer["Success"].Value, pagedResult, true);
         }
 
         public async Task<ApiResponse> GetRecommendedCoursesAsync()
@@ -648,9 +686,6 @@ namespace CourseService.Infrastructure.Repositories
             int totalItemsInCourse = course.Lectures.Sum(l => l.LectureVideos.Count + l.Documents.Count + l.Quizzes.Count);
             int progressPercentage = totalItemsInCourse > 0 ? (completedItems.Count * 100) / totalItemsInCourse : 0;
 
-            var totalInstructorCourses = await _context.Courses
-                .CountAsync(c => c.InstructorId == course.InstructorId);
-
             var totalSeconds = course.Lectures
                 .SelectMany(l => l.LectureVideos)
                 .Sum(lv => lv.Duration);
@@ -673,17 +708,9 @@ namespace CourseService.Infrastructure.Repositories
                 Id = course.Id,
                 Name = course.Name,
                 Progress = progressPercentage,
+                TotalSections = course.Lectures.Count,
                 Tags = course.CourseTags?.Select(t => t.Tag.Name).ToList() ?? new List<string>(),
-                InstructorName = course.Instructor.FullName,
-                InstructorJobPosition = course.Instructor.JobPosition ?? _localizer["DefaultInstructorJobPosition"].Value,
-                InstructorTotalCourses = totalInstructorCourses,
-                Rating = course.Enrollments.SelectMany(e => e.Comments).Any(cm => cm.Type == CommentType.Review)
-                        ? course.Enrollments.SelectMany(e => e.Comments).Where(cm => cm.Type == CommentType.Review).Average(cm => cm.Rate)
-                        : 0,
-                TotalReviews = course.Enrollments.SelectMany(e => e.Comments).Count(cm => cm.Type == CommentType.Review),
-                TotalStudents = course.Enrollments.Count,
                 TotalHours = totalSeconds > 0 ? Math.Max(0.1, Math.Round(totalHours, 2)) : 0,
-                UpdatedAt = course.UpdatedAt == default ? course.CreateTime : course.UpdatedAt,
                 TotalLessons = totalItemsInCourse,
                 CompletedLessons = completedItems.Count,
                 TotalStudyTime = totalStudyTimeHours,
@@ -869,7 +896,12 @@ namespace CourseService.Infrastructure.Repositories
                 {
                     _backgroundJobClient.Enqueue<IVideoProcessingService>(x => x.ProcessVideoAsync(videoId));
                 }
+            }
 
+            await _context.SaveChangesAsync();
+
+            if (request.Course != null)
+            {
                 try
                 {
                     await _luceneSearchService.IndexCourseAsync(request.Course);
@@ -879,8 +911,7 @@ namespace CourseService.Infrastructure.Repositories
                     Console.WriteLine($"Indexing failed: {ex.Message}");
                 }
             }
-
-            await _context.SaveChangesAsync();
+            
             await RemoveRecommendedCache();
             await RemoveCourseDetailCache(request.CourseId);
 
@@ -1013,7 +1044,7 @@ namespace CourseService.Infrastructure.Repositories
                 Console.WriteLine($"Indexing failed after comment: {ex.Message}");
             }
 
-            return new ApiResponse("Created", _localizer["Success"].Value, null, true);
+            return new ApiResponse("Created", _localizer["Success"].Value, comment.Id, true);
         }
 
         public async Task<ApiResponse> UpdateCommentAsync(string commentId, UpdateCommentDTO updateCommentDTO, string userId)
@@ -1077,8 +1108,8 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse("NotFound", _localizer["CommentNotFound"].Value, null, false);
             }
 
-            // Instructor of the course can delete any comment
-            if (comment.Course.InstructorId != userId)
+            // Instructor of the course OR the creator of the comment can delete
+            if (comment.Course.InstructorId != userId && comment.UserId != userId)
             {
                 return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
             }
@@ -1201,6 +1232,7 @@ namespace CourseService.Infrastructure.Repositories
         {
             var thread = await _context.QAThreads
                 .Include(t => t.Creator)
+                .Include(t => t.Course)
                 .FirstOrDefaultAsync(t => t.Id == threadId);
 
             if (thread == null)
@@ -1235,7 +1267,7 @@ namespace CourseService.Infrastructure.Repositories
                     AvatarUrl = m.User.AvatarUrl,
                     CreatedAt = m.CreatedAt,
                     IsMyMessage = m.UserId == userId,
-                    IsInstructor = m.User is Instructor || m.User is Admin
+                    IsInstructor = m.UserId == thread.Course.InstructorId
                 })
                 .ToListAsync();
 
@@ -1277,18 +1309,10 @@ namespace CourseService.Infrastructure.Repositories
                 Title = createThreadDTO.Title
             };
 
-            var message = new QAMessage
-            {
-                ThreadId = thread.Id,
-                UserId = userId,
-                Content = createThreadDTO.Content
-            };
-
             _context.QAThreads.Add(thread);
-            _context.QAMessages.Add(message);
             await _context.SaveChangesAsync();
 
-            return new ApiResponse("Created", _localizer["QuestionAdded"].Value, null, true);
+            return new ApiResponse("Created", _localizer["QuestionAdded"].Value, thread.Id, true);
         }
 
         public async Task<ApiResponse> AddMessageToThreadAsync(AddMessageDTO addMessageDTO, string userId)
@@ -1318,7 +1342,7 @@ namespace CourseService.Infrastructure.Repositories
             _context.QAMessages.Add(message);
             await _context.SaveChangesAsync();
 
-            return new ApiResponse("Created", _localizer["ReplyAdded"].Value, null, true);
+            return new ApiResponse("Created", _localizer["ReplyAdded"].Value, message.Id, true);
         }
 
         public async Task<ApiResponse> UpdateQAThreadAsync(string threadId, UpdateThreadDTO updateThreadDTO, string userId)
@@ -1382,8 +1406,8 @@ namespace CourseService.Infrastructure.Repositories
                 
             if (message == null) return new ApiResponse("NotFound", _localizer["QANotFound"].Value, null, false);
 
-            // Message creator, Thread creator, or Course Instructor can delete a message
-            if (message.UserId != userId && message.Thread.CreatorId != userId && message.Thread.Course.InstructorId != userId)
+            // Message creator or Course Instructor can delete a message
+            if (message.UserId != userId && message.Thread.Course.InstructorId != userId)
             {
                 return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
             }
