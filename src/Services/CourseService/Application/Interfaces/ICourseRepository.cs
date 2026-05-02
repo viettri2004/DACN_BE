@@ -13,7 +13,7 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> CreateCourseAsync(CreateCourseDTO createCourseDTO, string instructorId);
         Task<ApiResponse> UpdateCourseAsync(string courseId, UpdateCourseDTO updateCourseDTO, string instructorId);
         Task<ApiResponse> GetCourseDetailAsync(string courseId, string studentId);
-        Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId, CommentType type, int pageNumber, int pageSize);
+        Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId, CommentType type, int pageNumber, int pageSize, int? rating = null);
         Task<ApiResponse> GetRecommendedCoursesAsync(string? userId);
         Task<ApiResponse> GetCoursesByStudentIdAsync(string studentId);
         Task<ApiResponse> GetCourseContentAsync(string courseId, string userId);
@@ -28,8 +28,8 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> UpdateCommentAsync(string commentId, UpdateCommentDTO updateCommentDTO, string userId);
         Task<ApiResponse> DeleteCommentAsync(string commentId, string userId);
         Task<ApiResponse> ReplyToCommentAsync(AddReplyCommentDTO replyDTO, string userId);
-        
-        Task<ApiResponse> GetCourseQAThreadsAsync(string courseId, string userId, int pageNumber, int pageSize);
+
+        Task<ApiResponse> GetCourseQAThreadsAsync(string courseId, string userId, int pageNumber, int pageSize, string filter = "all");
         Task<ApiResponse> GetThreadMessagesAsync(string threadId, string userId, int pageNumber, int pageSize);
         Task<ApiResponse> CreateQAThreadAsync(CreateThreadDTO createThreadDTO, string userId);
         Task<ApiResponse> AddMessageToThreadAsync(AddMessageDTO addMessageDTO, string userId);
@@ -41,7 +41,7 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> MarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId);
         Task<ApiResponse> UnmarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId);
         Task<ApiResponse> GetContinueLearningCoursesAsync(string studentId);
-        
+
         // Wishlist
         Task<ApiResponse> AddToWishlistAsync(string courseId, string studentId);
         Task<ApiResponse> RemoveFromWishlistAsync(string courseId, string studentId);

@@ -325,7 +325,7 @@ namespace CourseService.Infrastructure.Repositories
             return response;
         }
 
-        public async Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId, CommentType type, int pageNumber, int pageSize)
+        public async Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId, CommentType type, int pageNumber, int pageSize, int? rating = null)
         {
             var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == courseId);
             if (course == null)
@@ -339,6 +339,11 @@ namespace CourseService.Infrastructure.Repositories
                 .Include(c => c.Replies)
                     .ThenInclude(r => r.User)
                 .Where(c => c.CourseId == courseId && c.ReplyId == null && c.Type == type);
+
+            if (rating.HasValue && type == CommentType.Review)
+            {
+                commentQuery = commentQuery.Where(c => c.Rate == rating.Value);
+            }
 
             var totalCount = await commentQuery.CountAsync();
 
@@ -1246,78 +1251,72 @@ namespace CourseService.Infrastructure.Repositories
             return new ApiResponse("Created", _localizer["ReplyAdded"].Value, null, true);
         }
 
-        public async Task<ApiResponse> GetCourseQAThreadsAsync(string courseId, string userId, int pageNumber, int pageSize)
+        public async Task<ApiResponse> GetCourseQAThreadsAsync(string courseId, string userId, int pageNumber, int pageSize, string filter = "all")
         {
+            var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == courseId);
+            if (course == null)
+            {
+                return new ApiResponse("NotFound", _localizer["CourseNotFound"].Value, null, false);
+            }
+
             var isEnrolled = await _context.Enrollments.AnyAsync(e => e.CourseId == courseId && e.StudentId == userId && e.Status == true);
-            var isInstructor = await _context.Courses.AnyAsync(c => c.Id == courseId && c.InstructorId == userId);
+            var isInstructor = course.InstructorId == userId;
 
             if (!isEnrolled && !isInstructor)
             {
                 return new ApiResponse("Forbidden", _localizer["NotEnrolledInCourse"].Value, null, false);
             }
 
+            var instructorId = course.InstructorId;
+
             var query = _context.QAThreads
                 .AsNoTracking()
-                .Where(t => t.CourseId == courseId);
+                .Where(t => t.CourseId == courseId)
+                .Select(t => new 
+                {
+                    Thread = t,
+                    LastMessageUserId = _context.QAMessages
+                        .Where(m => m.ThreadId == t.Id)
+                        .OrderByDescending(m => m.CreatedAt)
+                        .Select(m => m.UserId)
+                        .FirstOrDefault()
+                });
 
-            var totalCount = await query.CountAsync();
-
-            List<QAThreadDTO> threads;
-
-            if (isInstructor)
+            // Unread logic: Last message is NOT from the course instructor
+            // If no messages yet, check if creator is NOT instructor
+            var threadDtosQuery = query.Select(x => new QAThreadDTO
             {
-                // For instructor: sort unread threads first, then by LastActivityAt DESC
-                var allThreads = await query
-                    .Include(t => t.Creator)
-                    .Include(t => t.Messages)
-                    .ToListAsync();
+                Id = x.Thread.Id,
+                Title = x.Thread.Title,
+                CreatorName = x.Thread.Creator.FullName,
+                CreatorAvatarUrl = x.Thread.Creator.AvatarUrl,
+                CreatedAt = x.Thread.CreatedAt,
+                LastActivityAt = x.Thread.LastActivityAt,
+                IsMyThread = x.Thread.CreatorId == userId,
+                TotalMessages = _context.QAMessages.Count(m => m.ThreadId == x.Thread.Id),
+                IsUnread = x.LastMessageUserId != null 
+                    ? x.LastMessageUserId != instructorId 
+                    : x.Thread.CreatorId != instructorId
+            });
 
-                threads = allThreads
-                    .Select(t =>
-                    {
-                        var lastMessage = t.Messages.OrderByDescending(m => m.CreatedAt).FirstOrDefault();
-                        var isUnread = lastMessage != null ? lastMessage.UserId != userId : t.CreatorId != userId;
-                        return new QAThreadDTO
-                        {
-                            Id = t.Id,
-                            Title = t.Title,
-                            CreatorName = t.Creator.FullName,
-                            CreatorAvatarUrl = t.Creator.AvatarUrl,
-                            CreatedAt = t.CreatedAt,
-                            LastActivityAt = t.LastActivityAt,
-                            IsMyThread = t.CreatorId == userId,
-                            TotalMessages = t.Messages.Count,
-                            IsUnread = isUnread
-                        };
-                    })
-                    .OrderByDescending(t => t.IsUnread)
-                    .ThenByDescending(t => t.LastActivityAt)
-                    .Skip((pageNumber - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToList();
-            }
-            else
+            // Apply filter
+            if (filter.ToLower() == "unread")
             {
-                // For student: keep original sort by LastActivityAt DESC
-                threads = await query
-                    .Include(t => t.Creator)
-                    .OrderByDescending(t => t.LastActivityAt)
-                    .Skip((pageNumber - 1) * pageSize)
-                    .Take(pageSize)
-                    .Select(t => new QAThreadDTO
-                    {
-                        Id = t.Id,
-                        Title = t.Title,
-                        CreatorName = t.Creator.FullName,
-                        CreatorAvatarUrl = t.Creator.AvatarUrl,
-                        CreatedAt = t.CreatedAt,
-                        LastActivityAt = t.LastActivityAt,
-                        IsMyThread = t.CreatorId == userId,
-                        TotalMessages = _context.QAMessages.Count(m => m.ThreadId == t.Id),
-                        IsUnread = false
-                    })
-                    .ToListAsync();
+                threadDtosQuery = threadDtosQuery.Where(t => t.IsUnread);
             }
+            else if (filter.ToLower() == "read")
+            {
+                threadDtosQuery = threadDtosQuery.Where(t => !t.IsUnread);
+            }
+
+            var totalCount = await threadDtosQuery.CountAsync();
+
+            var threads = await threadDtosQuery
+                .OrderByDescending(t => t.IsUnread)
+                .ThenByDescending(t => t.LastActivityAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
 
             var pagedResult = new PagedResult<QAThreadDTO>
             {
@@ -1962,7 +1961,6 @@ namespace CourseService.Infrastructure.Repositories
                 return new ApiResponse("Error", ex.Message, null, false);
             }
         }
-
         public async Task<ApiResponse> GetInstructorUnreadThreadsAsync(string instructorId)
         {
             try

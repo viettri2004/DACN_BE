@@ -82,10 +82,10 @@ namespace CourseService.API.Controllers
         }
 
         [HttpGet("course-comments/{courseId}")]
-        public async Task<ActionResult<ApiResponse>> GetComments([FromRoute] string courseId, [FromQuery] CommentType type, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<ApiResponse>> GetComments([FromRoute] string courseId, [FromQuery] CommentType type, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, [FromQuery] int? rating = null)
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            var response = await _courseRepository.GetCourseCommentsAsync(courseId, userId, type, pageNumber, pageSize);
+            var response = await _courseRepository.GetCourseCommentsAsync(courseId, userId, type, pageNumber, pageSize, rating);
 
             return response.ToActionResult();
         }
@@ -304,14 +304,14 @@ namespace CourseService.API.Controllers
 
         [Authorize]
         [HttpGet("course-qa-threads/{courseId}")]
-        public async Task<ActionResult<ApiResponse>> GetCourseQAThreads([FromRoute] string courseId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<ApiResponse>> GetCourseQAThreads([FromRoute] string courseId, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, [FromQuery] string filter = "all")
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.GetCourseQAThreadsAsync(courseId, userId, pageNumber, pageSize);
+            var response = await _courseRepository.GetCourseQAThreadsAsync(courseId, userId, pageNumber, pageSize, filter);
             return response.ToActionResult();
         }
 
@@ -498,7 +498,7 @@ namespace CourseService.API.Controllers
             var response = await _courseRepository.GetInstructorActivitiesAsync(instructorId, page, pageSize);
             return response.ToActionResult();
         }
-
+        
         [Authorize(Policy = "Instructor")]
         [HttpGet("instructor-unread-threads")]
         public async Task<ActionResult<ApiResponse>> GetInstructorUnreadThreads()
