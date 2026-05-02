@@ -13,6 +13,6 @@ namespace PaymentService.Application.Interfaces
         Task<ApiResponse> UpdateGiftCodeAsync(string giftCodeId, UpdateGiftCodeDto updateDto, string userId);
         Task<ApiResponse> DeleteGiftCodeAsync(string giftCodeId, string userId);
         Task<ApiResponse> GetGiftCodesByCourseAsync(string courseId, string userId);
-        Task<ApiResponse> GetPaymentHistoryAsync(string studentId);
+        Task<ApiResponse> GetPaymentHistoryAsync(string studentId, int pageNumber, int pageSize);
     }
 }

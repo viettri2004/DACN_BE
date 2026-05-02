@@ -134,15 +134,22 @@ namespace PaymentService.Infrastructure.Repositories
             return await _context.Courses.FirstOrDefaultAsync(c => c.Id == courseId);
         }
 
-        public async Task<List<Order>> GetOrdersByStudentIdAsync(string studentId)
+        public async Task<(List<Order> items, int totalCount)> GetOrdersByStudentIdAsync(string studentId, int pageNumber, int pageSize)
         {
-            return await _context.Orders
+            var query = _context.Orders
                 .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.Course)
                 .Include(o => o.PaymentTransactions)
-                .Where(o => o.StudentId == studentId)
+                .Where(o => o.StudentId == studentId);
+
+            int totalCount = await query.CountAsync();
+            var items = await query
                 .OrderByDescending(o => o.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
+
+            return (items, totalCount);
         }
 
         public async Task<User?> GetUserByIdAsync(string userId)

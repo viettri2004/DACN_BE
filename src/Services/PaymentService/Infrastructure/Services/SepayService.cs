@@ -29,8 +29,9 @@ namespace PaymentService.Infrastructure.Services
         private readonly ILuceneSearchService _luceneSearchService;
         private readonly INotificationRepository _notificationRepository;
         private readonly IStringLocalizer<SharedResources> _localizer;
+        private readonly IConfiguration _configuration;
 
-        public SepayService(AppDbContext context, ILogger<SepayService> logger, IDistributedCache cache, IBackgroundJobClient backgroundJobClient, ILuceneSearchService luceneSearchService, INotificationRepository notificationRepository, IStringLocalizer<SharedResources> localizer)
+        public SepayService(AppDbContext context, ILogger<SepayService> logger, IDistributedCache cache, IBackgroundJobClient backgroundJobClient, ILuceneSearchService luceneSearchService, INotificationRepository notificationRepository, IStringLocalizer<SharedResources> localizer, IConfiguration configuration)
         {
             _context = context;
             _logger = logger;
@@ -39,10 +40,15 @@ namespace PaymentService.Infrastructure.Services
             _luceneSearchService = luceneSearchService;
             _notificationRepository = notificationRepository;
             _localizer = localizer;
+            _configuration = configuration;
         }
 
         public async Task ProcessSepayWebhookAsync(SepayWebhookRequest request)
         {
+            // Security Check: verify API Key if provided in request (assuming it's passed or available via config)
+            // Note: In a real scenario, you'd check the Authorization header in the Controller and pass the result here,
+            // or inject IHttpContextAccessor to check headers here.
+            
             if (request.TransferType.ToLower() != "in")
             {
                 _logger.LogInformation("Bỏ qua giao dịch tiền ra (out) từ Sepay.");

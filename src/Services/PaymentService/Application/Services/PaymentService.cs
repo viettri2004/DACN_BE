@@ -585,11 +585,11 @@ namespace PaymentService.Application.Services
             }
         }
 
-        public async Task<ApiResponse> GetPaymentHistoryAsync(string studentId)
+        public async Task<ApiResponse> GetPaymentHistoryAsync(string studentId, int pageNumber, int pageSize)
         {
             try
             {
-                var orders = await _paymentRepository.GetOrdersByStudentIdAsync(studentId);
+                var (orders, totalCount) = await _paymentRepository.GetOrdersByStudentIdAsync(studentId, pageNumber, pageSize);
                 var history = new List<PaymentHistoryDto>();
 
                 foreach (var order in orders)
@@ -610,7 +610,15 @@ namespace PaymentService.Application.Services
                     });
                 }
 
-                return new ApiResponse("Success", _localizer["PaymentHistoryRetrieved"].Value, history, true);
+                var pagedResult = new PagedResult<PaymentHistoryDto>
+                {
+                    Items = history,
+                    Page = pageNumber,
+                    PageSize = pageSize,
+                    TotalCount = totalCount
+                };
+
+                return new ApiResponse("Success", _localizer["PaymentHistoryRetrieved"].Value, pagedResult, true);
             }
             catch (Exception ex)
             {

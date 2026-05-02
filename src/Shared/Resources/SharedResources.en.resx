@@ -710,6 +710,24 @@
     <value>New Question</value>
   </data>
   <data name="NewQAQuestionNotifMessage" xml:space="preserve">
-    <value>{0} asked a question in your course "{1}": "{2}".</value>
+    <value>{0} asked a question in course "{1}": "{2}".</value>
   </data>
-</root>
+  <data name="InvalidChecksum" xml:space="preserve">
+    <value>Invalid signature.</value>
+  </data>
+  <data name="OrderNotFound" xml:space="preserve">
+    <value>Order not found.</value>
+  </data>
+  <data name="InvalidAmount" xml:space="preserve">
+    <value>Invalid amount.</value>
+  </data>
+  <data name="OrderAlreadyConfirmed" xml:space="preserve">
+    <value>Order already confirmed.</value>
+  </data>
+  <data name="ConfirmSuccess" xml:space="preserve">
+    <value>Confirm Success.</value>
+  </data>
+  <data name="UnknownError" xml:space="preserve">
+    <value>Unknown Error occurred.</value>
+  </data>
+  </root>

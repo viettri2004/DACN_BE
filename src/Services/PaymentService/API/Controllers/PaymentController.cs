@@ -64,6 +64,16 @@ namespace src.Services.PaymentService.API.Controllers
         {
             try
             {
+                // Security Check: verify API Key from Authorization header
+                var authHeader = Request.Headers["Authorization"].ToString();
+                var expectedApiKey = _configuration["Sepay:ApiKey"];
+
+                if (string.IsNullOrEmpty(authHeader) || authHeader != $"Bearer {expectedApiKey}")
+                {
+                    _logger.LogWarning("Phát hiện Webhook SePay không hợp lệ (Sai API Key). Auth: {Auth}", authHeader);
+                    return Unauthorized(new { success = false, message = "Unauthorized Webhook" });
+                }
+
                 _logger.LogInformation("Nhận được Webhook từ Sepay, ID: {Id}, Code: {Code}, Amount: {Amount}",
                     request.Id, request.Code, request.TransferAmount);
 
@@ -160,37 +170,37 @@ namespace src.Services.PaymentService.API.Controllers
                 // 1. Check Checksum
                 if (!response.Success)
                 {
-                    return Ok(new { RspCode = "97", Message = "Invalid Checksum" });
+                    return Ok(new { RspCode = "97", Message = _localizer["InvalidChecksum"].Value });
                 }
 
                 // 2. Check Order tồn tại
                 var order = await _paymentRepository.GetOrderByIdAsync(response.OrderId);
                 if (order == null)
                 {
-                    return Ok(new { RspCode = "01", Message = "Order not found" });
+                    return Ok(new { RspCode = "01", Message = _localizer["OrderNotFound"].Value });
                 }
 
                 // 3. Check Amount
                 if (order.TotalAmount != response.Amount)
                 {
-                    return Ok(new { RspCode = "04", Message = "Invalid Amount" });
+                    return Ok(new { RspCode = "04", Message = _localizer["InvalidAmount"].Value });
                 }
 
                 // 4. Check trạng thái đơn hàng (Idempotency)
                 if (order.Status == "Paid")
                 {
-                    return Ok(new { RspCode = "02", Message = "Order already confirmed" });
+                    return Ok(new { RspCode = "02", Message = _localizer["OrderAlreadyConfirmed"].Value });
                 }
 
                 // 5. Update Database
                 await _vnPayService.ProcessVnPayIpnAsync(response);
 
-                return Ok(new { RspCode = "00", Message = "Confirm Success" });
+                return Ok(new { RspCode = "00", Message = _localizer["ConfirmSuccess"].Value });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "VNPAY IPN Error");
-                return Ok(new { RspCode = "99", Message = "Unknown Error" });
+                return Ok(new { RspCode = "99", Message = _localizer["UnknownError"].Value });
             }
         }
 
@@ -263,7 +273,7 @@ namespace src.Services.PaymentService.API.Controllers
 
         [Authorize]
         [HttpGet("history")]
-        public async Task<ActionResult<ApiResponse>> GetPaymentHistory()
+        public async Task<ActionResult<ApiResponse>> GetPaymentHistory([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(studentId))
@@ -271,7 +281,7 @@ namespace src.Services.PaymentService.API.Controllers
                 return Unauthorized(new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false));
             }
 
-            var response = await _paymentService.GetPaymentHistoryAsync(studentId);
+            var response = await _paymentService.GetPaymentHistoryAsync(studentId, pageNumber, pageSize);
             return response.ToActionResult();
         }
     }

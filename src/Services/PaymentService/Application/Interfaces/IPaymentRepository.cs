@@ -24,7 +24,7 @@ namespace PaymentService.Application.Interfaces
         Task DeleteGiftCodeAsync(GiftCode giftCode);
         Task AddEnrollmentAsync(Enrollment enrollment);
         Task<Course?> GetCourseByIdAsync(string courseId);
-        Task<List<Order>> GetOrdersByStudentIdAsync(string studentId);
+        Task<(List<Order> items, int totalCount)> GetOrdersByStudentIdAsync(string studentId, int pageNumber, int pageSize);
         Task<User?> GetUserByIdAsync(string userId);
         Task RemoveFromWishlistAsync(string studentId, List<string> courseIds);
     }

@@ -712,4 +712,22 @@
   <data name="NewQAQuestionNotifMessage" xml:space="preserve">
     <value>{0} đã đặt câu hỏi trong khóa học "{1}": "{2}".</value>
   </data>
+  <data name="InvalidChecksum" xml:space="preserve">
+    <value>Chữ ký không hợp lệ.</value>
+  </data>
+  <data name="OrderNotFound" xml:space="preserve">
+    <value>Không tìm thấy đơn hàng.</value>
+  </data>
+  <data name="InvalidAmount" xml:space="preserve">
+    <value>Số tiền không hợp lệ.</value>
+  </data>
+  <data name="OrderAlreadyConfirmed" xml:space="preserve">
+    <value>Đơn hàng đã được xác nhận trước đó.</value>
+  </data>
+  <data name="ConfirmSuccess" xml:space="preserve">
+    <value>Xác nhận thành công.</value>
+  </data>
+  <data name="UnknownError" xml:space="preserve">
+    <value>Đã xảy ra lỗi không xác định.</value>
+  </data>
 </root>
