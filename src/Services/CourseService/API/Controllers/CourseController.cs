@@ -19,13 +19,13 @@ namespace CourseService.API.Controllers
     [Route("api/[controller]")]
     public class CourseController : ControllerBase
     {
-        private readonly ICourseRepository _courseRepository;
+        private readonly ICourseService _courseService;
         private readonly ILuceneSearchService _searchService;
         private readonly IStringLocalizer<SharedResources> _localizer;
 
-        public CourseController(ICourseRepository courseRepository, ILuceneSearchService searchService, IStringLocalizer<SharedResources> localizer)
+        public CourseController(ICourseService courseService, ILuceneSearchService searchService, IStringLocalizer<SharedResources> localizer)
         {
-            _courseRepository = courseRepository;
+            _courseService = courseService;
             _searchService = searchService;
             _localizer = localizer;
         }
@@ -39,7 +39,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.CreateCourseAsync(createCourseDTO, instructorId);
+            var response = await _courseService.CreateCourseAsync(createCourseDTO, instructorId);
 
             return response.ToActionResult();
         }
@@ -53,20 +53,20 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.UpdateCourseAsync(courseId, updateCourseDTO, instructorId);
+            var response = await _courseService.UpdateCourseAsync(courseId, updateCourseDTO, instructorId);
             return response.ToActionResult();
         }
 
         [Authorize(Policy = "Instructor")]
         [HttpGet("instructor-courses")]
-        public async Task<ActionResult<ApiResponse>> GetInstructorCourses()
+        public async Task<ActionResult<ApiResponse>> GetInstructorCourses([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(instructorId))
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.GetCoursesByInstructorAsync(instructorId);
+            var response = await _courseService.GetCoursesByInstructorAsync(instructorId, pageNumber, pageSize);
             return response.ToActionResult();
         }
 
@@ -76,7 +76,7 @@ namespace CourseService.API.Controllers
             var studentId = User.Claims.FirstOrDefault(c =>
                 c.Type == "id")?.Value;
 
-            var response = await _courseRepository.GetCourseDetailAsync(courseId, studentId ?? string.Empty);
+            var response = await _courseService.GetCourseDetailAsync(courseId, studentId ?? string.Empty);
 
             return response.ToActionResult();
         }
@@ -85,7 +85,7 @@ namespace CourseService.API.Controllers
         public async Task<ActionResult<ApiResponse>> GetComments([FromRoute] string courseId, [FromQuery] CommentType type, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, [FromQuery] int? rating = null)
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            var response = await _courseRepository.GetCourseCommentsAsync(courseId, userId, type, pageNumber, pageSize, rating);
+            var response = await _courseService.GetCourseCommentsAsync(courseId, userId, type, pageNumber, pageSize, rating);
 
             return response.ToActionResult();
         }
@@ -99,7 +99,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.UpdateCommentAsync(commentId, updateCommentDTO, userId);
+            var response = await _courseService.UpdateCommentAsync(commentId, updateCommentDTO, userId);
             return response.ToActionResult();
         }
 
@@ -112,22 +112,22 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.DeleteCommentAsync(commentId, userId);
+            var response = await _courseService.DeleteCommentAsync(commentId, userId);
             return response.ToActionResult();
         }
 
         [HttpGet("recommended-courses")]
-        public async Task<ActionResult<ApiResponse>> GetRecommendedCourses()
+        public async Task<ActionResult<ApiResponse>> GetRecommendedCourses([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            var response = await _courseRepository.GetRecommendedCoursesAsync(userId);
+            var response = await _courseService.GetRecommendedCoursesAsync(userId, pageNumber, pageSize);
 
             return response.ToActionResult();
         }
 
         [Authorize(Policy = "Student")]
         [HttpGet("student-courses")]
-        public async Task<ActionResult<ApiResponse>> GetMyCourses()
+        public async Task<ActionResult<ApiResponse>> GetMyCourses([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var studentId = User.Claims.FirstOrDefault(c =>
                 c.Type == "id")?.Value;
@@ -135,7 +135,7 @@ namespace CourseService.API.Controllers
             if (string.IsNullOrEmpty(studentId))
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
 
-            var response = await _courseRepository.GetCoursesByStudentIdAsync(studentId);
+            var response = await _courseService.GetCoursesByStudentIdAsync(studentId, pageNumber, pageSize);
 
             return response.ToActionResult();
         }
@@ -150,7 +150,7 @@ namespace CourseService.API.Controllers
             if (string.IsNullOrEmpty(studentId))
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
 
-            var response = await _courseRepository.GetContinueLearningCoursesAsync(studentId);
+            var response = await _courseService.GetContinueLearningCoursesAsync(studentId);
 
             return response.ToActionResult();
         }
@@ -214,7 +214,7 @@ namespace CourseService.API.Controllers
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
-            var response = await _courseRepository.GetCourseContentAsync(courseId, userId);
+            var response = await _courseService.GetCourseContentAsync(courseId, userId);
             return response.ToActionResult();
         }
 
@@ -227,7 +227,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.DeleteCourseAsync(courseId, instructorId);
+            var response = await _courseService.DeleteCourseAsync(courseId, instructorId);
             return response.ToActionResult();
         }
 
@@ -240,15 +240,15 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.CreateCourseRequestAsync(courseId, instructorId);
+            var response = await _courseService.CreateCourseRequestAsync(courseId, instructorId);
             return response.ToActionResult();
         }
 
         [Authorize(Policy = "Admin")]
         [HttpGet("pending-requests")]
-        public async Task<ActionResult<ApiResponse>> GetPendingRequests()
+        public async Task<ActionResult<ApiResponse>> GetPendingRequests([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            var response = await _courseRepository.GetPendingCourseRequestsAsync();
+            var response = await _courseService.GetPendingCourseRequestsAsync(pageNumber, pageSize);
             return response.ToActionResult();
         }
 
@@ -256,7 +256,7 @@ namespace CourseService.API.Controllers
         [HttpPost("approve-request/{requestId}")]
         public async Task<ActionResult<ApiResponse>> ApproveRequest([FromRoute] string requestId, [FromBody] ResponseRequestDTO responseRequestDTO)
         {
-            var response = await _courseRepository.ApproveCourseRequestAsync(requestId, responseRequestDTO);
+            var response = await _courseService.ApproveCourseRequestAsync(requestId, responseRequestDTO);
             return response.ToActionResult();
         }
 
@@ -264,15 +264,15 @@ namespace CourseService.API.Controllers
         [HttpPost("reject-request/{requestId}")]
         public async Task<ActionResult<ApiResponse>> RejectRequest([FromRoute] string requestId, [FromBody] ResponseRequestDTO responseRequestDTO)
         {
-            var response = await _courseRepository.RejectCourseRequestAsync(requestId, responseRequestDTO);
+            var response = await _courseService.RejectCourseRequestAsync(requestId, responseRequestDTO);
             return response.ToActionResult();
         }
 
         [Authorize(Policy = "Admin")]
         [HttpGet("admin/courses")]
-        public async Task<ActionResult<ApiResponse>> GetAllCoursesForAdmin()
+        public async Task<ActionResult<ApiResponse>> GetAllCoursesForAdmin([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            var response = await _courseRepository.GetAllCoursesForAdminAsync();
+            var response = await _courseService.GetAllCoursesForAdminAsync(pageNumber, pageSize);
             return response.ToActionResult();
         }
 
@@ -285,7 +285,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.AddCommentAsync(addCommentDTO, userId);
+            var response = await _courseService.AddCommentAsync(addCommentDTO, userId);
             return response.ToActionResult();
         }
 
@@ -298,7 +298,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.ReplyToCommentAsync(replyDTO, userId);
+            var response = await _courseService.ReplyToCommentAsync(replyDTO, userId);
             return response.ToActionResult();
         }
 
@@ -311,7 +311,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.GetCourseQAThreadsAsync(courseId, userId, pageNumber, pageSize, filter);
+            var response = await _courseService.GetCourseQAThreadsAsync(courseId, userId, pageNumber, pageSize, filter);
             return response.ToActionResult();
         }
 
@@ -324,7 +324,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.GetThreadMessagesAsync(threadId, userId, pageNumber, pageSize);
+            var response = await _courseService.GetThreadMessagesAsync(threadId, userId, pageNumber, pageSize);
             return response.ToActionResult();
         }
 
@@ -337,7 +337,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.CreateQAThreadAsync(createThreadDTO, userId);
+            var response = await _courseService.CreateQAThreadAsync(createThreadDTO, userId);
             return response.ToActionResult();
         }
 
@@ -350,7 +350,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.AddMessageToThreadAsync(addMessageDTO, userId);
+            var response = await _courseService.AddMessageToThreadAsync(addMessageDTO, userId);
             return response.ToActionResult();
         }
 
@@ -363,7 +363,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.UpdateQAThreadAsync(threadId, updateThreadDTO, userId);
+            var response = await _courseService.UpdateQAThreadAsync(threadId, updateThreadDTO, userId);
             return response.ToActionResult();
         }
 
@@ -376,7 +376,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.UpdateQAMessageAsync(messageId, updateMessageDTO, userId);
+            var response = await _courseService.UpdateQAMessageAsync(messageId, updateMessageDTO, userId);
             return response.ToActionResult();
         }
 
@@ -389,7 +389,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.DeleteQAThreadAsync(threadId, userId);
+            var response = await _courseService.DeleteQAThreadAsync(threadId, userId);
             return response.ToActionResult();
         }
 
@@ -402,7 +402,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.DeleteQAMessageAsync(messageId, userId);
+            var response = await _courseService.DeleteQAMessageAsync(messageId, userId);
             return response.ToActionResult();
         }
 
@@ -416,7 +416,7 @@ namespace CourseService.API.Controllers
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
-            var response = await _courseRepository.MarkItemCompletedAsync(dto, studentId);
+            var response = await _courseService.MarkItemCompletedAsync(dto, studentId);
             return response.ToActionResult();
         }
 
@@ -430,7 +430,7 @@ namespace CourseService.API.Controllers
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
-            var response = await _courseRepository.UnmarkItemCompletedAsync(dto, studentId);
+            var response = await _courseService.UnmarkItemCompletedAsync(dto, studentId);
             return response.ToActionResult();
         }
 
@@ -443,7 +443,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.AddToWishlistAsync(courseId, studentId);
+            var response = await _courseService.AddToWishlistAsync(courseId, studentId);
             return response.ToActionResult();
         }
 
@@ -456,7 +456,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.RemoveFromWishlistAsync(courseId, studentId);
+            var response = await _courseService.RemoveFromWishlistAsync(courseId, studentId);
             return response.ToActionResult();
         }
 
@@ -469,7 +469,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.GetStudentWishlistAsync(studentId, pageNumber, pageSize);
+            var response = await _courseService.GetStudentWishlistAsync(studentId, pageNumber, pageSize);
             return response.ToActionResult();
         }
 
@@ -482,7 +482,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.GetInstructorDashboardAsync(instructorId);
+            var response = await _courseService.GetInstructorDashboardAsync(instructorId);
             return response.ToActionResult();
         }
 
@@ -495,7 +495,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.GetInstructorActivitiesAsync(instructorId, page, pageSize);
+            var response = await _courseService.GetInstructorActivitiesAsync(instructorId, page, pageSize);
             return response.ToActionResult();
         }
         
@@ -508,7 +508,7 @@ namespace CourseService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _courseRepository.GetInstructorUnreadThreadsAsync(instructorId);
+            var response = await _courseService.GetInstructorUnreadThreadsAsync(instructorId);
             return response.ToActionResult();
         }
     }

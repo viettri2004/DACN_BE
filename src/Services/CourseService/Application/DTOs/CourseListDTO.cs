@@ -20,5 +20,8 @@ namespace CourseService.Application.DTOs
         public DateTime EnrolledAt { get; set; }
         public DateTime LastVisit { get; set; }
         public double TotalHours { get; set; }
+        public string? Status { get; set; }
     }
+
+    public class MyCourseDTO : CourseListDTO { }
 }

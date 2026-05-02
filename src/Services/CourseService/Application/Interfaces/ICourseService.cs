@@ -1,0 +1,52 @@
+using System.Threading.Tasks;
+using CourseService.Application.DTOs;
+using CourseService.Domain.Enums;
+using src.Shared.Domain.Entities;
+
+namespace CourseService.Application.Interfaces
+{
+    public interface ICourseService
+    {
+        Task<ApiResponse> CreateCourseAsync(CreateCourseDTO createCourseDTO, string instructorId);
+        Task<ApiResponse> UpdateCourseAsync(string courseId, UpdateCourseDTO updateCourseDTO, string instructorId);
+        Task<ApiResponse> GetCourseDetailAsync(string courseId, string studentId);
+        Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId, CommentType type, int pageNumber, int pageSize, int? rating = null);
+        Task<ApiResponse> GetRecommendedCoursesAsync(string? userId, int pageNumber, int pageSize);
+        Task<ApiResponse> GetCoursesByStudentIdAsync(string studentId, int pageNumber, int pageSize);
+        Task<ApiResponse> GetCourseContentAsync(string courseId, string userId);
+        Task<ApiResponse> GetCoursesByInstructorAsync(string instructorId, int pageNumber, int pageSize);
+        Task<ApiResponse> DeleteCourseAsync(string courseId, string instructorId);
+        Task<ApiResponse> CreateCourseRequestAsync(string courseId, string instructorId);
+        Task<ApiResponse> GetPendingCourseRequestsAsync(int pageNumber, int pageSize);
+        Task<ApiResponse> ApproveCourseRequestAsync(string requestId, ResponseRequestDTO responseRequestDTO);
+        Task<ApiResponse> RejectCourseRequestAsync(string requestId, ResponseRequestDTO responseRequestDTO);
+        Task<ApiResponse> GetAllCoursesForAdminAsync(int pageNumber, int pageSize);
+        Task<ApiResponse> AddCommentAsync(AddCommentDTO addCommentDTO, string userId);
+        Task<ApiResponse> UpdateCommentAsync(string commentId, UpdateCommentDTO updateCommentDTO, string userId);
+        Task<ApiResponse> DeleteCommentAsync(string commentId, string userId);
+        Task<ApiResponse> ReplyToCommentAsync(AddReplyCommentDTO replyDTO, string userId);
+
+        Task<ApiResponse> GetCourseQAThreadsAsync(string courseId, string userId, int pageNumber, int pageSize, string filter = "all");
+        Task<ApiResponse> GetThreadMessagesAsync(string threadId, string userId, int pageNumber, int pageSize);
+        Task<ApiResponse> CreateQAThreadAsync(CreateThreadDTO createThreadDTO, string userId);
+        Task<ApiResponse> AddMessageToThreadAsync(AddMessageDTO addMessageDTO, string userId);
+        Task<ApiResponse> UpdateQAThreadAsync(string threadId, UpdateThreadDTO updateThreadDTO, string userId);
+        Task<ApiResponse> UpdateQAMessageAsync(string messageId, UpdateMessageDTO updateMessageDTO, string userId);
+        Task<ApiResponse> DeleteQAThreadAsync(string threadId, string userId);
+        Task<ApiResponse> DeleteQAMessageAsync(string messageId, string userId);
+
+        Task<ApiResponse> MarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId);
+        Task<ApiResponse> UnmarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId);
+        Task<ApiResponse> GetContinueLearningCoursesAsync(string studentId);
+
+        // Wishlist
+        Task<ApiResponse> AddToWishlistAsync(string courseId, string studentId);
+        Task<ApiResponse> RemoveFromWishlistAsync(string courseId, string studentId);
+        Task<ApiResponse> GetStudentWishlistAsync(string studentId, int pageNumber, int pageSize);
+
+        // Instructor Dashboard
+        Task<ApiResponse> GetInstructorDashboardAsync(string instructorId);
+        Task<ApiResponse> GetInstructorActivitiesAsync(string instructorId, int page, int pageSize);
+        Task<ApiResponse> GetInstructorUnreadThreadsAsync(string instructorId);
+    }
+}

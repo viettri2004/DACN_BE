@@ -147,6 +147,7 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     services.AddScoped<IPaymentRepository, PaymentRepository>();
     services.AddScoped<IPaymentService, PaymentService.Application.Services.PaymentService>();
     services.AddScoped<ICourseRepository, CourseRepository>();
+    services.AddScoped<ICourseService, CourseService.Application.Services.CourseService>();
     services.AddScoped<ILectureRepository, LectureRepository>();
     services.AddScoped<IQuizRepository, QuizRepository>();
     services.AddScoped<ICartRepository, CartRepository>();
