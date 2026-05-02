@@ -36,6 +36,7 @@ namespace Data.Context
         public DbSet<GiftCode> GiftCodes { get; set; } = null!;
         public DbSet<StudentLectureProgress> StudentLectureProgresses { get; set; } = null!;
         public DbSet<Wishlist> Wishlists { get; set; } = null!;
+        public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

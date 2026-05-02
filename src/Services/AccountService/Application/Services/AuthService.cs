@@ -118,8 +118,15 @@ namespace AccountService.Application.Services
             var roles = await _userManager.GetRolesAsync(user);
 
             var accessToken = await _tokenService.GenerateAccessTokenAsync(user);
-            var refreshToken = _tokenService.GenerateRefreshToken();
-            await _tokenService.StoreRefreshTokenAsync(user, refreshToken);
+            var refreshTokenString = _tokenService.GenerateRefreshToken();
+            
+            var refreshTokenEntity = new RefreshToken
+            {
+                Token = refreshTokenString,
+                UserId = user.Id,
+                ExpiryDate = DateTime.UtcNow.AddDays(7) // Refresh token valid for 7 days
+            };
+            await _accountRepository.StoreRefreshTokenAsync(refreshTokenEntity);
 
             var response = new ApiResponse("Success", _localizer["LoginSuccess"], new LoginResponseDTO
             {
@@ -129,7 +136,7 @@ namespace AccountService.Application.Services
                 AccessToken = accessToken,
             }, true);
 
-            return (response, refreshToken);
+            return (response, refreshTokenString);
         }
 
         public async Task<(ApiResponse response, string refreshToken)> GoogleLoginAsync(string IdToken)
@@ -151,8 +158,15 @@ namespace AccountService.Application.Services
                 }
 
                 var accessToken = await _tokenService.GenerateAccessTokenAsync(existingUser);
-                var refreshToken = _tokenService.GenerateRefreshToken();
-                await _tokenService.StoreRefreshTokenAsync(existingUser, refreshToken);
+                var refreshTokenString = _tokenService.GenerateRefreshToken();
+                
+                var refreshTokenEntity = new RefreshToken
+                {
+                    Token = refreshTokenString,
+                    UserId = existingUser.Id,
+                    ExpiryDate = DateTime.UtcNow.AddDays(7)
+                };
+                await _accountRepository.StoreRefreshTokenAsync(refreshTokenEntity);
 
                 var response = new ApiResponse("Success", _localizer["LoginSuccess"].Value, new LoginResponseDTO
                 {
@@ -162,7 +176,7 @@ namespace AccountService.Application.Services
                     AccessToken = accessToken,
                 }, true);
 
-                return (response, refreshToken);
+                return (response, refreshTokenString);
             }
             else
             {
@@ -185,8 +199,15 @@ namespace AccountService.Application.Services
                 await _userManager.AddToRoleAsync(newUser, "Student");
 
                 var accessToken = await _tokenService.GenerateAccessTokenAsync(newUser);
-                var refreshToken = _tokenService.GenerateRefreshToken();
-                await _tokenService.StoreRefreshTokenAsync(newUser, refreshToken);
+                var refreshTokenString = _tokenService.GenerateRefreshToken();
+                
+                var refreshTokenEntity = new RefreshToken
+                {
+                    Token = refreshTokenString,
+                    UserId = newUser.Id,
+                    ExpiryDate = DateTime.UtcNow.AddDays(7)
+                };
+                await _accountRepository.StoreRefreshTokenAsync(refreshTokenEntity);
 
                 var response = new ApiResponse("Success", _localizer["LoginSuccess"].Value, new LoginResponseDTO
                 {
@@ -196,22 +217,36 @@ namespace AccountService.Application.Services
                     AccessToken = accessToken,
                 }, true);
 
-                return (response, refreshToken);
+                return (response, refreshTokenString);
             }
         }
 
         public async Task<(ApiResponse response, string refreshToken)> RefreshToken(string refreshToken)
         {
-            var user = await _accountRepository.GetUserFromRefreshToken(refreshToken);
-            if (user == null)
+            var storedToken = await _accountRepository.GetRefreshTokenAsync(refreshToken);
+            if (storedToken == null || storedToken.IsRevoked)
                 return (new ApiResponse("Unauthorized", _localizer["InvalidRefreshToken"].Value, null, false), "");
 
+            var user = storedToken.User;
+
+            if (storedToken.ExpiryDate < DateTime.UtcNow)
+            {
+                storedToken.IsRevoked = true;
+                await _accountRepository.UpdateRefreshTokenAsync(storedToken);
+                return (new ApiResponse("Unauthorized", _localizer["RefreshTokenExpired"].Value, null, false), "");
+            }
+
+            // Simple overwrite logic
             var newAccessToken = await _tokenService.GenerateAccessTokenAsync(user);
-            var newRefreshToken = _tokenService.GenerateRefreshToken();
+            var newRefreshTokenString = _tokenService.GenerateRefreshToken();
+            
+            storedToken.Token = newRefreshTokenString;
+            storedToken.ExpiryDate = DateTime.UtcNow.AddDays(7);
+            storedToken.AddedDate = DateTime.UtcNow; // Optional: update added date to current
 
-            await _tokenService.StoreRefreshTokenAsync(user, newRefreshToken);
+            await _accountRepository.UpdateRefreshTokenAsync(storedToken);
 
-            return (new ApiResponse("Success", _localizer["RefreshTokenSuccess"].Value, new { AccessToken = newAccessToken, }, true), newRefreshToken);
+            return (new ApiResponse("Success", _localizer["RefreshTokenSuccess"].Value, new { AccessToken = newAccessToken, }, true), newRefreshTokenString);
         }
 
         public async Task<ApiResponse> ResetPassword(string email, string newPassword)
@@ -254,11 +289,8 @@ namespace AccountService.Application.Services
 
                 if (response.Success)
                 {
-                    var accessToken = (response.Data as LoginResponseDTO)?.AccessToken ?? "";
                     var redirectUrl = _googleConfig.FrontendSuccessUrl;
-                    var separator = redirectUrl.Contains("?") ? "&" : "?";
-
-                    return (response, refreshToken, $"{redirectUrl}{separator}accessToken={accessToken}");
+                    return (response, refreshToken, redirectUrl);
                 }
 
                 return (response, "", _googleConfig.FrontendFailUrl);
@@ -380,17 +412,21 @@ namespace AccountService.Application.Services
             return new ApiResponse("Success", dto.IsApproved ? _localizer["RequestApproved"].Value : _localizer["RequestRejected"].Value, null, true);
         }
 
-        public async Task<ApiResponse> LogoutAsync(string userId)
+        public async Task<ApiResponse> LogoutAsync(string? refreshToken)
         {
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
+            if (!string.IsNullOrEmpty(refreshToken))
             {
-                return new ApiResponse("NotFound", _localizer["UserNotFound"].Value, null, false);
+                await _accountRepository.RevokeRefreshTokenAsync(refreshToken);
             }
 
-            await _tokenService.RemoveRefreshTokenAsync(user);
-
             return new ApiResponse("Success", _localizer["LogoutSuccess"].Value, null, true);
+        }
+
+        public async Task<ApiResponse> GlobalLogoutAsync(string userId)
+        {
+            await _accountRepository.RevokeAllUserTokensAsync(userId);
+
+            return new ApiResponse("Success", _localizer["GlobalLogoutSuccess"].Value, null, true);
         }
 
         public async Task<ApiResponse> ChangePasswordAsync(string userId, ChangePasswordDTO dto)

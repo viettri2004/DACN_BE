@@ -13,6 +13,7 @@ namespace CourseService.Application.DTOs
         public DateTime LastActivityAt { get; set; }
         public bool IsMyThread { get; set; }
         public int TotalMessages { get; set; }
+        public bool IsUnread { get; set; }
     }
 
     public class QAMessageDTO

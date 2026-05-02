@@ -18,7 +18,8 @@ namespace AccountService.Application.Interfaces
         Task<ApiResponse> RequestInstructor(string userId, InstructorRequestDTO requestDTO);
         Task<ApiResponse> GetInstructorRequests();
         Task<ApiResponse> ApproveInstructorRequest(ApproveRequestDTO dto, string adminId);
-        Task<ApiResponse> LogoutAsync(string userId);
+        Task<ApiResponse> LogoutAsync(string? refreshToken);
+        Task<ApiResponse> GlobalLogoutAsync(string userId);
         Task<ApiResponse> ChangePasswordAsync(string userId, ChangePasswordDTO dto);
         Task<ApiResponse> GetAllUsersAsync();
         Task<ApiResponse> GetAllInstructorsAsync();

@@ -8,9 +8,14 @@ using Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Localization;
 using PaymentService.Application.DTOs;
 using PaymentService.Application.Interfaces;
 using CourseService.Application.Interfaces;
+using AccountService.Application.Interfaces;
+using AccountService.Domain.Enums;
+using Shared.Domain.Entities;
+using src.Shared.Resources;
 using Hangfire;
 
 namespace PaymentService.Infrastructure.Services
@@ -22,14 +27,18 @@ namespace PaymentService.Infrastructure.Services
         private readonly IDistributedCache _cache;
         private readonly IBackgroundJobClient _backgroundJobClient;
         private readonly ILuceneSearchService _luceneSearchService;
+        private readonly INotificationRepository _notificationRepository;
+        private readonly IStringLocalizer<SharedResources> _localizer;
 
-        public SepayService(AppDbContext context, ILogger<SepayService> logger, IDistributedCache cache, IBackgroundJobClient backgroundJobClient, ILuceneSearchService luceneSearchService)
+        public SepayService(AppDbContext context, ILogger<SepayService> logger, IDistributedCache cache, IBackgroundJobClient backgroundJobClient, ILuceneSearchService luceneSearchService, INotificationRepository notificationRepository, IStringLocalizer<SharedResources> localizer)
         {
             _context = context;
             _logger = logger;
             _cache = cache;
             _backgroundJobClient = backgroundJobClient;
             _luceneSearchService = luceneSearchService;
+            _notificationRepository = notificationRepository;
+            _localizer = localizer;
         }
 
         public async Task ProcessSepayWebhookAsync(SepayWebhookRequest request)
@@ -167,6 +176,12 @@ namespace PaymentService.Infrastructure.Services
 
             await _context.SaveChangesAsync();
 
+            // Clear personalized recommendation cache for this user
+            if (!string.IsNullOrEmpty(order.StudentId))
+            {
+                await _cache.RemoveAsync($"course:recommended:user:{order.StudentId}");
+            }
+
             // Re-index courses to update student count
             foreach (var item in orderItems)
             {
@@ -192,6 +207,39 @@ namespace PaymentService.Infrastructure.Services
             }
 
             _logger.LogInformation("Kích hoạt thành công Order {OrderId} qua Sepay Webhook.", orderId);
+
+            // Trigger NewEnrollment notification for instructors (smart: only if no unread exists)
+            var student = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == order.StudentId);
+            foreach (var item in orderItems)
+            {
+                try
+                {
+                    var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == item.CourseId);
+                    if (course != null)
+                    {
+                        var hasUnread = await _context.Notifications
+                            .AnyAsync(n => n.UserId == course.InstructorId
+                                        && n.Type == NotificationType.NewEnrollment
+                                        && !n.IsRead);
+                        if (!hasUnread)
+                        {
+                            await _notificationRepository.CreateNotificationAsync(new Notification
+                            {
+                                UserId = course.InstructorId,
+                                Title = _localizer["NewEnrollmentNotifTitle"].Value,
+                                Message = string.Format(_localizer["NewEnrollmentNotifMessage"].Value,
+                                    student?.FullName ?? "Student", course.Name),
+                                Type = NotificationType.NewEnrollment,
+                                CreatedAt = DateTime.UtcNow
+                            });
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "NewEnrollment notification failed for course {CourseId}", item.CourseId);
+                }
+            }
         }
     }
 }

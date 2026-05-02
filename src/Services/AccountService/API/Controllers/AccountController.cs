@@ -61,7 +61,7 @@ namespace src.Services.AccountService.API.Controllers
                     HttpOnly = true,
                     Secure = true,
                     SameSite = SameSiteMode.Lax,
-                    Expires = DateTime.UtcNow.AddDays(14)
+                    Expires = DateTime.UtcNow.AddDays(7)
                 };
                 Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
             }
@@ -86,14 +86,15 @@ namespace src.Services.AccountService.API.Controllers
                 var cookieOptions = new CookieOptions
                 {
                     HttpOnly = true,
+                    Secure = true,
                     SameSite = SameSiteMode.Lax,
-                    Expires = DateTime.UtcNow.AddDays(14)
+                    Expires = DateTime.UtcNow.AddDays(7)
                 };
                 Response.Cookies.Append("refreshToken", newRefreshToken, cookieOptions);
             }
             else
             {
-                Response.Cookies.Delete("refreshToken");
+                Response.Cookies.Delete("refreshToken", new CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.Lax });
             }
 
             return response.ToActionResult();
@@ -193,7 +194,7 @@ namespace src.Services.AccountService.API.Controllers
                     HttpOnly = true,
                     Secure = true,
                     SameSite = SameSiteMode.Lax,
-                    Expires = DateTime.UtcNow.AddDays(14)
+                    Expires = DateTime.UtcNow.AddDays(7)
                 };
                 Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
             }
@@ -255,15 +256,27 @@ namespace src.Services.AccountService.API.Controllers
         [Authorize]
         public async Task<ActionResult<ApiResponse>> Logout()
         {
+            var refreshToken = Request.Cookies["refreshToken"];
+            var response = await _authservice.LogoutAsync(refreshToken);
+
+            Response.Cookies.Delete("refreshToken", new CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.Lax });
+
+            return response.ToActionResult();
+        }
+
+        [HttpPost("global-logout")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse>> GlobalLogout()
+        {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
-            var response = await _authservice.LogoutAsync(userId);
+            var response = await _authservice.GlobalLogoutAsync(userId);
 
-            Response.Cookies.Delete("refreshToken");
+            Response.Cookies.Delete("refreshToken", new CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.Lax });
 
             return response.ToActionResult();
         }

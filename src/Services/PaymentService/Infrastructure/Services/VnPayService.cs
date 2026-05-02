@@ -7,9 +7,14 @@ using Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Localization;
 using PaymentService.Application.DTOs;
 using PaymentService.Application.Interfaces;
 using CourseService.Application.Interfaces;
+using AccountService.Application.Interfaces;
+using AccountService.Domain.Enums;
+using Shared.Domain.Entities;
+using src.Shared.Resources;
 using PaymentService.Infrastructure.Services.Helpers;
 using Hangfire;
 
@@ -23,8 +28,10 @@ namespace PaymentService.Infrastructure.Services
         private readonly IDistributedCache _cache;
         private readonly IBackgroundJobClient _backgroundJobClient;
         private readonly ILuceneSearchService _luceneSearchService;
+        private readonly INotificationRepository _notificationRepository;
+        private readonly IStringLocalizer<SharedResources> _localizer;
 
-        public VnPayService(IConfiguration config, AppDbContext context, ILogger<VnPayService> logger, IDistributedCache cache, IBackgroundJobClient backgroundJobClient, ILuceneSearchService luceneSearchService)
+        public VnPayService(IConfiguration config, AppDbContext context, ILogger<VnPayService> logger, IDistributedCache cache, IBackgroundJobClient backgroundJobClient, ILuceneSearchService luceneSearchService, INotificationRepository notificationRepository, IStringLocalizer<SharedResources> localizer)
         {
             _config = config;
             _context = context;
@@ -32,6 +39,8 @@ namespace PaymentService.Infrastructure.Services
             _cache = cache;
             _backgroundJobClient = backgroundJobClient;
             _luceneSearchService = luceneSearchService;
+            _notificationRepository = notificationRepository;
+            _localizer = localizer;
         }
 
         public string CreatePaymentUrl(HttpContext context, VnPayPaymentRequestModel model)
@@ -226,6 +235,13 @@ namespace PaymentService.Infrastructure.Services
                 }
 
                 await _context.SaveChangesAsync();
+
+                // Clear personalized recommendation cache for this user
+                if (response.VnPayResponseCode == "00" && !string.IsNullOrEmpty(order.StudentId))
+                {
+                    await _cache.RemoveAsync($"course:recommended:user:{order.StudentId}");
+                }
+
                 await dbTransaction.CommitAsync();
 
                 // Re-index courses to update student count
@@ -252,6 +268,39 @@ namespace PaymentService.Infrastructure.Services
                         catch (Exception ex)
                         {
                             _logger.LogError(ex, "Failed to re-index course {CourseId} after VnPay payment", item.CourseId);
+                        }
+                }
+
+                    // Trigger NewEnrollment notification for instructors (smart: only if no unread exists)
+                    var student = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == order.StudentId);
+                    foreach (var item in orderItems)
+                    {
+                        try
+                        {
+                            var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == item.CourseId);
+                            if (course != null)
+                            {
+                                var hasUnread = await _context.Notifications
+                                    .AnyAsync(n => n.UserId == course.InstructorId
+                                                && n.Type == NotificationType.NewEnrollment
+                                                && !n.IsRead);
+                                if (!hasUnread)
+                                {
+                                    await _notificationRepository.CreateNotificationAsync(new Notification
+                                    {
+                                        UserId = course.InstructorId,
+                                        Title = _localizer["NewEnrollmentNotifTitle"].Value,
+                                        Message = string.Format(_localizer["NewEnrollmentNotifMessage"].Value,
+                                            student?.FullName ?? "Student", course.Name),
+                                        Type = NotificationType.NewEnrollment,
+                                        CreatedAt = DateTime.UtcNow
+                                    });
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "NewEnrollment notification failed for course {CourseId}", item.CourseId);
                         }
                     }
                 }

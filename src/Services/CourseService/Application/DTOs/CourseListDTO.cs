@@ -12,6 +12,7 @@ namespace CourseService.Application.DTOs
         public string Name { get; set; } = null!;
         public string InstructorName { get; set; } = null!;
         public double Rating { get; set; }
+        public int TotalStudents { get; set; }
         public decimal Price { get; set; }
         public int Progress { get; set; }
         public int TotalLessons { get; set; }

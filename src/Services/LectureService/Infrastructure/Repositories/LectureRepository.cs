@@ -17,6 +17,8 @@ using CourseService.Application.Interfaces;
 using CourseService.Application.DTOs;
 using Newtonsoft.Json;
 
+using Hangfire;
+
 namespace LectureService.Infrastructure.Repositories
 {
     public class LectureRepository : ILectureRepository
@@ -25,13 +27,15 @@ namespace LectureService.Infrastructure.Repositories
         private readonly CloudinaryService _cloudinaryService;
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly IAiService _aiService;
+        private readonly IBackgroundJobClient _backgroundJobClient;
 
-        public LectureRepository(AppDbContext context, CloudinaryService cloudinaryService, IStringLocalizer<SharedResources> localizer, IAiService aiService)
+        public LectureRepository(AppDbContext context, CloudinaryService cloudinaryService, IStringLocalizer<SharedResources> localizer, IAiService aiService, IBackgroundJobClient backgroundJobClient)
         {
             _context = context;
             _cloudinaryService = cloudinaryService;
             _localizer = localizer;
             _aiService = aiService;
+            _backgroundJobClient = backgroundJobClient;
         }
 
         private async Task UpdateCourseTimestampAsync(string courseId)
@@ -140,6 +144,9 @@ namespace LectureService.Infrastructure.Repositories
                 _context.LectureVideos.Add(lectureVideo);
                 await UpdateCourseTimestampAsync(lecture.CourseId);
                 await _context.SaveChangesAsync();
+
+                // Enqueue AI processing job immediately
+                _backgroundJobClient.Enqueue<IVideoProcessingService>(x => x.ProcessVideoAsync(lectureVideo.Id));
 
                 return new ApiResponse("Success", _localizer["VideoAdded"].Value, new { VideoId = lectureVideo.Id, Duration = duration }, true);
             }
@@ -511,6 +518,7 @@ namespace LectureService.Infrastructure.Repositories
                 }
 
                 video.Name = name;
+                bool isNewVideo = false;
 
                 if (!string.IsNullOrEmpty(videoUrl) && !string.IsNullOrEmpty(publicId))
                 {
@@ -529,11 +537,17 @@ namespace LectureService.Infrastructure.Repositories
                     video.VideoUrl = videoUrl;
                     video.PublicId = publicId;
                     video.Duration = duration ?? 0;
+                    isNewVideo = true;
                 }
 
                 _context.LectureVideos.Update(video);
                 await UpdateCourseTimestampAsync(video.Lecture.CourseId);
                 await _context.SaveChangesAsync();
+
+                if (isNewVideo)
+                {
+                    _backgroundJobClient.Enqueue<IVideoProcessingService>(x => x.ProcessVideoAsync(video.Id));
+                }
 
                 return new ApiResponse("Success", _localizer["VideoUpdated"].Value, video.Id, true);
             }

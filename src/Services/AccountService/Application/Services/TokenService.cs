@@ -57,20 +57,5 @@ namespace AccountService.Application.Services
             rng.GetBytes(randomBytes);
             return Convert.ToBase64String(randomBytes);
         }
-
-        public Task StoreRefreshTokenAsync(User user, string refreshToken)
-        {
-            return _userManager.SetAuthenticationTokenAsync(user, "JWT", "RefreshToken", refreshToken);
-        }
-
-        public Task<string?> GetRefreshTokenAsync(User user)
-        {
-            return _userManager.GetAuthenticationTokenAsync(user, "JWT", "RefreshToken");
-        }
-
-        public Task RemoveRefreshTokenAsync(User user)
-        {
-            return _userManager.RemoveAuthenticationTokenAsync(user, "JWT", "RefreshToken");
-        }
     }
 }

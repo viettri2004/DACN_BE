@@ -17,6 +17,8 @@ using Shared.Domain.Entities;
 using src.Shared.Resources;
 using Hangfire;
 using CourseService.Application.Interfaces;
+using AccountService.Application.Interfaces;
+using AccountService.Domain.Enums;
 using Data.Context;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,6 +34,7 @@ namespace PaymentService.Application.Services
         private readonly IBackgroundJobClient _backgroundJobClient;
         private readonly ILuceneSearchService _luceneSearchService;
         private readonly AppDbContext _context;
+        private readonly INotificationRepository _notificationRepository;
 
         public PaymentService(
             IPaymentRepository paymentRepository,
@@ -41,7 +44,8 @@ namespace PaymentService.Application.Services
             IStringLocalizer<SharedResources> localizer,
             IBackgroundJobClient backgroundJobClient,
             ILuceneSearchService luceneSearchService,
-            AppDbContext context)
+            AppDbContext context,
+            INotificationRepository notificationRepository)
         {
             _paymentRepository = paymentRepository;
             _vnPayService = vnPayService;
@@ -51,6 +55,7 @@ namespace PaymentService.Application.Services
             _backgroundJobClient = backgroundJobClient;
             _luceneSearchService = luceneSearchService;
             _context = context;
+            _notificationRepository = notificationRepository;
         }
 
         public async Task<ApiResponse> CreateBankPaymentAsync(CheckoutRequestDto checkoutRequest, string studentId)
@@ -519,6 +524,9 @@ namespace PaymentService.Application.Services
                 
                 await _paymentRepository.SaveChangesAsync();
 
+                // Clear personalized recommendation cache for this user
+                await _cache.RemoveAsync($"course:recommended:user:{studentId}");
+
                 // Re-index to update student count
                 try
                 {
@@ -538,6 +546,35 @@ namespace PaymentService.Application.Services
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Indexing failed after gift code redemption: {ex.Message}");
+                }
+
+                // Trigger NewEnrollment notification for instructor (smart: only if no unread exists)
+                var studentUser = await _paymentRepository.GetUserByIdAsync(studentId);
+                if (course != null && studentUser != null)
+                {
+                    try
+                    {
+                        var hasUnread = await _context.Notifications
+                            .AnyAsync(n => n.UserId == course.InstructorId
+                                        && n.Type == NotificationType.NewEnrollment
+                                        && !n.IsRead);
+                        if (!hasUnread)
+                        {
+                            await _notificationRepository.CreateNotificationAsync(new Notification
+                            {
+                                UserId = course.InstructorId,
+                                Title = _localizer["NewEnrollmentNotifTitle"].Value,
+                                Message = string.Format(_localizer["NewEnrollmentNotifMessage"].Value,
+                                    studentUser.FullName ?? "Student", course.Name),
+                                Type = NotificationType.NewEnrollment,
+                                CreatedAt = DateTime.UtcNow
+                            });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"NewEnrollment notification failed for GiftCode: {ex.Message}");
+                    }
                 }
 
                 return new ApiResponse("Success", _localizer["GiftCodeRedeemedSuccess", course.Name].Value, null, true);

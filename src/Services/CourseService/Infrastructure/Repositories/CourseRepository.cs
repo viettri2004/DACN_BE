@@ -415,22 +415,57 @@ namespace CourseService.Infrastructure.Repositories
             return new ApiResponse("Success", _localizer["Success"].Value, pagedResult, true);
         }
 
-        public async Task<ApiResponse> GetRecommendedCoursesAsync()
+        public async Task<ApiResponse> GetRecommendedCoursesAsync(string? userId)
         {
-            string cacheKey = "course:recommended";
+            string cacheKey = string.IsNullOrEmpty(userId) ? "course:recommended:guest" : $"course:recommended:user:{userId}";
             var cachedData = await _cache.GetStringAsync(cacheKey);
             if (!string.IsNullOrEmpty(cachedData))
             {
                 return JsonConvert.DeserializeObject<ApiResponse>(cachedData, JsonSettings.CamelCase);
             }
 
-            var courseDTOs = await _context.Courses
+            var enrolledCourseIds = new List<string>();
+            var enrolledTags = new List<string>();
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                var userEnrollments = await _context.Enrollments
+                    .AsNoTracking()
+                    .Include(e => e.Course)
+                        .ThenInclude(c => c.CourseTags)
+                    .Where(e => e.StudentId == userId && e.Status == true)
+                    .ToListAsync();
+
+                enrolledCourseIds = userEnrollments.Select(e => e.CourseId).ToList();
+                enrolledTags = userEnrollments
+                    .SelectMany(e => e.Course.CourseTags)
+                    .Select(ct => ct.TagId)
+                    .Distinct()
+                    .ToList();
+            }
+
+            IQueryable<Course> query = _context.Courses
                 .AsNoTracking()
-                .OrderByDescending(c => c.Enrollments
-                                .SelectMany(e => e.Comments)
-                                .Where(cm => cm.Type == CommentType.Review)
-                                .Average(cm => (double?)cm.Rate) ?? 0)
-                .Take(3)
+                .Include(c => c.Instructor)
+                .Include(c => c.Enrollments)
+                    .ThenInclude(e => e.Comments)
+                .Where(c => c.Status == CourseStatus.Public && !enrolledCourseIds.Contains(c.Id));
+
+            if (enrolledTags.Any())
+            {
+                // Logic: Recommend courses that have AT LEAST ONE of the tags from user's current courses
+                query = query.Where(c => c.CourseTags.Any(ct => enrolledTags.Contains(ct.TagId)));
+            }
+            
+            // If the user has tags, we still might want to order by popularity within those tags
+            // If the user has no tags (not logged in or no courses), this is purely popularity based
+            var courses = await query
+                .OrderByDescending(c => c.Enrollments.Count)
+                .ThenByDescending(c => c.Enrollments
+                    .SelectMany(e => e.Comments)
+                    .Where(cm => cm.Type == CommentType.Review)
+                    .Average(cm => (double?)cm.Rate) ?? 0)
+                .Take(10) // Take a bit more to ensure variety
                 .Select(c => new CourseListDTO
                 {
                     Id = c.Id,
@@ -440,18 +475,22 @@ namespace CourseService.Infrastructure.Repositories
                     Rating = c.Enrollments
                                 .SelectMany(e => e.Comments)
                                 .Where(cm => cm.Type == CommentType.Review)
-                                .Average(cm => (double?)cm.Rate) ?? 0
-                            ,
+                                .Average(cm => (double?)cm.Rate) ?? 0,
                     Price = c.Price,
-                    // Status = c.Status.ToString()
+                    TotalStudents = c.Enrollments.Count
                 })
-                .Take(5)
                 .ToListAsync();
 
-            if (courseDTOs.Count == 0)
+            if (courses.Count == 0 && enrolledTags.Any())
+            {
+                // Fallback to popularity if no tag-based matches are found (e.g. all courses with those tags already enrolled)
+                return await GetRecommendedCoursesAsync(null); 
+            }
+
+            if (courses.Count == 0)
                 return new ApiResponse("Success", _localizer["NoData"].Value, null, true);
 
-            var response = new ApiResponse("Success", _localizer["Success"].Value, courseDTOs, true);
+            var response = new ApiResponse("Success", _localizer["Success"].Value, courses.Take(3), true);
 
             var cacheOptions = new DistributedCacheEntryOptions
             {
@@ -885,17 +924,6 @@ namespace CourseService.Infrastructure.Repositories
             {
                 request.Course.Status = CourseStatus.Public;
                 request.Course.UpdatedAt = DateTime.UtcNow;
-
-                // Enqueue AI processing jobs for each video using Hangfire
-                var videoIds = await _context.LectureVideos
-                    .Where(v => v.Lecture.CourseId == request.CourseId)
-                    .Select(v => v.Id)
-                    .ToListAsync();
-
-                foreach (var videoId in videoIds)
-                {
-                    _backgroundJobClient.Enqueue<IVideoProcessingService>(x => x.ProcessVideoAsync(videoId));
-                }
             }
 
             await _context.SaveChangesAsync();
@@ -1042,6 +1070,41 @@ namespace CourseService.Infrastructure.Repositories
             catch (Exception ex)
             {
                 Console.WriteLine($"Indexing failed after comment: {ex.Message}");
+            }
+
+            // Trigger NewRating notification for instructor (smart: only if no unread exists)
+            if (addCommentDTO.Type == CommentType.Review)
+            {
+                try
+                {
+                    var course = await _context.Courses.AsNoTracking()
+                        .FirstOrDefaultAsync(c => c.Id == addCommentDTO.CourseId);
+                    if (course != null)
+                    {
+                        var user = await _context.Users.AsNoTracking()
+                            .FirstOrDefaultAsync(u => u.Id == userId);
+                        var hasUnread = await _context.Notifications
+                            .AnyAsync(n => n.UserId == course.InstructorId
+                                        && n.Type == NotificationType.NewRating
+                                        && !n.IsRead);
+                        if (!hasUnread)
+                        {
+                            await _notificationRepository.CreateNotificationAsync(new Notification
+                            {
+                                UserId = course.InstructorId,
+                                Title = _localizer["NewRatingNotifTitle"].Value,
+                                Message = string.Format(_localizer["NewRatingNotifMessage"].Value,
+                                    user?.FullName ?? "Student", course.Name, addCommentDTO.Rate),
+                                Type = NotificationType.NewRating,
+                                CreatedAt = DateTime.UtcNow
+                            });
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"NewRating notification failed: {ex.Message}");
+                }
             }
 
             return new ApiResponse("Created", _localizer["Success"].Value, comment.Id, true);
@@ -1199,23 +1262,62 @@ namespace CourseService.Infrastructure.Repositories
 
             var totalCount = await query.CountAsync();
 
-            var threads = await query
-                .Include(t => t.Creator)
-                .OrderByDescending(t => t.LastActivityAt)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .Select(t => new QAThreadDTO
-                {
-                    Id = t.Id,
-                    Title = t.Title,
-                    CreatorName = t.Creator.FullName,
-                    CreatorAvatarUrl = t.Creator.AvatarUrl,
-                    CreatedAt = t.CreatedAt,
-                    LastActivityAt = t.LastActivityAt,
-                    IsMyThread = t.CreatorId == userId,
-                    TotalMessages = _context.QAMessages.Count(m => m.ThreadId == t.Id)
-                })
-                .ToListAsync();
+            List<QAThreadDTO> threads;
+
+            if (isInstructor)
+            {
+                // For instructor: sort unread threads first, then by LastActivityAt DESC
+                var allThreads = await query
+                    .Include(t => t.Creator)
+                    .Include(t => t.Messages)
+                    .ToListAsync();
+
+                threads = allThreads
+                    .Select(t =>
+                    {
+                        var lastMessage = t.Messages.OrderByDescending(m => m.CreatedAt).FirstOrDefault();
+                        var isUnread = lastMessage != null ? lastMessage.UserId != userId : t.CreatorId != userId;
+                        return new QAThreadDTO
+                        {
+                            Id = t.Id,
+                            Title = t.Title,
+                            CreatorName = t.Creator.FullName,
+                            CreatorAvatarUrl = t.Creator.AvatarUrl,
+                            CreatedAt = t.CreatedAt,
+                            LastActivityAt = t.LastActivityAt,
+                            IsMyThread = t.CreatorId == userId,
+                            TotalMessages = t.Messages.Count,
+                            IsUnread = isUnread
+                        };
+                    })
+                    .OrderByDescending(t => t.IsUnread)
+                    .ThenByDescending(t => t.LastActivityAt)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+            }
+            else
+            {
+                // For student: keep original sort by LastActivityAt DESC
+                threads = await query
+                    .Include(t => t.Creator)
+                    .OrderByDescending(t => t.LastActivityAt)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(t => new QAThreadDTO
+                    {
+                        Id = t.Id,
+                        Title = t.Title,
+                        CreatorName = t.Creator.FullName,
+                        CreatorAvatarUrl = t.Creator.AvatarUrl,
+                        CreatedAt = t.CreatedAt,
+                        LastActivityAt = t.LastActivityAt,
+                        IsMyThread = t.CreatorId == userId,
+                        TotalMessages = _context.QAMessages.Count(m => m.ThreadId == t.Id),
+                        IsUnread = false
+                    })
+                    .ToListAsync();
+            }
 
             var pagedResult = new PagedResult<QAThreadDTO>
             {
@@ -1311,6 +1413,41 @@ namespace CourseService.Infrastructure.Repositories
 
             _context.QAThreads.Add(thread);
             await _context.SaveChangesAsync();
+
+            // Trigger NewQAQuestion notification for instructor (smart: only if no unread exists)
+            if (!isInstructor)
+            {
+                try
+                {
+                    var course = await _context.Courses.AsNoTracking()
+                        .FirstOrDefaultAsync(c => c.Id == createThreadDTO.CourseId);
+                    if (course != null)
+                    {
+                        var user = await _context.Users.AsNoTracking()
+                            .FirstOrDefaultAsync(u => u.Id == userId);
+                        var hasUnread = await _context.Notifications
+                            .AnyAsync(n => n.UserId == course.InstructorId
+                                        && n.Type == NotificationType.NewQAQuestion
+                                        && !n.IsRead);
+                        if (!hasUnread)
+                        {
+                            await _notificationRepository.CreateNotificationAsync(new Notification
+                            {
+                                UserId = course.InstructorId,
+                                Title = _localizer["NewQAQuestionNotifTitle"].Value,
+                                Message = string.Format(_localizer["NewQAQuestionNotifMessage"].Value,
+                                    user?.FullName ?? "Student", course.Name, createThreadDTO.Title),
+                                Type = NotificationType.NewQAQuestion,
+                                CreatedAt = DateTime.UtcNow
+                            });
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"NewQAQuestion notification failed: {ex.Message}");
+                }
+            }
 
             return new ApiResponse("Created", _localizer["QuestionAdded"].Value, thread.Id, true);
         }
@@ -1420,7 +1557,7 @@ namespace CourseService.Infrastructure.Repositories
 
         private async Task RemoveRecommendedCache()
         {
-            await _cache.RemoveAsync("course:recommended");
+            await _cache.RemoveAsync("course:recommended:guest");
         }
 
         private async Task RemoveCourseDetailCache(string courseId)
@@ -1670,6 +1807,204 @@ namespace CourseService.Infrastructure.Repositories
             catch
             {
                 return course.Price;
+            }
+        }
+
+        public async Task<ApiResponse> GetInstructorDashboardAsync(string instructorId)
+        {
+            try
+            {
+                var courses = await _context.Courses
+                    .AsNoTracking()
+                    .Where(c => c.InstructorId == instructorId)
+                    .Include(c => c.Enrollments)
+                        .ThenInclude(e => e.Comments)
+                    .Include(c => c.Enrollments)
+                        .ThenInclude(e => e.Student)
+                    .ToListAsync();
+
+                var courseIds = courses.Select(c => c.Id).ToList();
+
+                // 4 Overview Cards
+                var totalStudents = courses.Sum(c => c.Enrollments.Count);
+                var totalRevenue = courses.Sum(c => (long)c.Price * c.Enrollments.Count);
+                var allReviewComments = courses
+                    .SelectMany(c => c.Enrollments.SelectMany(e => e.Comments))
+                    .Where(cm => cm.Type == CommentType.Review && cm.Rate >= 1)
+                    .ToList();
+                var averageRating = allReviewComments.Any() ? allReviewComments.Average(cm => cm.Rate) : 0;
+
+                // Enrollment Chart (30 days)
+                var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
+                var enrollmentChartData = courses
+                    .SelectMany(c => c.Enrollments)
+                    .Where(e => e.EnrolledAt >= thirtyDaysAgo)
+                    .GroupBy(e => e.EnrolledAt.Date)
+                    .Select(g => new DailyEnrollmentDTO
+                    {
+                        Date = g.Key.ToString("yyyy-MM-dd"),
+                        Count = g.Count()
+                    })
+                    .OrderBy(d => d.Date)
+                    .ToList();
+
+                // Fill in missing days with 0
+                var allDays = Enumerable.Range(0, 30)
+                    .Select(i => DateTime.UtcNow.AddDays(-29 + i).Date.ToString("yyyy-MM-dd"))
+                    .ToList();
+                var enrollmentChart = allDays.Select(day => new DailyEnrollmentDTO
+                {
+                    Date = day,
+                    Count = enrollmentChartData.FirstOrDefault(d => d.Date == day)?.Count ?? 0
+                }).ToList();
+
+                // Rating Distribution (1-5 stars)
+                var ratingDistribution = Enumerable.Range(1, 5)
+                    .Select(star => new RatingDistributionDTO
+                    {
+                        Star = star,
+                        Count = allReviewComments.Count(cm => cm.Rate == star)
+                    })
+                    .ToList();
+
+                var dashboard = new InstructorDashboardDTO
+                {
+                    TotalStudents = totalStudents,
+                    TotalRevenue = totalRevenue,
+                    AverageRating = Math.Round(averageRating, 1),
+                    TotalCourses = courses.Count,
+                    EnrollmentChart = enrollmentChart,
+                    RatingDistribution = ratingDistribution
+                };
+
+                return new ApiResponse("Success", _localizer["DashboardRetrieved"].Value, dashboard, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> GetInstructorActivitiesAsync(string instructorId, int page, int pageSize)
+        {
+            try
+            {
+                var courseIds = await _context.Courses
+                    .AsNoTracking()
+                    .Where(c => c.InstructorId == instructorId)
+                    .Select(c => c.Id)
+                    .ToListAsync();
+
+                // Build three queries returning identical projections
+                var enrollmentsQuery = _context.Enrollments
+                    .AsNoTracking()
+                    .Where(e => courseIds.Contains(e.CourseId))
+                    .Select(e => new RecentActivityDTO
+                    {
+                        Type = "enrollment",
+                        CourseName = e.Course.Name,
+                        StudentName = e.Student.FullName ?? "Student",
+                        Rating = 0,
+                        QuestionTitle = "",
+                        CreatedAt = e.EnrolledAt
+                    });
+
+                var ratingsQuery = _context.Comments
+                    .AsNoTracking()
+                    .Where(c => courseIds.Contains(c.CourseId) && c.Type == CommentType.Review && c.Rate >= 1)
+                    .Select(c => new RecentActivityDTO
+                    {
+                        Type = "rating",
+                        CourseName = c.Course.Name,
+                        StudentName = c.User.FullName ?? "Student",
+                        Rating = c.Rate,
+                        QuestionTitle = "",
+                        CreatedAt = c.CreatedAt
+                    });
+
+                var qaQuery = _context.QAThreads
+                    .AsNoTracking()
+                    .Where(t => courseIds.Contains(t.CourseId))
+                    .Select(t => new RecentActivityDTO
+                    {
+                        Type = "qa_question",
+                        CourseName = t.Course.Name,
+                        StudentName = t.Creator.FullName,
+                        Rating = 0,
+                        QuestionTitle = t.Title,
+                        CreatedAt = t.CreatedAt
+                    });
+
+                // Combine them
+                var combinedQuery = enrollmentsQuery.Union(ratingsQuery).Union(qaQuery);
+
+                var totalCount = await combinedQuery.CountAsync();
+                var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+                var items = await combinedQuery
+                    .OrderByDescending(a => a.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                var pagedResult = new PagedResult<RecentActivityDTO>
+                {
+                    Items = items,
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalCount = totalCount
+                };
+
+                return new ApiResponse("Success", _localizer["ActivitiesRetrieved"].Value, pagedResult, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> GetInstructorUnreadThreadsAsync(string instructorId)
+        {
+            try
+            {
+                var courseIds = await _context.Courses
+                    .AsNoTracking()
+                    .Where(c => c.InstructorId == instructorId)
+                    .Select(c => c.Id)
+                    .ToListAsync();
+
+                var threads = await _context.QAThreads
+                    .AsNoTracking()
+                    .Where(t => courseIds.Contains(t.CourseId))
+                    .Include(t => t.Messages)
+                    .Include(t => t.Course)
+                    .ToListAsync();
+
+                // Thread is "unread" if last message is NOT from instructor
+                var unreadByCourse = threads
+                    .Where(t =>
+                    {
+                        var lastMessage = t.Messages.OrderByDescending(m => m.CreatedAt).FirstOrDefault();
+                        // Unread if: has messages and last message is not from instructor, OR has no messages (new thread from student)
+                        return lastMessage != null ? lastMessage.UserId != instructorId : t.CreatorId != instructorId;
+                    })
+                    .GroupBy(t => t.CourseId)
+                    .Select(g => new UnreadThreadCourseDTO
+                    {
+                        CourseId = g.Key,
+                        CourseName = g.First().Course.Name,
+                        CourseImage = g.First().Course.ImageUrl,
+                        UnreadThreadCount = g.Count(),
+                        LastActivityAt = g.Max(t => t.LastActivityAt)
+                    })
+                    .OrderByDescending(x => x.LastActivityAt)
+                    .ToList();
+
+                return new ApiResponse("Success", _localizer["UnreadThreadsRetrieved"].Value, unreadByCourse, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
             }
         }
     }

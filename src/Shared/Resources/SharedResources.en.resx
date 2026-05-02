@@ -682,4 +682,34 @@
   <data name="RemovedFromWishlist" xml:space="preserve">
     <value>Removed from wishlist successfully.</value>
   </data>
+  <data name="GlobalLogoutSuccess" xml:space="preserve">
+    <value>Successfully logged out from all devices.</value>
+  </data>
+  <data name="RefreshTokenExpired" xml:space="preserve">
+    <value>Session has expired, please login again.</value>
+  </data>
+  <data name="DashboardRetrieved" xml:space="preserve">
+    <value>Dashboard data retrieved successfully.</value>
+  </data>
+  <data name="UnreadThreadsRetrieved" xml:space="preserve">
+    <value>Unread threads retrieved successfully.</value>
+  </data>
+  <data name="NewEnrollmentNotifTitle" xml:space="preserve">
+    <value>New Enrollment</value>
+  </data>
+  <data name="NewEnrollmentNotifMessage" xml:space="preserve">
+    <value>{0} has enrolled in your course "{1}".</value>
+  </data>
+  <data name="NewRatingNotifTitle" xml:space="preserve">
+    <value>New Rating</value>
+  </data>
+  <data name="NewRatingNotifMessage" xml:space="preserve">
+    <value>{0} rated your course "{1}" with {2} stars.</value>
+  </data>
+  <data name="NewQAQuestionNotifTitle" xml:space="preserve">
+    <value>New Question</value>
+  </data>
+  <data name="NewQAQuestionNotifMessage" xml:space="preserve">
+    <value>{0} asked a question in your course "{1}": "{2}".</value>
+  </data>
 </root>

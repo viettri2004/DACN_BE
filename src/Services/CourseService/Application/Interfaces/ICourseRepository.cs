@@ -14,7 +14,7 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> UpdateCourseAsync(string courseId, UpdateCourseDTO updateCourseDTO, string instructorId);
         Task<ApiResponse> GetCourseDetailAsync(string courseId, string studentId);
         Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId, CommentType type, int pageNumber, int pageSize);
-        Task<ApiResponse> GetRecommendedCoursesAsync();
+        Task<ApiResponse> GetRecommendedCoursesAsync(string? userId);
         Task<ApiResponse> GetCoursesByStudentIdAsync(string studentId);
         Task<ApiResponse> GetCourseContentAsync(string courseId, string userId);
         Task<ApiResponse> GetCoursesByInstructorAsync(string instructorId);
@@ -46,5 +46,10 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> AddToWishlistAsync(string courseId, string studentId);
         Task<ApiResponse> RemoveFromWishlistAsync(string courseId, string studentId);
         Task<ApiResponse> GetStudentWishlistAsync(string studentId, int pageNumber, int pageSize);
+
+        // Instructor Dashboard
+        Task<ApiResponse> GetInstructorDashboardAsync(string instructorId);
+        Task<ApiResponse> GetInstructorActivitiesAsync(string instructorId, int page, int pageSize);
+        Task<ApiResponse> GetInstructorUnreadThreadsAsync(string instructorId);
     }
 }

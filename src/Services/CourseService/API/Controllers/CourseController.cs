@@ -119,7 +119,8 @@ namespace CourseService.API.Controllers
         [HttpGet("recommended-courses")]
         public async Task<ActionResult<ApiResponse>> GetRecommendedCourses()
         {
-            var response = await _courseRepository.GetRecommendedCoursesAsync();
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            var response = await _courseRepository.GetRecommendedCoursesAsync(userId);
 
             return response.ToActionResult();
         }
@@ -469,6 +470,45 @@ namespace CourseService.API.Controllers
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
             var response = await _courseRepository.GetStudentWishlistAsync(studentId, pageNumber, pageSize);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpGet("instructor-dashboard")]
+        public async Task<ActionResult<ApiResponse>> GetInstructorDashboard()
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.GetInstructorDashboardAsync(instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpGet("instructor-activities")]
+        public async Task<ActionResult<ApiResponse>> GetInstructorActivities([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.GetInstructorActivitiesAsync(instructorId, page, pageSize);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpGet("instructor-unread-threads")]
+        public async Task<ActionResult<ApiResponse>> GetInstructorUnreadThreads()
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseRepository.GetInstructorUnreadThreadsAsync(instructorId);
             return response.ToActionResult();
         }
     }

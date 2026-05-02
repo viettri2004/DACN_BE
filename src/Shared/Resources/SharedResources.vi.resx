@@ -682,4 +682,34 @@
   <data name="RemovedFromWishlist" xml:space="preserve">
     <value>Đã xóa khỏi danh sách yêu thích.</value>
   </data>
+  <data name="GlobalLogoutSuccess" xml:space="preserve">
+    <value>Đã đăng xuất khỏi tất cả các thiết bị thành công.</value>
+  </data>
+  <data name="RefreshTokenExpired" xml:space="preserve">
+    <value>Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.</value>
+  </data>
+  <data name="DashboardRetrieved" xml:space="preserve">
+    <value>Lấy dữ liệu dashboard thành công.</value>
+  </data>
+  <data name="UnreadThreadsRetrieved" xml:space="preserve">
+    <value>Lấy danh sách thread chưa đọc thành công.</value>
+  </data>
+  <data name="NewEnrollmentNotifTitle" xml:space="preserve">
+    <value>Đăng ký mới</value>
+  </data>
+  <data name="NewEnrollmentNotifMessage" xml:space="preserve">
+    <value>{0} đã đăng ký khóa học "{1}" của bạn.</value>
+  </data>
+  <data name="NewRatingNotifTitle" xml:space="preserve">
+    <value>Đánh giá mới</value>
+  </data>
+  <data name="NewRatingNotifMessage" xml:space="preserve">
+    <value>{0} đã đánh giá khóa học "{1}" với {2} sao.</value>
+  </data>
+  <data name="NewQAQuestionNotifTitle" xml:space="preserve">
+    <value>Câu hỏi mới</value>
+  </data>
+  <data name="NewQAQuestionNotifMessage" xml:space="preserve">
+    <value>{0} đã đặt câu hỏi trong khóa học "{1}": "{2}".</value>
+  </data>
 </root>

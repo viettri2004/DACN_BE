@@ -11,6 +11,11 @@ namespace AccountService.Application.Interfaces
     public interface IAccountRepository
     {
         Task<User> GetUserFromRefreshToken(string refreshToken);
+        Task<RefreshToken?> GetRefreshTokenAsync(string refreshToken);
+        Task StoreRefreshTokenAsync(RefreshToken refreshToken);
+        Task UpdateRefreshTokenAsync(RefreshToken refreshToken);
+        Task RevokeRefreshTokenAsync(string refreshToken);
+        Task RevokeAllUserTokensAsync(string userId);
         Task<User> FindUserByEmail(string email);
         Task ChangePassword(User user, ChangePasswordDTO changePasswordDTO);
         Task<ApiResponse> GetUserProfileAsync(string userId);

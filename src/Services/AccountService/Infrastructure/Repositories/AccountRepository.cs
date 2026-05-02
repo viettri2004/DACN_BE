@@ -42,14 +42,55 @@ namespace AccountService.Infrastructure.Persistence.Repositories
         
         public async Task<User> GetUserFromRefreshToken(string refreshToken)
         {
-            return await _context.Users
-                .Join(_context.UserTokens,
-                    u => u.Id,
-                    t => t.UserId,
-                    (u, t) => new { User = u, Token = t })
-                .Where(x => x.Token.Name == "RefreshToken" && x.Token.Value == refreshToken)
-                .Select(x => x.User)
+            return await _context.RefreshTokens
+                .Where(t => t.Token == refreshToken && !t.IsRevoked)
+                .Select(t => t.User)
                 .FirstOrDefaultAsync();
+        }
+
+        public async Task<RefreshToken?> GetRefreshTokenAsync(string refreshToken)
+        {
+            return await _context.RefreshTokens
+                .Include(t => t.User)
+                .FirstOrDefaultAsync(t => t.Token == refreshToken);
+        }
+
+        public async Task StoreRefreshTokenAsync(RefreshToken refreshToken)
+        {
+            await _context.RefreshTokens.AddAsync(refreshToken);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task UpdateRefreshTokenAsync(RefreshToken refreshToken)
+        {
+            _context.RefreshTokens.Update(refreshToken);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task RevokeRefreshTokenAsync(string refreshToken)
+        {
+            var token = await _context.RefreshTokens
+                .FirstOrDefaultAsync(t => t.Token == refreshToken);
+
+            if (token != null)
+            {
+                token.IsRevoked = true;
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task RevokeAllUserTokensAsync(string userId)
+        {
+            var tokens = await _context.RefreshTokens
+                .Where(t => t.UserId == userId && !t.IsRevoked)
+                .ToListAsync();
+
+            foreach (var token in tokens)
+            {
+                token.IsRevoked = true;
+            }
+
+            await _context.SaveChangesAsync();
         }
 
         public async Task<User> FindUserByEmail(string email)

@@ -7,6 +7,9 @@ namespace AccountService.Domain.Enums
         CourseRequest,
         CourseRequestResult,
         System,
-        Other
+        Other,
+        NewEnrollment,
+        NewRating,
+        NewQAQuestion
     }
 }
