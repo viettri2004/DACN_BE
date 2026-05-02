@@ -23,6 +23,7 @@ namespace CourseService.Application.Services
     public class CourseService : ICourseService
     {
         private readonly ICourseRepository _courseRepository;
+        private readonly IQAThreadService _qaService;
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly ILuceneSearchService _luceneSearchService;
         private readonly INotificationRepository _notificationRepository;
@@ -30,6 +31,7 @@ namespace CourseService.Application.Services
         private readonly IDistributedCache _cache;
 
         public CourseService(ICourseRepository courseRepository,
+                            IQAThreadService qaService,
                             IStringLocalizer<SharedResources> localizer,
                             ILuceneSearchService luceneSearchService,
                             INotificationRepository notificationRepository,
@@ -37,6 +39,7 @@ namespace CourseService.Application.Services
                             IDistributedCache cache)
         {
             _courseRepository = courseRepository;
+            _qaService = qaService;
             _localizer = localizer;
             _luceneSearchService = luceneSearchService;
             _notificationRepository = notificationRepository;
@@ -557,91 +560,49 @@ namespace CourseService.Application.Services
         }
         #endregion
 
-        #region QA Features
+        #region QA Delegation
         public async Task<ApiResponse> GetCourseQAThreadsAsync(string courseId, string userId, int pageNumber, int pageSize, string filter = "all")
         {
-            var query = _courseRepository.GetThreadsQueryable().AsNoTracking().Where(t => t.CourseId == courseId);
-            var totalCount = await query.CountAsync();
-            var threads = await query.Include(t => t.Creator).OrderByDescending(t => t.LastActivityAt).Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync();
-            var result = threads.Select(t => new QAThreadDTO { Id = t.Id, Title = t.Title, CreatorName = t.Creator.FullName, CreatedAt = t.CreatedAt, LastActivityAt = t.LastActivityAt }).ToList();
-            return new ApiResponse("Success", _localizer["Success"].Value, new PagedResult<QAThreadDTO> { Items = result, Page = pageNumber, PageSize = pageSize, TotalCount = totalCount }, true);
+            return await _qaService.GetCourseQAThreadsAsync(courseId, userId, pageNumber, pageSize, filter);
         }
 
         public async Task<ApiResponse> GetThreadMessagesAsync(string threadId, string userId, int pageNumber, int pageSize)
         {
-            var thread = await _courseRepository.GetThreadByIdAsync(threadId);
-            if (thread == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
-            var query = _courseRepository.GetMessagesQueryable().AsNoTracking().Where(m => m.ThreadId == threadId);
-            var totalCount = await query.CountAsync();
-            var messages = await query.Include(m => m.User).OrderBy(m => m.CreatedAt).Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync();
-            var result = messages.Select(m => new QAMessageDTO { Id = m.Id, Content = m.Content, UserName = m.User.FullName, CreatedAt = m.CreatedAt }).ToList();
-            return new ApiResponse("Success", _localizer["Success"].Value, new { thread = new QAThreadDetailDTO { Id = thread.Id, Title = thread.Title }, messages = new PagedResult<QAMessageDTO> { Items = result, Page = pageNumber, PageSize = pageSize, TotalCount = totalCount } }, true);
+            return await _qaService.GetThreadMessagesAsync(threadId, userId, pageNumber, pageSize);
         }
 
         public async Task<ApiResponse> CreateQAThreadAsync(CreateThreadDTO createThreadDTO, string userId)
         {
-            var thread = new QAThread { Id = Guid.NewGuid().ToString(), CourseId = createThreadDTO.CourseId, CreatorId = userId, Title = createThreadDTO.Title, CreatedAt = DateTime.UtcNow, LastActivityAt = DateTime.UtcNow };
-            await _courseRepository.AddThreadAsync(thread);
-            await _courseRepository.SaveChangesAsync();
-            return new ApiResponse("Created", _localizer["Success"].Value, thread.Id, true);
+            return await _qaService.CreateQAThreadAsync(createThreadDTO, userId);
         }
 
         public async Task<ApiResponse> AddMessageToThreadAsync(AddMessageDTO addMessageDTO, string userId)
         {
-            var thread = await _courseRepository.GetThreadByIdAsync(addMessageDTO.ThreadId);
-            if (thread == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
-            var message = new QAMessage { Id = Guid.NewGuid().ToString(), ThreadId = thread.Id, UserId = userId, Content = addMessageDTO.Content, CreatedAt = DateTime.UtcNow };
-            thread.LastActivityAt = DateTime.UtcNow;
-            await _courseRepository.AddMessageAsync(message);
-            await _courseRepository.SaveChangesAsync();
-            return new ApiResponse("Created", _localizer["Success"].Value, message.Id, true);
+            return await _qaService.AddMessageToThreadAsync(addMessageDTO, userId);
         }
 
         public async Task<ApiResponse> UpdateQAThreadAsync(string threadId, UpdateThreadDTO updateThreadDTO, string userId)
         {
-            var thread = await _courseRepository.GetThreadByIdAsync(threadId);
-            if (thread == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
-            if (thread.CreatorId != userId) return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
-            thread.Title = updateThreadDTO.Title;
-            await _courseRepository.UpdateThreadAsync(thread);
-            await _courseRepository.SaveChangesAsync();
-            return new ApiResponse("Success", _localizer["Success"].Value, null, true);
+            return await _qaService.UpdateQAThreadAsync(threadId, updateThreadDTO, userId);
         }
 
         public async Task<ApiResponse> UpdateQAMessageAsync(string messageId, UpdateMessageDTO updateMessageDTO, string userId)
         {
-            var message = await _courseRepository.GetMessageByIdAsync(messageId);
-            if (message == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
-            if (message.UserId != userId) return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
-            message.Content = updateMessageDTO.Content;
-            message.UpdatedAt = DateTime.UtcNow;
-            await _courseRepository.UpdateMessageAsync(message);
-            await _courseRepository.SaveChangesAsync();
-            return new ApiResponse("Success", _localizer["Success"].Value, null, true);
+            return await _qaService.UpdateQAMessageAsync(messageId, updateMessageDTO, userId);
         }
 
         public async Task<ApiResponse> DeleteQAThreadAsync(string threadId, string userId)
         {
-            var thread = await _courseRepository.GetThreadByIdAsync(threadId);
-            if (thread == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
-            if (thread.CreatorId != userId) return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
-            await _courseRepository.DeleteThreadAsync(thread);
-            await _courseRepository.SaveChangesAsync();
-            return new ApiResponse("Success", _localizer["Success"].Value, null, true);
+            return await _qaService.DeleteQAThreadAsync(threadId, userId);
         }
 
         public async Task<ApiResponse> DeleteQAMessageAsync(string messageId, string userId)
         {
-            var message = await _courseRepository.GetMessageByIdAsync(messageId);
-            if (message == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
-            if (message.UserId != userId) return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
-            await _courseRepository.DeleteMessageAsync(message);
-            await _courseRepository.SaveChangesAsync();
-            return new ApiResponse("Success", _localizer["Success"].Value, null, true);
+            return await _qaService.DeleteQAMessageAsync(messageId, userId);
         }
         #endregion
 
-        #region Wishlist Features
+        #region Wishlist Features (Future move)
         public async Task<ApiResponse> AddToWishlistAsync(string courseId, string studentId)
         {
             var exists = await _courseRepository.GetWishlistItemAsync(studentId, courseId);
