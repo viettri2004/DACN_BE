@@ -148,8 +148,12 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     services.AddScoped<IPaymentService, PaymentService.Application.Services.PaymentService>();
     services.AddScoped<ICourseRepository, CourseRepository>();
     services.AddScoped<IQAThreadRepository, QAThreadRepository>();
+    services.AddScoped<IWishlistRepository, WishlistRepository>();
+    services.AddScoped<ICommentRepository, CommentRepository>();
     services.AddScoped<ICourseService, CourseService.Application.Services.CourseService>();
     services.AddScoped<IQAThreadService, CourseService.Application.Services.QAThreadService>();
+    services.AddScoped<IWishlistService, CourseService.Application.Services.WishlistService>();
+    services.AddScoped<ICommentService, CourseService.Application.Services.CommentService>();
     services.AddScoped<ILectureRepository, LectureRepository>();
     services.AddScoped<IQuizRepository, QuizRepository>();
     services.AddScoped<ICartRepository, CartRepository>();

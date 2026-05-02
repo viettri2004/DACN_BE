@@ -273,43 +273,6 @@ namespace CourseService.Application.Services
             return response;
         }
 
-        public async Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId, CommentType type, int pageNumber, int pageSize, int? rating = null)
-        {
-            var query = _courseRepository.GetCommentsQueryable()
-                .AsNoTracking()
-                .Include(c => c.User)
-                .Include(c => c.Replies).ThenInclude(r => r.User)
-                .Where(c => c.CourseId == courseId && c.Type == type && c.ReplyId == null);
-
-            if (rating.HasValue) query = query.Where(c => c.Rate == rating.Value);
-
-            var totalCount = await query.CountAsync();
-            var comments = await query
-                .OrderByDescending(c => c.CreatedAt)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .Select(c => new CommentDTO
-                {
-                    CommentId = c.Id,
-                    UserName = c.User.FullName,
-                    AvatarUrl = c.User.AvatarUrl,
-                    Content = c.Content,
-                    Rate = c.Rate,
-                    Timestamp = c.CreatedAt,
-                    IsMyComment = userId != null && c.UserId == userId,
-                    Replies = c.Replies.Select(r => new ReplyDTO
-                    {
-                        CommentId = r.Id,
-                        Content = r.Content,
-                        Timestamp = r.CreatedAt,
-                        IsMyComment = userId != null && r.UserId == userId
-                    }).ToList()
-                }).ToListAsync();
-
-            var pagedResult = new PagedResult<CommentDTO> { Items = comments, Page = pageNumber, PageSize = pageSize, TotalCount = totalCount };
-            return new ApiResponse("Success", _localizer["Success"].Value, pagedResult, true);
-        }
-
         #endregion
 
         #region Student Features
@@ -380,79 +343,6 @@ namespace CourseService.Application.Services
             };
 
             return new ApiResponse("Success", _localizer["Success"].Value, response, true);
-        }
-
-        public async Task<ApiResponse> AddCommentAsync(AddCommentDTO addCommentDTO, string userId)
-        {
-            var enrollment = await _courseRepository.GetEnrollmentAsync(userId, addCommentDTO.CourseId);
-            if (enrollment == null) return new ApiResponse("Forbidden", _localizer["NotEnrolledInCourse"].Value, null, false);
-
-            var comment = new Comment
-            {
-                Id = Guid.NewGuid().ToString(),
-                Content = addCommentDTO.Content,
-                Rate = addCommentDTO.Type == CommentType.Review ? addCommentDTO.Rate : 0,
-                EnrollmentId = enrollment.Id,
-                UserId = userId,
-                CourseId = addCommentDTO.CourseId,
-                CreatedAt = DateTime.UtcNow,
-                Type = addCommentDTO.Type
-            };
-
-            await _courseRepository.AddCommentAsync(comment);
-            await _courseRepository.SaveChangesAsync();
-
-            return new ApiResponse("Created", _localizer["Success"].Value, comment.Id, true);
-        }
-
-        public async Task<ApiResponse> UpdateCommentAsync(string commentId, UpdateCommentDTO updateCommentDTO, string userId)
-        {
-            var comment = await _courseRepository.GetCommentByIdAsync(commentId);
-            if (comment == null) return new ApiResponse("NotFound", _localizer["CommentNotFound"].Value, null, false);
-            if (comment.UserId != userId) return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
-
-            comment.Content = updateCommentDTO.Content;
-            if (comment.Type == CommentType.Review) comment.Rate = updateCommentDTO.Rate;
-            comment.UpdatedAt = DateTime.UtcNow;
-
-            await _courseRepository.UpdateCommentAsync(comment);
-            await _courseRepository.SaveChangesAsync();
-
-            return new ApiResponse("Success", _localizer["CommentUpdated"].Value, null, true);
-        }
-
-        public async Task<ApiResponse> DeleteCommentAsync(string commentId, string userId)
-        {
-            var comment = await _courseRepository.GetCommentByIdAsync(commentId);
-            if (comment == null) return new ApiResponse("NotFound", _localizer["CommentNotFound"].Value, null, false);
-            if (comment.UserId != userId) return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
-
-            await _courseRepository.DeleteCommentAsync(comment);
-            await _courseRepository.SaveChangesAsync();
-
-            return new ApiResponse("Success", _localizer["CommentDeleted"].Value, null, true);
-        }
-
-        public async Task<ApiResponse> ReplyToCommentAsync(AddReplyCommentDTO replyDTO, string userId)
-        {
-            var parent = await _courseRepository.GetCommentByIdAsync(replyDTO.ParentCommentId);
-            if (parent == null) return new ApiResponse("NotFound", _localizer["ParentCommentNotFound"].Value, null, false);
-
-            var reply = new Comment
-            {
-                Id = Guid.NewGuid().ToString(),
-                Content = replyDTO.Content,
-                UserId = userId,
-                CourseId = parent.CourseId,
-                ReplyId = parent.Id,
-                CreatedAt = DateTime.UtcNow,
-                Type = CommentType.Reply
-            };
-
-            await _courseRepository.AddCommentAsync(reply);
-            await _courseRepository.SaveChangesAsync();
-
-            return new ApiResponse("Created", _localizer["ReplyAdded"].Value, null, true);
         }
 
         public async Task<ApiResponse> MarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId)
@@ -599,36 +489,6 @@ namespace CourseService.Application.Services
         public async Task<ApiResponse> DeleteQAMessageAsync(string messageId, string userId)
         {
             return await _qaService.DeleteQAMessageAsync(messageId, userId);
-        }
-        #endregion
-
-        #region Wishlist Features (Future move)
-        public async Task<ApiResponse> AddToWishlistAsync(string courseId, string studentId)
-        {
-            var exists = await _courseRepository.GetWishlistItemAsync(studentId, courseId);
-            if (exists != null) return new ApiResponse("Conflict", _localizer["AlreadyInWishlist"].Value, null, false);
-            var wishlist = new Wishlist { Id = Guid.NewGuid().ToString(), StudentId = studentId, CourseId = courseId, AddedAt = DateTime.UtcNow };
-            await _courseRepository.AddToWishlistAsync(wishlist);
-            await _courseRepository.SaveChangesAsync();
-            return new ApiResponse("Created", _localizer["Success"].Value, null, true);
-        }
-
-        public async Task<ApiResponse> RemoveFromWishlistAsync(string courseId, string studentId)
-        {
-            var wishlist = await _courseRepository.GetWishlistItemAsync(studentId, courseId);
-            if (wishlist == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
-            await _courseRepository.RemoveFromWishlistAsync(wishlist);
-            await _courseRepository.SaveChangesAsync();
-            return new ApiResponse("Success", _localizer["Success"].Value, null, true);
-        }
-
-        public async Task<ApiResponse> GetStudentWishlistAsync(string studentId, int pageNumber, int pageSize)
-        {
-            var query = _courseRepository.GetWishlistQueryable().AsNoTracking().Where(w => w.StudentId == studentId);
-            var totalCount = await query.CountAsync();
-            var items = await query.Include(w => w.Course).ThenInclude(c => c.Instructor).OrderByDescending(w => w.AddedAt).Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync();
-            var result = items.Select(w => new CourseCardDTO { Id = w.Course.Id, Name = w.Course.Name, ImageUrl = w.Course.ImageUrl, InstructorName = w.Course.Instructor.FullName, Price = w.Course.Price }).ToList();
-            return new ApiResponse("Success", _localizer["Success"].Value, new PagedResult<CourseCardDTO> { Items = result, Page = pageNumber, PageSize = pageSize, TotalCount = totalCount }, true);
         }
         #endregion
 

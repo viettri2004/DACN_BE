@@ -10,7 +10,6 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> CreateCourseAsync(CreateCourseDTO createCourseDTO, string instructorId);
         Task<ApiResponse> UpdateCourseAsync(string courseId, UpdateCourseDTO updateCourseDTO, string instructorId);
         Task<ApiResponse> GetCourseDetailAsync(string courseId, string studentId);
-        Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId, CommentType type, int pageNumber, int pageSize, int? rating = null);
         Task<ApiResponse> GetRecommendedCoursesAsync(string? userId, int pageNumber, int pageSize);
         Task<ApiResponse> GetCoursesByStudentIdAsync(string studentId, int pageNumber, int pageSize);
         Task<ApiResponse> GetCourseContentAsync(string courseId, string userId);
@@ -21,19 +20,10 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> ApproveCourseRequestAsync(string requestId, ResponseRequestDTO responseRequestDTO);
         Task<ApiResponse> RejectCourseRequestAsync(string requestId, ResponseRequestDTO responseRequestDTO);
         Task<ApiResponse> GetAllCoursesForAdminAsync(int pageNumber, int pageSize);
-        Task<ApiResponse> AddCommentAsync(AddCommentDTO addCommentDTO, string userId);
-        Task<ApiResponse> UpdateCommentAsync(string commentId, UpdateCommentDTO updateCommentDTO, string userId);
-        Task<ApiResponse> DeleteCommentAsync(string commentId, string userId);
-        Task<ApiResponse> ReplyToCommentAsync(AddReplyCommentDTO replyDTO, string userId);
 
         Task<ApiResponse> MarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId);
         Task<ApiResponse> UnmarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId);
         Task<ApiResponse> GetContinueLearningCoursesAsync(string studentId);
-
-        // Wishlist
-        Task<ApiResponse> AddToWishlistAsync(string courseId, string studentId);
-        Task<ApiResponse> RemoveFromWishlistAsync(string courseId, string studentId);
-        Task<ApiResponse> GetStudentWishlistAsync(string studentId, int pageNumber, int pageSize);
 
         // Instructor Dashboard
         Task<ApiResponse> GetInstructorDashboardAsync(string instructorId);

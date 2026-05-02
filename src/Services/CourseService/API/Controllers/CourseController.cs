@@ -81,41 +81,6 @@ namespace CourseService.API.Controllers
             return response.ToActionResult();
         }
 
-        [HttpGet("course-comments/{courseId}")]
-        public async Task<ActionResult<ApiResponse>> GetComments([FromRoute] string courseId, [FromQuery] CommentType type, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, [FromQuery] int? rating = null)
-        {
-            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            var response = await _courseService.GetCourseCommentsAsync(courseId, userId, type, pageNumber, pageSize, rating);
-
-            return response.ToActionResult();
-        }
-
-        [Authorize]
-        [HttpPut("update-comment/{commentId}")]
-        public async Task<ActionResult<ApiResponse>> UpdateComment([FromRoute] string commentId, [FromBody] UpdateCommentDTO updateCommentDTO)
-        {
-            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
-            }
-            var response = await _courseService.UpdateCommentAsync(commentId, updateCommentDTO, userId);
-            return response.ToActionResult();
-        }
-
-        [Authorize]
-        [HttpDelete("delete-comment/{commentId}")]
-        public async Task<ActionResult<ApiResponse>> DeleteComment([FromRoute] string commentId)
-        {
-            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
-            }
-            var response = await _courseService.DeleteCommentAsync(commentId, userId);
-            return response.ToActionResult();
-        }
-
         [HttpGet("recommended-courses")]
         public async Task<ActionResult<ApiResponse>> GetRecommendedCourses([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
@@ -277,32 +242,6 @@ namespace CourseService.API.Controllers
         }
 
         [Authorize(Policy = "Student")]
-        [HttpPost("add-comment")]
-        public async Task<ActionResult<ApiResponse>> AddComment([FromBody] AddCommentDTO addCommentDTO)
-        {
-            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
-            }
-            var response = await _courseService.AddCommentAsync(addCommentDTO, userId);
-            return response.ToActionResult();
-        }
-
-        [Authorize(Policy = "Instructor")]
-        [HttpPost("reply-comment")]
-        public async Task<ActionResult<ApiResponse>> ReplyComment([FromBody] AddReplyCommentDTO replyDTO)
-        {
-            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
-            }
-            var response = await _courseService.ReplyToCommentAsync(replyDTO, userId);
-            return response.ToActionResult();
-        }
-
-        [Authorize(Policy = "Student")]
         [HttpPost("mark-completed")]
         public async Task<ActionResult<ApiResponse>> MarkItemCompleted([FromBody] MarkItemCompletedDTO dto)
         {
@@ -327,45 +266,6 @@ namespace CourseService.API.Controllers
             }
 
             var response = await _courseService.UnmarkItemCompletedAsync(dto, studentId);
-            return response.ToActionResult();
-        }
-
-        [Authorize(Policy = "Student")]
-        [HttpPost("wishlist/add/{courseId}")]
-        public async Task<ActionResult<ApiResponse>> AddToWishlist([FromRoute] string courseId)
-        {
-            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            if (string.IsNullOrEmpty(studentId))
-            {
-                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
-            }
-            var response = await _courseService.AddToWishlistAsync(courseId, studentId);
-            return response.ToActionResult();
-        }
-
-        [Authorize(Policy = "Student")]
-        [HttpDelete("wishlist/remove/{courseId}")]
-        public async Task<ActionResult<ApiResponse>> RemoveFromWishlist([FromRoute] string courseId)
-        {
-            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            if (string.IsNullOrEmpty(studentId))
-            {
-                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
-            }
-            var response = await _courseService.RemoveFromWishlistAsync(courseId, studentId);
-            return response.ToActionResult();
-        }
-
-        [Authorize(Policy = "Student")]
-        [HttpGet("wishlist")]
-        public async Task<ActionResult<ApiResponse>> GetMyWishlist([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
-        {
-            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
-            if (string.IsNullOrEmpty(studentId))
-            {
-                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
-            }
-            var response = await _courseService.GetStudentWishlistAsync(studentId, pageNumber, pageSize);
             return response.ToActionResult();
         }
 
