@@ -317,6 +317,8 @@ static void ConfigureAuthorization(IServiceCollection services)
 
 static void ConfigureMiddleware(WebApplication app)
 {
+    app.UseMiddleware<Shared.Application.Middlewares.GlobalExceptionMiddleware>();
+
     if (app.Environment.IsDevelopment() || Environment.GetEnvironmentVariable("ENABLE_SWAGGER") == "true")
     {
         app.UseSwagger();
