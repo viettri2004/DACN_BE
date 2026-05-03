@@ -34,6 +34,17 @@ namespace CourseService.Application.DTOs
         public List<CommentDTO> AllComments { get; set; } = new List<CommentDTO>();
     }
 
+    public class PagedCommentResultDTO : Shared.Domain.Entities.PagedResult<CommentDTO>
+    {
+        public double AverageRating { get; set; }
+        public int TotalRatingCount { get; set; }
+        public int Star5Count { get; set; }
+        public int Star4Count { get; set; }
+        public int Star3Count { get; set; }
+        public int Star2Count { get; set; }
+        public int Star1Count { get; set; }
+    }
+
     public class AddCommentDTO
     {
         public string CourseId { get; set; } = null!;

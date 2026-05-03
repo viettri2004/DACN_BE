@@ -730,4 +730,7 @@
   <data name="UnknownError" xml:space="preserve">
     <value>Unknown Error occurred.</value>
   </data>
-  </root>
+    <data name="ReIndexStarted" xml:space="preserve">
+    <value>The re-indexing process has started.</value>
+  </data>
+</root>

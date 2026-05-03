@@ -166,6 +166,11 @@ namespace CourseService.Infrastructure.Repositories
             await Task.CompletedTask;
         }
 
+        public IQueryable<StudentLectureProgress> GetProgressQueryable()
+        {
+            return _context.StudentLectureProgresses;
+        }
+
         public async Task<Wishlist?> GetWishlistItemAsync(string studentId, string courseId)
         {
             return await _context.Wishlists.FirstOrDefaultAsync(w => w.StudentId == studentId && w.CourseId == courseId);

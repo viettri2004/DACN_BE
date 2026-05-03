@@ -24,7 +24,7 @@ namespace AccountService.Application.Services
         private readonly IAccountRepository _accountRepository;
         private readonly IGoogleAuthService _googleAuthService;
         private readonly GoogleConfig _googleConfig;
-        private readonly INotificationRepository _notificationRepository;
+        private readonly INotificationService _notificationService;
 
         public AuthService(
             IAccountRepository accountRepository,
@@ -34,7 +34,7 @@ namespace AccountService.Application.Services
             IStringLocalizer<SharedResources> localizer,
             IGoogleAuthService googleAuthService,
             IOptions<GoogleConfig> googleConfig,
-            INotificationRepository notificationRepository)
+            INotificationService notificationService)
         {
             _accountRepository = accountRepository;
             _userManager = userManager;
@@ -43,7 +43,7 @@ namespace AccountService.Application.Services
             _localizer = localizer;
             _googleAuthService = googleAuthService;
             _googleConfig = googleConfig.Value;
-            _notificationRepository = notificationRepository;
+            _notificationService = notificationService;
         }
 
         public async Task<ApiResponse> Register(RegisterDTO RegisterDTO)
@@ -329,7 +329,7 @@ namespace AccountService.Application.Services
             var result = await _accountRepository.CreateInstructorRequestAsync(request);
             if (result)
             {
-                await _notificationRepository.CreateNotificationForRoleAsync(
+                await _notificationService.CreateNotificationForRoleAsync(
                     NotificationRole.Admin,
                     "New Instructor Request",
                     $"{user.FullName} has requested to become an instructor.",
@@ -407,7 +407,7 @@ namespace AccountService.Application.Services
                 Type = type,
                 CreatedAt = DateTime.UtcNow
             };
-            await _notificationRepository.CreateNotificationAsync(notification);
+            await _notificationService.CreateNotificationAsync(notification);
             
             return new ApiResponse("Success", dto.IsApproved ? _localizer["RequestApproved"].Value : _localizer["RequestRejected"].Value, null, true);
         }

@@ -108,12 +108,18 @@ static void ConfigureCache(IServiceCollection services, IConfiguration configura
         throw new InvalidOperationException("REDIS_CONNECTION environment variable is not set.");
     }
 
-    services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConnectionString));
+    var options = ConfigurationOptions.Parse(redisConnectionString);
+    options.AbortOnConnectFail = false; // Quan trọng: Không crash app nếu chưa thấy Redis ngay lập tức
+    options.ConnectTimeout = 10000;      // Tăng timeout lên 10s
+    options.ConnectRetry = 5;            // Thử lại 5 lần
 
-    services.AddStackExchangeRedisCache(options =>
+    var multiplexer = ConnectionMultiplexer.Connect(options);
+    services.AddSingleton<IConnectionMultiplexer>(multiplexer);
+
+    services.AddStackExchangeRedisCache(opt =>
     {
-        options.Configuration = redisConnectionString;
-        options.InstanceName = "Vietedu_APIcache:";
+        opt.ConfigurationOptions = options; // Dùng chung options đã cấu hình
+        opt.InstanceName = "Vietedu_APIcache:";
     });
 }
 
@@ -154,13 +160,21 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
     services.AddScoped<IQAThreadService, CourseService.Application.Services.QAThreadService>();
     services.AddScoped<IWishlistService, CourseService.Application.Services.WishlistService>();
     services.AddScoped<ICommentService, CourseService.Application.Services.CommentService>();
-    services.AddScoped<ILectureRepository, LectureRepository>();
+    services.AddScoped<IInstructorService, CourseService.Application.Services.InstructorService>();
+    services.AddScoped<IStudentProgressService, CourseService.Application.Services.StudentProgressService>();
+    services.AddScoped<LectureService.Application.Interfaces.ILectureService, LectureService.Application.Services.LectureService>();
+    services.AddScoped<LectureService.Application.Interfaces.ILectureRepository, LectureService.Infrastructure.Repositories.LectureRepository>();
+    services.AddScoped<LectureService.Application.Interfaces.IQuizService, LectureService.Application.Services.QuizService>();
+    services.AddScoped<LectureService.Application.Interfaces.IQuizRepository, LectureService.Infrastructure.Repositories.QuizRepository>();
     services.AddScoped<IQuizRepository, QuizRepository>();
     services.AddScoped<ICartRepository, CartRepository>();
     services.AddScoped<ITagRepository, TagRepository>();
     services.AddScoped<ITokenService, TokenService>();
     services.AddScoped<IAccountRepository, AccountRepository>();
-    services.AddScoped<DashboardRepository>();
+    services.AddScoped<AccountService.Application.Interfaces.IUserService, AccountService.Application.Services.UserService>();
+    services.AddScoped<AccountService.Application.Interfaces.IDashboardService, AccountService.Application.Services.DashboardService>();
+    services.AddScoped<AccountService.Application.Interfaces.INotificationService, AccountService.Application.Services.NotificationService>();
+    services.AddScoped<IDashboardRepository, DashboardRepository>();
     services.AddScoped<IDashboardRepository>(provider =>
         new CachedDashboardRepository(provider.GetRequiredService<DashboardRepository>(), provider.GetRequiredService<IDistributedCache>()));
     services.AddScoped<IAuthService, AuthService>();
@@ -178,11 +192,22 @@ static void ConfigureHangfire(IServiceCollection services, IConfiguration config
         throw new InvalidOperationException("REDIS_CONNECTION environment variable is not set.");
     }
 
+    // Thiết lập options chuẩn cho Redis
+    var options = ConfigurationOptions.Parse(redisConnectionString);
+    options.AbortOnConnectFail = false; 
+    options.ConnectTimeout = 10000;
+    options.SyncTimeout = 10000;
+
     services.AddHangfire(config => config
         .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
         .UseSimpleAssemblyNameTypeSerializer()
         .UseRecommendedSerializerSettings()
-        .UseRedisStorage(redisConnectionString));
+        // Sử dụng options.ToString() để đảm bảo chuỗi kết nối luôn chuẩn (bao gồm cả abortConnect=false)
+        .UseRedisStorage(options.ToString(), new RedisStorageOptions
+        {
+            Prefix = "hangfire:",
+            InvisibilityTimeout = TimeSpan.FromMinutes(5)
+        }));
 
     services.AddHangfireServer(options =>
     {

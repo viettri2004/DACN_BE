@@ -11,18 +11,18 @@ namespace AccountService.API.Controllers
     [Route("api/[controller]")]
     public class DashboardController : ControllerBase
     {
-        private readonly IDashboardRepository _dashboardRepository;
+        private readonly IDashboardService _dashboardService;
 
-        public DashboardController(IDashboardRepository dashboardRepository)
+        public DashboardController(IDashboardService dashboardService)
         {
-            _dashboardRepository = dashboardRepository;
+            _dashboardService = dashboardService;
         }
 
         [Authorize(Policy = "Admin")]
         [HttpGet("stats")]
         public async Task<ActionResult<ApiResponse>> GetDashboardStats()
         {
-            var response = await _dashboardRepository.GetDashboardDataAsync();
+            var response = await _dashboardService.GetDashboardDataAsync();
             return response.ToActionResult();
         }
     }

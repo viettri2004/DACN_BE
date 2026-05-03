@@ -39,6 +39,19 @@ namespace CourseService.Application.Services
 
         public async Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId, CommentType type, int pageNumber, int pageSize, int? rating = null)
         {
+            var ratingQuery = _commentRepository.GetCommentsQueryable()
+                .AsNoTracking()
+                .Where(c => c.CourseId == courseId && c.Type == type && c.ReplyId == null);
+
+            var ratingsList = await ratingQuery.Select(c => c.Rate).ToListAsync();
+            var totalRatings = ratingsList.Count;
+            var averageRating = totalRatings > 0 ? Math.Round(ratingsList.Average(), 1) : 0.0;
+            var star5Count = ratingsList.Count(r => r == 5);
+            var star4Count = ratingsList.Count(r => r == 4);
+            var star3Count = ratingsList.Count(r => r == 3);
+            var star2Count = ratingsList.Count(r => r == 2);
+            var star1Count = ratingsList.Count(r => r == 1);
+
             var query = _commentRepository.GetCommentsQueryable()
                 .AsNoTracking()
                 .Include(c => c.User)
@@ -70,7 +83,20 @@ namespace CourseService.Application.Services
                     }).ToList()
                 }).ToListAsync();
 
-            var pagedResult = new PagedResult<CommentDTO> { Items = comments, Page = pageNumber, PageSize = pageSize, TotalCount = totalCount };
+            var pagedResult = new PagedCommentResultDTO 
+            { 
+                Items = comments, 
+                Page = pageNumber, 
+                PageSize = pageSize, 
+                TotalCount = totalCount,
+                AverageRating = averageRating,
+                TotalRatingCount = totalRatings,
+                Star5Count = star5Count,
+                Star4Count = star4Count,
+                Star3Count = star3Count,
+                Star2Count = star2Count,
+                Star1Count = star1Count
+            };
             return new ApiResponse("Success", _localizer["Success"].Value, pagedResult, true);
         }
 
@@ -100,7 +126,7 @@ namespace CourseService.Application.Services
             {
                 var course = await _courseRepository.GetByIdAsync(addCommentDTO.CourseId);
                 if (course != null)
-                    _backgroundJobClient.Enqueue(() => _luceneSearchService.IndexCourseAsync(course));
+                    _backgroundJobClient.Enqueue(() => _luceneSearchService.IndexCourseAsync(course.Id));
             }
 
             return new ApiResponse("Created", _localizer["Success"].Value, comment.Id, true);

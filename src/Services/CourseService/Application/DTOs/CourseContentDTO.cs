@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Entities;
 
@@ -14,6 +15,11 @@ namespace CourseService.Application.DTOs
         public int TotalLessons { get; set; }
         public int CompletedLessons { get; set; }
         public double TotalStudyTime { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public string? ImageUrl { get; set; }
+        public string? Status { get; set; }
+        public int TotalStudents { get; set; }
+        public double Rating { get; set; }
         public IEnumerable<LectureContentDTO> Lectures { get; set; } = new List<LectureContentDTO>();
     }
 
@@ -40,6 +46,7 @@ namespace CourseService.Application.DTOs
     {
         public string Id { get; set; } = null!;
         public string Name { get; set; } = null!;
+        public string? Url { get; set; }
         public bool IsCompleted { get; set; }
     }
     public class QuizContentDTO

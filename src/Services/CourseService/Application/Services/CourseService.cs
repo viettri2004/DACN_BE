@@ -23,7 +23,6 @@ namespace CourseService.Application.Services
     public class CourseService : ICourseService
     {
         private readonly ICourseRepository _courseRepository;
-        private readonly IQAThreadService _qaService;
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly ILuceneSearchService _luceneSearchService;
         private readonly INotificationRepository _notificationRepository;
@@ -31,7 +30,6 @@ namespace CourseService.Application.Services
         private readonly IDistributedCache _cache;
 
         public CourseService(ICourseRepository courseRepository,
-                            IQAThreadService qaService,
                             IStringLocalizer<SharedResources> localizer,
                             ILuceneSearchService luceneSearchService,
                             INotificationRepository notificationRepository,
@@ -39,7 +37,6 @@ namespace CourseService.Application.Services
                             IDistributedCache cache)
         {
             _courseRepository = courseRepository;
-            _qaService = qaService;
             _localizer = localizer;
             _luceneSearchService = luceneSearchService;
             _notificationRepository = notificationRepository;
@@ -80,7 +77,7 @@ namespace CourseService.Application.Services
                 await _courseRepository.SaveChangesAsync();
                 await RemoveRecommendedCache();
 
-                _backgroundJobClient.Enqueue(() => _luceneSearchService.IndexCourseAsync(newCourse));
+                _backgroundJobClient.Enqueue(() => _luceneSearchService.IndexCourseAsync(newCourse.Id));
 
                 return new ApiResponse("Created", _localizer["CreateCourseSuccess"].Value, new InstructorCourseListDTO
                 {
@@ -127,7 +124,7 @@ namespace CourseService.Application.Services
                 await _courseRepository.UpdateAsync(course);
                 await _courseRepository.SaveChangesAsync();
                 await RemoveRecommendedCache();
-                _backgroundJobClient.Enqueue(() => _luceneSearchService.IndexCourseAsync(course));
+                _backgroundJobClient.Enqueue(() => _luceneSearchService.IndexCourseAsync(course.Id));
 
                 return new ApiResponse("Success", _localizer["UpdateCourseSuccess"].Value, null, true);
             }
@@ -246,7 +243,7 @@ namespace CourseService.Application.Services
             var courses = await query
                 .OrderByDescending(c => c.Enrollments.Count)
                 .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
+                .Take(pageSize == 10 ? 3 : pageSize)
                 .Select(c => new CourseListDTO
                 {
                     Id = c.Id,
@@ -281,35 +278,117 @@ namespace CourseService.Application.Services
         {
             var query = _courseRepository.GetEnrollmentsQueryable()
                 .AsNoTracking()
-                .Include(e => e.Course).ThenInclude(c => c.Instructor)
-                .Include(e => e.Course).ThenInclude(c => c.Lectures)
                 .Where(e => e.StudentId == studentId && e.Status == true);
 
             var totalCount = await query.CountAsync();
-            var enrollments = await query
+
+            // Optimizing: Fetch all progress for this student once
+            var allProgress = await _courseRepository.GetProgressQueryable()
+                .AsNoTracking()
+                .Where(p => p.StudentId == studentId && p.IsCompleted == true)
+                .GroupBy(p => p.CourseId)
+                .Select(g => new { CourseId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.CourseId, x => x.Count);
+
+            // Fetch ALL active enrollments with required details for overall stats
+            var allEnrollments = await query
+                .Include(e => e.Course).ThenInclude(c => c.Instructor)
+                .Include(e => e.Course).ThenInclude(c => c.Lectures).ThenInclude(l => l.LectureVideos)
+                .Include(e => e.Course).ThenInclude(c => c.Lectures).ThenInclude(l => l.Documents)
+                .Include(e => e.Course).ThenInclude(c => c.Lectures).ThenInclude(l => l.Quizzes)
+                .ToListAsync();
+
+            int completedCourses = 0;
+            double totalStudyTime = 0.0;
+            double totalProgress = 0.0;
+
+            foreach (var e in allEnrollments)
+            {
+                var tl = e.Course.Lectures.Sum(l => 
+                    (l.LectureVideos?.Count ?? 0) + (l.Documents?.Count ?? 0) + (l.Quizzes?.Count ?? 0));
+
+                allProgress.TryGetValue(e.CourseId, out int cl);
+
+                var p = tl > 0 ? (int)Math.Round((double)cl / tl * 100) : 0;
+                if (p == 100) completedCourses++;
+
+                var totalDuration = e.Course.Lectures.SelectMany(l => l.LectureVideos).Sum(v => v.Duration);
+                var hours = Math.Round(totalDuration / 3600.0, 1);
+                totalStudyTime += hours * (p / 100.0);
+                totalProgress += p;
+            }
+
+            double averageProgress = totalCount > 0 ? Math.Round(totalProgress / totalCount, 1) : 0;
+
+            // Paging for current view
+            var enrollments = allEnrollments
                 .OrderByDescending(e => e.EnrolledAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .ToListAsync();
+                .ToList();
 
-            var courseList = new List<MyCourseDTO>();
-            foreach (var e in enrollments)
+            var courseIds = enrollments.Select(e => e.CourseId).ToList();
+
+            // Batch fetch stats for courses in the current page
+            var courseStats = await _courseRepository.GetEnrollmentsQueryable()
+                .AsNoTracking()
+                .Where(en => courseIds.Contains(en.CourseId) && en.Status == true)
+                .GroupBy(en => en.CourseId)
+                .Select(g => new {
+                    CourseId = g.Key,
+                    TotalStudents = g.Count(),
+                    Rating = g.SelectMany(en => en.Comments).Where(cm => cm.Type == CommentType.Review).Any() 
+                             ? g.SelectMany(en => en.Comments).Where(cm => cm.Type == CommentType.Review).Average(cm => (double)cm.Rate) 
+                             : 0
+                })
+                .ToDictionaryAsync(x => x.CourseId);
+
+            var courseList = enrollments.Select(e => 
             {
-                var totalLessons = e.Course.Lectures.Sum(l => (l.LectureVideos?.Count ?? 0) + (l.Documents?.Count ?? 0) + (l.Quizzes?.Count ?? 0));
-                courseList.Add(new MyCourseDTO
+                var totalLessons = e.Course.Lectures.Sum(l => 
+                    (l.LectureVideos?.Count ?? 0) + (l.Documents?.Count ?? 0) + (l.Quizzes?.Count ?? 0));
+
+                allProgress.TryGetValue(e.CourseId, out int completedLessons);
+                var progress = totalLessons > 0 ? (int)Math.Round((double)completedLessons / totalLessons * 100) : 0;
+
+                courseStats.TryGetValue(e.CourseId, out var stats);
+
+                var totalDuration = e.Course.Lectures.SelectMany(l => l.LectureVideos).Sum(v => v.Duration);
+                var totalHours = Math.Round(totalDuration / 3600.0, 1);
+
+                return new MyCourseDTO
                 {
                     Id = e.Course.Id,
                     Name = e.Course.Name,
                     ImageUrl = e.Course.ImageUrl,
                     InstructorName = e.Course.Instructor.FullName,
                     EnrolledAt = e.EnrolledAt,
-                    Progress = 0,
+                    Progress = progress,
                     TotalLessons = totalLessons,
-                    CompletedLessons = 0
-                });
-            }
+                    CompletedLessons = completedLessons,
+                    LastVisit = e.LastVisit,
+                    Status = e.Course.Status.ToString(),
+                    Price = e.Course.Price,
+                    TotalHours = totalHours,
+                    Rating = stats?.Rating ?? 0,
+                    TotalStudents = stats?.TotalStudents ?? 0
+                };
+            }).ToList();
 
-            return new ApiResponse("Success", _localizer["Success"].Value, new PagedResult<MyCourseDTO> { Items = courseList, Page = pageNumber, PageSize = pageSize, TotalCount = totalCount }, true);
+            var result = new {
+                Items = courseList,
+                Page = pageNumber,
+                PageSize = pageSize,
+                TotalCount = totalCount,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                HasNextPage = pageNumber < (int)Math.Ceiling(totalCount / (double)pageSize),
+                HasPreviousPage = pageNumber > 1,
+                CompletedCourses = completedCourses,
+                TotalStudyTime = Math.Round(totalStudyTime, 1),
+                AverageProgress = (int)Math.Round(averageProgress)
+            };
+
+            return new ApiResponse("Success", _localizer["Success"].Value, result, true);
         }
 
         public async Task<ApiResponse> GetCourseContentAsync(string courseId, string userId)
@@ -322,75 +401,177 @@ namespace CourseService.Application.Services
 
             var fullCourse = await _courseRepository.GetQueryable()
                 .AsNoTracking()
+                .Include(c => c.CourseTags).ThenInclude(ct => ct.Tag)
                 .Include(c => c.Lectures.OrderBy(l => l.DisplayOrder))
                     .ThenInclude(l => l.LectureVideos.OrderBy(v => v.DisplayOrder))
                 .Include(c => c.Lectures).ThenInclude(l => l.Documents)
                 .Include(c => c.Lectures).ThenInclude(l => l.Quizzes)
                 .FirstOrDefaultAsync(c => c.Id == courseId);
 
+            if (fullCourse == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+
+            var progressList = await _courseRepository.GetProgressQueryable()
+                .AsNoTracking()
+                .Where(p => p.StudentId == userId && p.CourseId == courseId)
+                .ToListAsync();
+
+            var completedItemIds = progressList.Where(p => p.IsCompleted == true).Select(p => p.ItemId).ToHashSet();
+
+            var tags = fullCourse.CourseTags != null ? fullCourse.CourseTags.Select(ct => ct.Tag.Name).ToList() : new List<string>();
+            var totalSections = fullCourse.Lectures.Count;
+            var totalLessons = fullCourse.Lectures.Sum(l => 
+                (l.LectureVideos?.Count ?? 0) + (l.Documents?.Count ?? 0) + (l.Quizzes?.Count ?? 0));
+
+            var completedLessons = 0;
+            foreach (var l in fullCourse.Lectures)
+            {
+                completedLessons += (l.LectureVideos?.Count(v => completedItemIds.Contains(v.Id)) ?? 0);
+                completedLessons += (l.Documents?.Count(d => completedItemIds.Contains(d.Id)) ?? 0);
+                completedLessons += (l.Quizzes?.Count(q => completedItemIds.Contains(q.Id)) ?? 0);
+            }
+
+            var progress = totalLessons > 0 ? (int)Math.Round((double)completedLessons / totalLessons * 100) : 0;
+            var totalDuration = fullCourse.Lectures.SelectMany(l => l.LectureVideos).Sum(v => v.Duration);
+            var totalHours = Math.Round(totalDuration / 3600.0, 1);
+            var totalStudyTime = Math.Round(totalHours * (progress / 100.0), 1);
+
             var response = new CourseContentDTO
             {
                 Id = fullCourse.Id,
                 Name = fullCourse.Name,
-                Lectures = fullCourse.Lectures.Select(l => new LectureContentDTO
+                Tags = tags,
+                Progress = progress,
+                TotalSections = totalSections,
+                TotalHours = totalHours,
+                TotalLessons = totalLessons,
+                CompletedLessons = completedLessons,
+                TotalStudyTime = totalStudyTime,
+                UpdatedAt = fullCourse.UpdatedAt,
+                Lectures = fullCourse.Lectures.Select(l => 
                 {
-                    Id = l.Id,
-                    Name = l.Name,
-                    Videos = l.LectureVideos.Select(v => new VideoContentDTO { Id = v.Id, Name = v.Name, Duration = v.Duration, DisplayOrder = v.DisplayOrder }).ToList(),
-                    Documents = l.Documents.Select(d => new DocumentContentDTO { Id = d.Id, Name = d.Name }).ToList(),
-                    Quizzes = l.Quizzes.Select(q => new QuizContentDTO { Id = q.Id, Name = q.Name }).ToList()
+                    var isLectureCompleted = ((l.LectureVideos?.Count ?? 0) + (l.Documents?.Count ?? 0) + (l.Quizzes?.Count ?? 0)) > 0 
+                        && (l.LectureVideos?.All(v => completedItemIds.Contains(v.Id)) ?? true)
+                        && (l.Documents?.All(d => completedItemIds.Contains(d.Id)) ?? true)
+                        && (l.Quizzes?.All(q => completedItemIds.Contains(q.Id)) ?? true);
+
+                    return new LectureContentDTO
+                    {
+                        Id = l.Id,
+                        Name = l.Name,
+                        Description = l.Description ?? string.Empty,
+                        DisplayOrder = l.DisplayOrder,
+                        IsCompleted = isLectureCompleted,
+                        Videos = l.LectureVideos.Select(v => new VideoContentDTO 
+                        { 
+                            Id = v.Id, 
+                            Name = v.Name, 
+                            Duration = v.Duration, 
+                            DisplayOrder = v.DisplayOrder, 
+                            IsCompleted = completedItemIds.Contains(v.Id) 
+                        }).ToList(),
+                        Documents = l.Documents.Select(d => new DocumentContentDTO 
+                        { 
+                            Id = d.Id, 
+                            Name = d.Name, 
+                            Url = d.Url,
+                            IsCompleted = completedItemIds.Contains(d.Id) 
+                        }).ToList(),
+                        Quizzes = l.Quizzes.Select(q => new QuizContentDTO 
+                        { 
+                            Id = q.Id, 
+                            Name = q.Name, 
+                            IsCompleted = completedItemIds.Contains(q.Id) 
+                        }).ToList()
+                    };
                 }).ToList()
             };
 
             return new ApiResponse("Success", _localizer["Success"].Value, response, true);
         }
 
-        public async Task<ApiResponse> MarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId)
-        {
-            var progress = await _courseRepository.GetProgressAsync(studentId, dto.LectureId, dto.ItemId, dto.ItemType);
-            if (progress == null)
-            {
-                progress = new StudentLectureProgress { Id = Guid.NewGuid().ToString(), StudentId = studentId, LectureId = dto.LectureId, CourseId = dto.CourseId, ItemId = dto.ItemId, ItemType = dto.ItemType, IsCompleted = true };
-                await _courseRepository.AddProgressAsync(progress);
-            }
-            else
-            {
-                progress.IsCompleted = true;
-                await _courseRepository.UpdateProgressAsync(progress);
-            }
-            await _courseRepository.SaveChangesAsync();
-            return new ApiResponse("Success", _localizer["Success"].Value, null, true);
-        }
-
-        public async Task<ApiResponse> UnmarkItemCompletedAsync(MarkItemCompletedDTO dto, string studentId)
-        {
-            var progress = await _courseRepository.GetProgressAsync(studentId, dto.LectureId, dto.ItemId, dto.ItemType);
-            if (progress != null)
-            {
-                progress.IsCompleted = false;
-                await _courseRepository.UpdateProgressAsync(progress);
-                await _courseRepository.SaveChangesAsync();
-            }
-            return new ApiResponse("Success", _localizer["Success"].Value, null, true);
-        }
-
-        public async Task<ApiResponse> GetContinueLearningCoursesAsync(string studentId)
-        {
-            var enrollments = await _courseRepository.GetEnrollmentsQueryable()
-                .AsNoTracking()
-                .Include(e => e.Course).ThenInclude(c => c.Instructor)
-                .Where(e => e.StudentId == studentId && e.Status == true)
-                .OrderByDescending(e => e.LastVisit)
-                .Take(5)
-                .ToListAsync();
-
-            var result = enrollments.Select(e => new MyCourseDTO { Id = e.Course.Id, Name = e.Course.Name, ImageUrl = e.Course.ImageUrl, InstructorName = e.Course.Instructor.FullName }).ToList();
-            return new ApiResponse("Success", _localizer["Success"].Value, result, true);
-        }
-
         #endregion
 
         #region Instructor Features
+        public async Task<ApiResponse> GetInstructorCourseContentAsync(string courseId, string instructorId)
+        {
+            var course = await _courseRepository.GetByIdAsync(courseId);
+            if (course == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+            if (course.InstructorId != instructorId) return new ApiResponse("Forbidden", _localizer["Forbidden"].Value, null, false);
+
+            var fullCourse = await _courseRepository.GetQueryable()
+                .AsNoTracking()
+                .Include(c => c.CourseTags).ThenInclude(ct => ct.Tag)
+                .Include(c => c.Enrollments).ThenInclude(e => e.Comments)
+                .Include(c => c.Lectures.OrderBy(l => l.DisplayOrder))
+                    .ThenInclude(l => l.LectureVideos.OrderBy(v => v.DisplayOrder))
+                .Include(c => c.Lectures).ThenInclude(l => l.Documents)
+                .Include(c => c.Lectures).ThenInclude(l => l.Quizzes)
+                .FirstOrDefaultAsync(c => c.Id == courseId);
+
+            if (fullCourse == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+
+            var totalStudents = fullCourse.Enrollments?.Count ?? 0;
+            var ratings = fullCourse.Enrollments?.SelectMany(e => e.Comments).Where(cm => cm.Type == CommentType.Review).ToList();
+            var rating = ratings != null && ratings.Any() ? ratings.Average(cm => cm.Rate) : 0;
+
+            var tags = fullCourse.CourseTags != null ? fullCourse.CourseTags.Select(ct => ct.Tag.Name).ToList() : new List<string>();
+            var totalSections = fullCourse.Lectures.Count;
+            var totalLessons = fullCourse.Lectures.Sum(l => 
+                (l.LectureVideos?.Count ?? 0) + (l.Documents?.Count ?? 0) + (l.Quizzes?.Count ?? 0));
+
+            var totalDuration = fullCourse.Lectures.SelectMany(l => l.LectureVideos).Sum(v => v.Duration);
+            var totalHours = Math.Round(totalDuration / 3600.0, 1);
+
+            var response = new CourseContentDTO
+            {
+                Id = fullCourse.Id,
+                Name = fullCourse.Name,
+                Tags = tags,
+                Progress = 0,
+                TotalSections = totalSections,
+                TotalHours = totalHours,
+                TotalLessons = totalLessons,
+                CompletedLessons = 0,
+                TotalStudyTime = 0,
+                UpdatedAt = fullCourse.UpdatedAt,
+                ImageUrl = fullCourse.ImageUrl,
+                Status = fullCourse.Status.ToString(),
+                TotalStudents = totalStudents,
+                Rating = Math.Round(rating, 1),
+                Lectures = fullCourse.Lectures.Select(l => new LectureContentDTO
+                {
+                    Id = l.Id,
+                    Name = l.Name,
+                    Description = l.Description ?? string.Empty,
+                    DisplayOrder = l.DisplayOrder,
+                    IsCompleted = false,
+                    Videos = l.LectureVideos.Select(v => new VideoContentDTO 
+                    { 
+                        Id = v.Id, 
+                        Name = v.Name, 
+                        Duration = v.Duration, 
+                        DisplayOrder = v.DisplayOrder, 
+                        IsCompleted = false
+                    }).ToList(),
+                    Documents = l.Documents.Select(d => new DocumentContentDTO 
+                    { 
+                        Id = d.Id, 
+                        Name = d.Name, 
+                        Url = d.Url,
+                        IsCompleted = false
+                    }).ToList(),
+                    Quizzes = l.Quizzes.Select(q => new QuizContentDTO 
+                    { 
+                        Id = q.Id, 
+                        Name = q.Name, 
+                        IsCompleted = false
+                    }).ToList()
+                }).ToList()
+            };
+
+            return new ApiResponse("Success", _localizer["Success"].Value, response, true);
+        }
+
         public async Task<ApiResponse> GetCoursesByInstructorAsync(string instructorId, int pageNumber, int pageSize)
         {
             var query = _courseRepository.GetQueryable()
@@ -413,82 +594,6 @@ namespace CourseService.Application.Services
             }).ToList();
 
             return new ApiResponse("Success", _localizer["Success"].Value, new PagedResult<InstructorCourseListDTO> { Items = result, Page = pageNumber, PageSize = pageSize, TotalCount = totalCount }, true);
-        }
-
-        public async Task<ApiResponse> GetInstructorDashboardAsync(string instructorId)
-        {
-            var courses = await _courseRepository.GetQueryable()
-                .AsNoTracking()
-                .Where(c => c.InstructorId == instructorId)
-                .Include(c => c.Enrollments).ThenInclude(e => e.Comments)
-                .ToListAsync();
-
-            var totalStudents = courses.Sum(c => c.Enrollments.Count);
-            var totalRevenue = (long)courses.Sum(c => c.Price * c.Enrollments.Count);
-            var ratings = courses.SelectMany(c => c.Enrollments.SelectMany(e => e.Comments)).Where(cm => cm.Type == CommentType.Review).ToList();
-            var avgRating = ratings.Any() ? ratings.Average(cm => cm.Rate) : 0;
-
-            var dashboard = new InstructorDashboardDTO
-            {
-                TotalStudents = totalStudents,
-                TotalRevenue = totalRevenue,
-                AverageRating = Math.Round(avgRating, 1),
-                TotalCourses = courses.Count
-            };
-
-            return new ApiResponse("Success", _localizer["Success"].Value, dashboard, true);
-        }
-
-        public async Task<ApiResponse> GetInstructorActivitiesAsync(string instructorId, int page, int pageSize)
-        {
-            return new ApiResponse("Success", _localizer["Success"].Value, new PagedResult<RecentActivityDTO> { Items = new List<RecentActivityDTO>(), Page = page, PageSize = pageSize, TotalCount = 0 }, true);
-        }
-
-        public async Task<ApiResponse> GetInstructorUnreadThreadsAsync(string instructorId)
-        {
-            return new ApiResponse("Success", _localizer["Success"].Value, new List<UnreadThreadCourseDTO>(), true);
-        }
-        #endregion
-
-        #region QA Delegation
-        public async Task<ApiResponse> GetCourseQAThreadsAsync(string courseId, string userId, int pageNumber, int pageSize, string filter = "all")
-        {
-            return await _qaService.GetCourseQAThreadsAsync(courseId, userId, pageNumber, pageSize, filter);
-        }
-
-        public async Task<ApiResponse> GetThreadMessagesAsync(string threadId, string userId, int pageNumber, int pageSize)
-        {
-            return await _qaService.GetThreadMessagesAsync(threadId, userId, pageNumber, pageSize);
-        }
-
-        public async Task<ApiResponse> CreateQAThreadAsync(CreateThreadDTO createThreadDTO, string userId)
-        {
-            return await _qaService.CreateQAThreadAsync(createThreadDTO, userId);
-        }
-
-        public async Task<ApiResponse> AddMessageToThreadAsync(AddMessageDTO addMessageDTO, string userId)
-        {
-            return await _qaService.AddMessageToThreadAsync(addMessageDTO, userId);
-        }
-
-        public async Task<ApiResponse> UpdateQAThreadAsync(string threadId, UpdateThreadDTO updateThreadDTO, string userId)
-        {
-            return await _qaService.UpdateQAThreadAsync(threadId, updateThreadDTO, userId);
-        }
-
-        public async Task<ApiResponse> UpdateQAMessageAsync(string messageId, UpdateMessageDTO updateMessageDTO, string userId)
-        {
-            return await _qaService.UpdateQAMessageAsync(messageId, updateMessageDTO, userId);
-        }
-
-        public async Task<ApiResponse> DeleteQAThreadAsync(string threadId, string userId)
-        {
-            return await _qaService.DeleteQAThreadAsync(threadId, userId);
-        }
-
-        public async Task<ApiResponse> DeleteQAMessageAsync(string messageId, string userId)
-        {
-            return await _qaService.DeleteQAMessageAsync(messageId, userId);
         }
         #endregion
 
@@ -519,7 +624,7 @@ namespace CourseService.Application.Services
             request.Status = RequestStatus.Approved;
             request.Course.Status = CourseStatus.Public;
             await _courseRepository.SaveChangesAsync();
-            _backgroundJobClient.Enqueue(() => _luceneSearchService.IndexCourseAsync(request.Course));
+            _backgroundJobClient.Enqueue(() => _luceneSearchService.IndexCourseAsync(request.Course.Id));
             return new ApiResponse("Success", _localizer["Success"].Value, null, true);
         }
 

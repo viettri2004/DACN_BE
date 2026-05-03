@@ -46,6 +46,7 @@ namespace CourseService.Application.Interfaces
         Task<StudentLectureProgress?> GetProgressAsync(string studentId, string lectureId, string itemId, string itemType);
         Task AddProgressAsync(StudentLectureProgress progress);
         Task UpdateProgressAsync(StudentLectureProgress progress);
+        IQueryable<StudentLectureProgress> GetProgressQueryable();
 
         // Wishlist
         Task<Wishlist?> GetWishlistItemAsync(string studentId, string courseId);

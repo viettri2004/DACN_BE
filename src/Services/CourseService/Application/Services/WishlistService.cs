@@ -5,23 +5,27 @@ using System.Threading.Tasks;
 using CourseService.Application.DTOs;
 using CourseService.Application.Interfaces;
 using CourseService.Domain.Entities;
+using CourseService.Domain.Enums;
 using Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 using Shared.Domain.Entities;
 using src.Shared.Domain.Entities;
 using src.Shared.Resources;
+using CartService.Application.Interfaces;
 
 namespace CourseService.Application.Services
 {
     public class WishlistService : IWishlistService
     {
         private readonly IWishlistRepository _wishlistRepository;
+        private readonly ICartRepository _cartRepository;
         private readonly IStringLocalizer<SharedResources> _localizer;
 
-        public WishlistService(IWishlistRepository wishlistRepository, IStringLocalizer<SharedResources> localizer)
+        public WishlistService(IWishlistRepository wishlistRepository, ICartRepository cartRepository, IStringLocalizer<SharedResources> localizer)
         {
             _wishlistRepository = wishlistRepository;
+            _cartRepository = cartRepository;
             _localizer = localizer;
         }
 
@@ -41,6 +45,9 @@ namespace CourseService.Application.Services
 
             await _wishlistRepository.AddAsync(wishlist);
             await _wishlistRepository.SaveChangesAsync();
+
+            // When adding to wishlist, remove from cart
+            await _cartRepository.RemoveFromCartAsync(courseId, studentId);
 
             return new ApiResponse("Created", _localizer["Success"].Value, null, true);
         }
@@ -64,22 +71,38 @@ namespace CourseService.Application.Services
                 .Where(w => w.StudentId == studentId);
 
             var totalCount = await query.CountAsync();
-            var items = await query
-                .Include(w => w.Course)
-                    .ThenInclude(c => c.Instructor)
+            var result = await query
                 .OrderByDescending(w => w.AddedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
+                .Select(w => new CourseCardDTO
+                {
+                    Id = w.Course.Id,
+                    Name = w.Course.Name,
+                    Description = w.Course.Description,
+                    ImageUrl = w.Course.ImageUrl,
+                    InstructorName = w.Course.Instructor.FullName,
+                    AverageRating = w.Course.Enrollments
+                        .SelectMany(e => e.Comments)
+                        .Where(cm => cm.Type == CommentType.Review)
+                        .Average(cm => (double?)cm.Rate) ?? 0,
+                    TotalReviews = w.Course.Enrollments
+                        .SelectMany(e => e.Comments)
+                        .Count(cm => cm.Type == CommentType.Review),
+                    TotalStudents = w.Course.Enrollments.Count,
+                    Price = w.Course.Price,
+                    OriginalPrice = w.Course.Price * 1.2m,
+                    TotalHours = (int)Math.Ceiling(w.Course.Lectures.SelectMany(l => l.LectureVideos).Sum(v => v.Duration) / 3600.0),
+                    IsBestseller = w.Course.Enrollments.Count > 50,
+                    LastUpdate = w.Course.UpdatedAt
+                })
                 .ToListAsync();
 
-            var result = items.Select(w => new CourseCardDTO
+            // Round ratings in memory for cleaner response
+            foreach (var item in result)
             {
-                Id = w.Course.Id,
-                Name = w.Course.Name,
-                ImageUrl = w.Course.ImageUrl,
-                InstructorName = w.Course.Instructor.FullName,
-                Price = w.Course.Price
-            }).ToList();
+                item.AverageRating = Math.Round(item.AverageRating, 1);
+            }
 
             return new ApiResponse("Success", _localizer["Success"].Value, new PagedResult<CourseCardDTO> 
             { 

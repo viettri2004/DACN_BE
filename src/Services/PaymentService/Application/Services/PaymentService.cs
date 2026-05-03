@@ -594,13 +594,18 @@ namespace PaymentService.Application.Services
 
                 foreach (var order in orders)
                 {
-                    string courseName = order.OrderItems.FirstOrDefault()?.Course?.Name ?? "Nạp tiền ví/Unknown";
+                    var items = order.OrderItems.ToList();
+                    var courseNames = items
+                        .Select(oi => oi.Course?.Name ?? "Unknown Course")
+                        .ToList();
+
                     string transactionId = order.PaymentTransactions.FirstOrDefault()?.GatewayTransactionId ?? order.Id;
                     
                     history.Add(new PaymentHistoryDto
                     {
                         Id = order.Id,
-                        Course = order.PaymentMethod != null && order.PaymentMethod.StartsWith("GiftCode") ? "Mã Khuyến Mãi" : courseName,
+                        Courses = courseNames,
+                        CourseCount = courseNames.Count,
                         Amount = order.TotalAmount,
                         Currency = "VND",
                         Date = order.CreatedAt,

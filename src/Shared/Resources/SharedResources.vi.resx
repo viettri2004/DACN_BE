@@ -730,4 +730,7 @@
   <data name="UnknownError" xml:space="preserve">
     <value>Đã xảy ra lỗi không xác định.</value>
   </data>
+  <data name="ReIndexStarted" xml:space="preserve">
+    <value>Quá trình tạo lại chỉ mục đã được bắt đầu.</value>
+  </data>
 </root>

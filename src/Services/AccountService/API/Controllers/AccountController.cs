@@ -23,21 +23,21 @@ namespace src.Services.AccountService.API.Controllers
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly IEmailService _emailService;
         private readonly IOtpService _otpService;
-        private readonly IAccountRepository _accountRepository;
+        private readonly IUserService _userService;
         private readonly IGoogleAuthService _googleAuthService;
 
         public AccountController(IAuthService accountService,
                                 IStringLocalizer<SharedResources> localizer,
                                 IEmailService emailService,
                                 IOtpService otpService,
-                                IAccountRepository accountRepository,
+                                IUserService userService,
                                 IGoogleAuthService googleAuthService)
         {
             _otpService = otpService;
             _authservice = accountService;
             _emailService = emailService;
             _localizer = localizer;
-            _accountRepository = accountRepository;
+            _userService = userService;
             _googleAuthService = googleAuthService;
         }
 
@@ -131,7 +131,7 @@ namespace src.Services.AccountService.API.Controllers
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
-            var response = await _accountRepository.GetUserProfileAsync(userId);
+            var response = await _userService.GetUserProfileAsync(userId);
 
             return response.ToActionResult();
         }
@@ -147,7 +147,7 @@ namespace src.Services.AccountService.API.Controllers
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
-            var response = await _accountRepository.UpdateUserProfileAsync(userId, dto);
+            var response = await _userService.UpdateUserProfileAsync(userId, dto);
 
             return response.ToActionResult();
         }

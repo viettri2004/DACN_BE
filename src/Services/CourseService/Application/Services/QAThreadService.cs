@@ -17,11 +17,13 @@ namespace CourseService.Application.Services
     public class QAThreadService : IQAThreadService
     {
         private readonly IQAThreadRepository _qaRepository;
+        private readonly ICourseRepository _courseRepository; // To check instructor status
         private readonly IStringLocalizer<SharedResources> _localizer;
 
-        public QAThreadService(IQAThreadRepository qaRepository, IStringLocalizer<SharedResources> localizer)
+        public QAThreadService(IQAThreadRepository qaRepository, ICourseRepository courseRepository, IStringLocalizer<SharedResources> localizer)
         {
             _qaRepository = qaRepository;
+            _courseRepository = courseRepository;
             _localizer = localizer;
         }
 
@@ -31,14 +33,23 @@ namespace CourseService.Application.Services
                 .AsNoTracking()
                 .Where(t => t.CourseId == courseId);
 
-            if (filter == "my")
+            if (filter == "read")
             {
-                query = query.Where(t => t.CreatorId == userId);
+                var course = await _courseRepository.GetByIdAsync(courseId);
+                string instructorId = course?.InstructorId ?? string.Empty;
+                query = query.Where(t => t.Messages.OrderByDescending(m => m.CreatedAt).Select(m => m.UserId).FirstOrDefault() == instructorId);
+            }
+            else if (filter == "unread")
+            {
+                var course = await _courseRepository.GetByIdAsync(courseId);
+                string instructorId = course?.InstructorId ?? string.Empty;
+                query = query.Where(t => t.Messages.OrderByDescending(m => m.CreatedAt).Select(m => m.UserId).FirstOrDefault() != instructorId);
             }
 
             var totalCount = await query.CountAsync();
             var threads = await query
                 .Include(t => t.Creator)
+                .Include(t => t.Messages)
                 .OrderByDescending(t => t.LastActivityAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
@@ -53,7 +64,7 @@ namespace CourseService.Application.Services
                 CreatedAt = t.CreatedAt,
                 LastActivityAt = t.LastActivityAt,
                 IsMyThread = t.CreatorId == userId,
-                // totalMessages count can be added if needed, or calculated
+                TotalMessages = t.Messages.Count
             }).ToList();
 
             return new ApiResponse("Success", _localizer["Success"].Value, new PagedResult<QAThreadDTO> { Items = result, Page = pageNumber, PageSize = pageSize, TotalCount = totalCount }, true);
@@ -63,6 +74,9 @@ namespace CourseService.Application.Services
         {
             var thread = await _qaRepository.GetByIdAsync(threadId);
             if (thread == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+
+            var course = await _courseRepository.GetByIdAsync(thread.CourseId);
+            string instructorId = course?.InstructorId ?? string.Empty;
 
             var query = _qaRepository.GetMessagesQueryable()
                 .AsNoTracking()
@@ -83,11 +97,19 @@ namespace CourseService.Application.Services
                 UserName = m.User.FullName,
                 AvatarUrl = m.User.AvatarUrl,
                 CreatedAt = m.CreatedAt,
-                IsMyMessage = m.UserId == userId
+                IsMyMessage = m.UserId == userId,
+                IsInstructor = m.UserId == instructorId
             }).ToList();
 
             return new ApiResponse("Success", _localizer["Success"].Value, new { 
-                thread = new QAThreadDetailDTO { Id = thread.Id, Title = thread.Title }, 
+                thread = new QAThreadDetailDTO { 
+                    Id = thread.Id, 
+                    Title = thread.Title,
+                    CreatorName = thread.Creator.FullName,
+                    CreatorAvatarUrl = thread.Creator.AvatarUrl,
+                    CreatedAt = thread.CreatedAt,
+                    IsMyThread = thread.CreatorId == userId
+                }, 
                 messages = new PagedResult<QAMessageDTO> { Items = result, Page = pageNumber, PageSize = pageSize, TotalCount = totalCount } 
             }, true);
         }
@@ -163,7 +185,11 @@ namespace CourseService.Application.Services
         {
             var thread = await _qaRepository.GetByIdAsync(threadId);
             if (thread == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
-            if (thread.CreatorId != userId) return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
+            
+            // Check if user is creator OR instructor of the course
+            var course = await _courseRepository.GetByIdAsync(thread.CourseId);
+            if (thread.CreatorId != userId && (course == null || course.InstructorId != userId))
+                return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
 
             await _qaRepository.DeleteAsync(thread);
             await _qaRepository.SaveChangesAsync();
@@ -175,7 +201,14 @@ namespace CourseService.Application.Services
         {
             var message = await _qaRepository.GetMessageByIdAsync(messageId);
             if (message == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
-            if (message.UserId != userId) return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
+            
+            if (message.UserId != userId)
+            {
+                var thread = await _qaRepository.GetByIdAsync(message.ThreadId);
+                var course = await _courseRepository.GetByIdAsync(thread.CourseId);
+                if (course == null || course.InstructorId != userId)
+                    return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
+            }
 
             await _qaRepository.DeleteMessageAsync(message);
             await _qaRepository.SaveChangesAsync();

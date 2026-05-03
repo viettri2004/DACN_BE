@@ -18,12 +18,12 @@ namespace LectureService.API.Controllers
     [Route("api/[controller]")]
     public class LectureController : ControllerBase
     {
-        private readonly ILectureRepository _lectureRepository;
+        private readonly ILectureService _lectureService;
         private readonly IStringLocalizer<SharedResources> _localizer;
 
-        public LectureController(ILectureRepository lectureRepository, IStringLocalizer<SharedResources> localizer)
+        public LectureController(ILectureService lectureService, IStringLocalizer<SharedResources> localizer)
         {
-            _lectureRepository = lectureRepository;
+            _lectureService = lectureService;
             _localizer = localizer;
         }
 
@@ -36,7 +36,7 @@ namespace LectureService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _lectureRepository.CreateLectureAsync(createLectureDTO, instructorId);
+            var response = await _lectureService.CreateLectureAsync(createLectureDTO, instructorId);
             return response.ToActionResult();
         }
 
@@ -49,7 +49,7 @@ namespace LectureService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _lectureRepository.UpdateLectureAsync(lectureId, updateLectureDTO, instructorId);
+            var response = await _lectureService.UpdateLectureAsync(lectureId, updateLectureDTO, instructorId);
             return response.ToActionResult();
         }
 
@@ -62,7 +62,7 @@ namespace LectureService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _lectureRepository.UpdateLectureOrdersAsync(lectureOrders, instructorId);
+            var response = await _lectureService.UpdateLectureOrdersAsync(lectureOrders, instructorId);
             return response.ToActionResult();
         }
 
@@ -75,7 +75,7 @@ namespace LectureService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _lectureRepository.DeleteLectureAsync(lectureId, instructorId);
+            var response = await _lectureService.DeleteLectureAsync(lectureId, instructorId);
             return response.ToActionResult();
         }
 
@@ -83,7 +83,7 @@ namespace LectureService.API.Controllers
         [HttpGet("get-video/{videoId}")]
         public async Task<ActionResult<ApiResponse>> GetVideoById([FromRoute] string videoId)
         {
-            var response = await _lectureRepository.GetVideoByIdAsync(videoId);
+            var response = await _lectureService.GetVideoByIdAsync(videoId);
             return response.ToActionResult();
         }
 
@@ -97,7 +97,7 @@ namespace LectureService.API.Controllers
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
-            var response = await _lectureRepository.GetVideoUploadSignatureAsync(lectureId, instructorId);
+            var response = await _lectureService.GetVideoUploadSignatureAsync(lectureId, instructorId);
             return response.ToActionResult();
         }
 
@@ -110,7 +110,7 @@ namespace LectureService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _lectureRepository.AddVideoToLectureAsync(lectureId, addVideoDTO.Name, addVideoDTO.Url, addVideoDTO.PublicId, addVideoDTO.Duration, instructorId);
+            var response = await _lectureService.AddVideoToLectureAsync(lectureId, addVideoDTO.Name, addVideoDTO.Url, addVideoDTO.PublicId, addVideoDTO.Duration, instructorId);
             return response.ToActionResult();
         }
 
@@ -123,7 +123,7 @@ namespace LectureService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _lectureRepository.UpdateVideoAsync(videoId, updateVideoDTO.Name, updateVideoDTO.Url, updateVideoDTO.PublicId, updateVideoDTO.Duration, instructorId);
+            var response = await _lectureService.UpdateVideoAsync(videoId, updateVideoDTO.Name, updateVideoDTO.Url, updateVideoDTO.PublicId, updateVideoDTO.Duration, instructorId);
             return response.ToActionResult();
         }
 
@@ -136,7 +136,7 @@ namespace LectureService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _lectureRepository.UpdateVideoOrdersAsync(videoOrders, instructorId);
+            var response = await _lectureService.UpdateVideoOrdersAsync(videoOrders, instructorId);
             return response.ToActionResult();
         }
 
@@ -149,7 +149,7 @@ namespace LectureService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _lectureRepository.DeleteVideoAsync(videoId, instructorId);
+            var response = await _lectureService.DeleteVideoAsync(videoId, instructorId);
             return response.ToActionResult();
         }
 
@@ -157,7 +157,7 @@ namespace LectureService.API.Controllers
         [HttpGet("get-document/{documentId}")]
         public async Task<ActionResult<ApiResponse>> GetDocumentById([FromRoute] string documentId)
         {
-            var response = await _lectureRepository.GetDocumentByIdAsync(documentId);
+            var response = await _lectureService.GetDocumentByIdAsync(documentId);
             return response.ToActionResult();
         }
 
@@ -170,7 +170,7 @@ namespace LectureService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _lectureRepository.AddDocumentToLectureAsync(lectureId, addDocumentDTO.Name, addDocumentDTO.Url, addDocumentDTO.PublicId, addDocumentDTO.Type ?? "", instructorId);
+            var response = await _lectureService.AddDocumentToLectureAsync(lectureId, addDocumentDTO.Name, addDocumentDTO.Url, addDocumentDTO.PublicId, addDocumentDTO.Type ?? "", instructorId);
             return response.ToActionResult();
         }
 
@@ -183,7 +183,7 @@ namespace LectureService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _lectureRepository.UpdateDocumentAsync(documentId, updateDocumentDTO.Name, updateDocumentDTO.Url, updateDocumentDTO.PublicId, updateDocumentDTO.Type, instructorId);
+            var response = await _lectureService.UpdateDocumentAsync(documentId, updateDocumentDTO.Name, updateDocumentDTO.Url, updateDocumentDTO.PublicId, updateDocumentDTO.Type, instructorId);
             return response.ToActionResult();
         }
 
@@ -196,7 +196,7 @@ namespace LectureService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _lectureRepository.DeleteDocumentAsync(documentId, instructorId);
+            var response = await _lectureService.DeleteDocumentAsync(documentId, instructorId);
             return response.ToActionResult();
         }
 

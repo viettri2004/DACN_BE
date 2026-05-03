@@ -16,12 +16,12 @@ namespace LectureService.API.Controllers
     [Route("api/[controller]")]
     public class QuizController : ControllerBase
     {
-        private readonly IQuizRepository _quizRepository;
+        private readonly IQuizService _quizService;
         private readonly IStringLocalizer<SharedResources> _localizer;
 
-        public QuizController(IQuizRepository quizRepository, IStringLocalizer<SharedResources> localizer)
+        public QuizController(IQuizService quizService, IStringLocalizer<SharedResources> localizer)
         {
-            _quizRepository = quizRepository;
+            _quizService = quizService;
             _localizer = localizer;
         }
 
@@ -34,7 +34,7 @@ namespace LectureService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _quizRepository.CreateQuizAsync(createQuizDTO, instructorId);
+            var response = await _quizService.CreateQuizAsync(createQuizDTO, instructorId);
             return response.ToActionResult();
         }
 
@@ -47,7 +47,7 @@ namespace LectureService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _quizRepository.UpdateQuizAsync(quizId, updateQuizDTO, instructorId);
+            var response = await _quizService.UpdateQuizAsync(quizId, updateQuizDTO, instructorId);
             return response.ToActionResult();
         }
 
@@ -60,14 +60,14 @@ namespace LectureService.API.Controllers
             {
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
-            var response = await _quizRepository.DeleteQuizAsync(quizId, instructorId);
+            var response = await _quizService.DeleteQuizAsync(quizId, instructorId);
             return response.ToActionResult();
         }
 
         [HttpGet("{quizId}")]
         public async Task<ActionResult<ApiResponse>> GetQuiz([FromRoute] string quizId)
         {
-            var response = await _quizRepository.GetQuizByIdAsync(quizId);
+            var response = await _quizService.GetQuizByIdAsync(quizId);
             return response.ToActionResult();
         }
 
@@ -81,7 +81,7 @@ namespace LectureService.API.Controllers
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             } 
 
-            var response = await _quizRepository.StartQuizAttemptAsync(quizId, studentId);
+            var response = await _quizService.StartQuizAttemptAsync(quizId, studentId);
             return response.ToActionResult();
         }
 
@@ -95,7 +95,7 @@ namespace LectureService.API.Controllers
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
-            var response = await _quizRepository.SubmitQuizAttemptAsync(submissionDTO, studentId);
+            var response = await _quizService.SubmitQuizAttemptAsync(submissionDTO, studentId);
             return response.ToActionResult();
         }
 
@@ -107,7 +107,7 @@ namespace LectureService.API.Controllers
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
 
-            var response = await _quizRepository.GetQuizResultAsync(attemptId, userId);
+            var response = await _quizService.GetQuizResultAsync(attemptId, userId);
             return response.ToActionResult();
         }
 
@@ -119,7 +119,7 @@ namespace LectureService.API.Controllers
             if (string.IsNullOrEmpty(studentId))
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
 
-            var response = await _quizRepository.GetStudentQuizAttemptsAsync(quizId, studentId);
+            var response = await _quizService.GetStudentQuizAttemptsAsync(quizId, studentId);
             return response.ToActionResult();
         }
     }

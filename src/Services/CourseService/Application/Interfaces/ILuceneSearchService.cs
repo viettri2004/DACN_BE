@@ -13,6 +13,7 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> SearchCoursesAsync(CourseSearchDTO searchParameters, string studentId);
         Task<ApiResponse> SearchCoursesPreviewAsync(string searchTerm, string studentId);
         Task IndexCourseAsync(Course course);
+        Task IndexCourseAsync(string courseId);
         Task DeleteCourseFromIndexAsync(string courseId);
         Task IndexAllCoursesAsync();
     }

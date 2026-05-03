@@ -516,7 +516,13 @@ namespace CourseService.Application.Services
             }
         }
 
-        public async Task IndexCourseAsync(Course course)
+        public Task IndexCourseAsync(Course course)
+        {
+            if (course == null) return Task.CompletedTask;
+            return IndexCourseAsync(course.Id);
+        }
+
+        public async Task IndexCourseAsync(string courseId)
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -528,7 +534,7 @@ namespace CourseService.Application.Services
                 .Include(c => c.Enrollments)
                     .ThenInclude(e => e.Comments)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == course.Id);
+                .FirstOrDefaultAsync(c => c.Id == courseId);
 
             if (fullCourse == null) return;
 
