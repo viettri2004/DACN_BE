@@ -575,6 +575,23 @@ namespace PaymentService.Application.Services
                     {
                         Console.WriteLine($"NewEnrollment notification failed for GiftCode: {ex.Message}");
                     }
+
+                    // Notification for student on successful redemption / payment
+                    try
+                    {
+                        await _notificationRepository.CreateNotificationAsync(new Notification
+                        {
+                            UserId = studentId,
+                            Title = _localizer["PaymentSuccessNotifTitle"].Value,
+                            Message = string.Format(_localizer["PaymentSuccessNotifMessage"].Value, course.Name),
+                            Type = NotificationType.System,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"PaymentSuccess notification failed for GiftCode student {studentId}: {ex.Message}");
+                    }
                 }
 
                 return new ApiResponse("Success", _localizer["GiftCodeRedeemedSuccess", course.Name].Value, null, true);

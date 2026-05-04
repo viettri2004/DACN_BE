@@ -246,6 +246,30 @@ namespace PaymentService.Infrastructure.Services
                     _logger.LogError(ex, "NewEnrollment notification failed for course {CourseId}", item.CourseId);
                 }
             }
+
+            // Student notification for payment success
+            try
+            {
+                foreach (var item in orderItems)
+                {
+                    var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == item.CourseId);
+                    if (course != null)
+                    {
+                        await _notificationRepository.CreateNotificationAsync(new Notification
+                        {
+                            UserId = order.StudentId,
+                            Title = _localizer["PaymentSuccessNotifTitle"].Value,
+                            Message = string.Format(_localizer["PaymentSuccessNotifMessage"].Value, course.Name),
+                            Type = NotificationType.System,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "PaymentSuccess notification failed for student {StudentId}", order.StudentId);
+            }
         }
     }
 }

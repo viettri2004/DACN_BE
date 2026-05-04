@@ -733,4 +733,19 @@
   <data name="ReIndexStarted" xml:space="preserve">
     <value>Quá trình tạo lại chỉ mục đã được bắt đầu.</value>
   </data>
+  <data name="PaymentSuccessNotifTitle" xml:space="preserve">
+    <value>Thanh toán thành công</value>
+  </data>
+  <data name="PaymentSuccessNotifMessage" xml:space="preserve">
+    <value>Bạn đã thanh toán thành công khóa học: "{0}".</value>
+  </data>
+  <data name="NewQAReplyNotifTitle" xml:space="preserve">
+    <value>Phản hồi mới trong Hỏi đáp</value>
+  </data>
+  <data name="NewQAReplyNotifMessage" xml:space="preserve">
+    <value>{0} đã trả lời câu hỏi trong khóa học "{1}": "{2}".</value>
+  </data>
+  <data name="NewQAReplyForCreatorNotifMessage" xml:space="preserve">
+    <value>{0} đã phản hồi câu hỏi "{1}" của bạn.</value>
+  </data>
 </root>

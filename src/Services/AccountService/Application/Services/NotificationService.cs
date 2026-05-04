@@ -121,7 +121,7 @@ namespace AccountService.Application.Services
             return await CreateNotificationForRoleAsync(NotificationRole.All, title, message, type);
         }
 
-        public async Task<ApiResponse> GetUserNotificationsAsync(string userId, int page = 1, int pageSize = 10)
+        public async Task<ApiResponse> GetUserNotificationsAsync(string userId, int page = 1, int pageSize = 10, bool? isRead = null)
         {
             try
             {
@@ -131,6 +131,11 @@ namespace AccountService.Application.Services
 
                 var query = _context.Notifications
                     .Where(n => n.UserId == userId);
+
+                if (isRead.HasValue)
+                {
+                    query = query.Where(n => n.IsRead == isRead.Value);
+                }
 
                 var totalCount = await query.CountAsync();
 

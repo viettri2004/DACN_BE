@@ -19,12 +19,16 @@ namespace CourseService.Application.Services
         private readonly IQAThreadRepository _qaRepository;
         private readonly ICourseRepository _courseRepository; // To check instructor status
         private readonly IStringLocalizer<SharedResources> _localizer;
+        private readonly Data.Context.AppDbContext _context;
+        private readonly AccountService.Application.Interfaces.INotificationRepository _notificationRepository;
 
-        public QAThreadService(IQAThreadRepository qaRepository, ICourseRepository courseRepository, IStringLocalizer<SharedResources> localizer)
+        public QAThreadService(IQAThreadRepository qaRepository, ICourseRepository courseRepository, IStringLocalizer<SharedResources> localizer, Data.Context.AppDbContext context, AccountService.Application.Interfaces.INotificationRepository notificationRepository)
         {
             _qaRepository = qaRepository;
             _courseRepository = courseRepository;
             _localizer = localizer;
+            _context = context;
+            _notificationRepository = notificationRepository;
         }
 
         public async Task<ApiResponse> GetCourseQAThreadsAsync(string courseId, string userId, int pageNumber, int pageSize, string filter = "all")
@@ -129,6 +133,26 @@ namespace CourseService.Application.Services
             await _qaRepository.AddAsync(thread);
             await _qaRepository.SaveChangesAsync();
 
+            var course = await _courseRepository.GetByIdAsync(createThreadDTO.CourseId);
+            if (course != null)
+            {
+                var creator = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+                var creatorName = creator?.FullName ?? "Học viên";
+                var title = _localizer["NewQAQuestionNotifTitle"].Value;
+                var message = string.Format(_localizer["NewQAQuestionNotifMessage"].Value, creatorName, course.Name, createThreadDTO.Title);
+
+                await _notificationRepository.CreateNotificationAsync(new Notification
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    UserId = course.InstructorId,
+                    Title = title,
+                    Message = message,
+                    Type = AccountService.Domain.Enums.NotificationType.NewQAQuestion,
+                    CreatedAt = DateTime.UtcNow,
+                    IsRead = false
+                });
+            }
+
             return new ApiResponse("Created", _localizer["Success"].Value, thread.Id, true);
         }
 
@@ -149,6 +173,56 @@ namespace CourseService.Application.Services
             thread.LastActivityAt = DateTime.UtcNow;
             await _qaRepository.AddMessageAsync(message);
             await _qaRepository.SaveChangesAsync();
+
+            try
+            {
+                var course = await _courseRepository.GetByIdAsync(thread.CourseId);
+                if (course != null)
+                {
+                    var replier = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+                    var replierName = replier?.FullName ?? "Người dùng";
+
+                    // 1. Notify the instructor if the replier is NOT the instructor
+                    if (userId != course.InstructorId)
+                    {
+                        var title = _localizer["NewQAReplyNotifTitle"].Value;
+                        var msg = string.Format(_localizer["NewQAReplyNotifMessage"].Value, replierName, course.Name, thread.Title);
+
+                        await _notificationRepository.CreateNotificationAsync(new Notification
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            UserId = course.InstructorId,
+                            Title = title,
+                            Message = msg,
+                            Type = AccountService.Domain.Enums.NotificationType.NewQAQuestion,
+                            CreatedAt = DateTime.UtcNow,
+                            IsRead = false
+                        });
+                    }
+
+                    // 2. Notify the original thread creator if the replier is NOT the creator
+                    if (userId != thread.CreatorId)
+                    {
+                        var title = _localizer["NewQAReplyNotifTitle"].Value;
+                        var msg = string.Format(_localizer["NewQAReplyForCreatorNotifMessage"].Value, replierName, thread.Title);
+
+                        await _notificationRepository.CreateNotificationAsync(new Notification
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            UserId = thread.CreatorId,
+                            Title = title,
+                            Message = msg,
+                            Type = AccountService.Domain.Enums.NotificationType.NewQAQuestion,
+                            CreatedAt = DateTime.UtcNow,
+                            IsRead = false
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error sending thread reply notifications: {ex.Message}");
+            }
 
             return new ApiResponse("Created", _localizer["Success"].Value, message.Id, true);
         }

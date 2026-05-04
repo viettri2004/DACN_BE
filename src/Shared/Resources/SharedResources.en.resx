@@ -733,4 +733,19 @@
     <data name="ReIndexStarted" xml:space="preserve">
     <value>The re-indexing process has started.</value>
   </data>
+  <data name="PaymentSuccessNotifTitle" xml:space="preserve">
+    <value>Payment Successful</value>
+  </data>
+  <data name="PaymentSuccessNotifMessage" xml:space="preserve">
+    <value>You have successfully paid for the course: "{0}".</value>
+  </data>
+  <data name="NewQAReplyNotifTitle" xml:space="preserve">
+    <value>New Reply in Q&amp;A</value>
+  </data>
+  <data name="NewQAReplyNotifMessage" xml:space="preserve">
+    <value>{0} has replied to the thread in course "{1}": "{2}".</value>
+  </data>
+  <data name="NewQAReplyForCreatorNotifMessage" xml:space="preserve">
+    <value>{0} has replied to your question "{1}".</value>
+  </data>
 </root>

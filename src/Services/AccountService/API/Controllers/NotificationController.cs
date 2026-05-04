@@ -26,7 +26,7 @@ namespace AccountService.API.Controllers
 
         [Authorize]
         [HttpGet("my-notifications")]
-        public async Task<ActionResult<ApiResponse>> GetMyNotifications([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<ApiResponse>> GetMyNotifications([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] bool? isRead = null)
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
 
@@ -35,7 +35,7 @@ namespace AccountService.API.Controllers
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
             }
 
-            var response = await _notificationRepository.GetUserNotificationsAsync(userId, page, pageSize);
+            var response = await _notificationRepository.GetUserNotificationsAsync(userId, page, pageSize, isRead);
             return response.ToActionResult();
         }
 

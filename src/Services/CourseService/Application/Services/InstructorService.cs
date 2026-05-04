@@ -158,7 +158,9 @@ namespace CourseService.Application.Services
                     t.Course.Name,
                     t.Course.ImageUrl,
                     t.LastActivityAt,
-                    LastMessageUserId = t.Messages.OrderByDescending(m => m.CreatedAt).Select(m => m.UserId).FirstOrDefault()
+                    LastMessageUserId = t.Messages.Any() 
+                        ? t.Messages.OrderByDescending(m => m.CreatedAt).Select(m => m.UserId).FirstOrDefault() 
+                        : t.CreatorId
                 })
                 .ToListAsync();
 

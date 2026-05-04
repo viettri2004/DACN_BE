@@ -23,18 +23,24 @@ namespace CourseService.Application.Services
         private readonly IStringLocalizer<SharedResources> _localizer;
         private readonly ILuceneSearchService _luceneSearchService;
         private readonly IBackgroundJobClient _backgroundJobClient;
+        private readonly Data.Context.AppDbContext _context;
+        private readonly AccountService.Application.Interfaces.INotificationRepository _notificationRepository;
 
         public CommentService(ICommentRepository commentRepository, 
                               ICourseRepository courseRepository,
                               IStringLocalizer<SharedResources> localizer,
                               ILuceneSearchService luceneSearchService,
-                              IBackgroundJobClient backgroundJobClient)
+                              IBackgroundJobClient backgroundJobClient,
+                              Data.Context.AppDbContext context,
+                              AccountService.Application.Interfaces.INotificationRepository notificationRepository)
         {
             _commentRepository = commentRepository;
             _courseRepository = courseRepository;
             _localizer = localizer;
             _luceneSearchService = luceneSearchService;
             _backgroundJobClient = backgroundJobClient;
+            _context = context;
+            _notificationRepository = notificationRepository;
         }
 
         public async Task<ApiResponse> GetCourseCommentsAsync(string courseId, string? userId, CommentType type, int pageNumber, int pageSize, int? rating = null)
@@ -126,7 +132,25 @@ namespace CourseService.Application.Services
             {
                 var course = await _courseRepository.GetByIdAsync(addCommentDTO.CourseId);
                 if (course != null)
+                {
                     _backgroundJobClient.Enqueue(() => _luceneSearchService.IndexCourseAsync(course.Id));
+
+                    var student = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+                    var studentName = student?.FullName ?? "Học viên";
+                    var title = _localizer["NewRatingNotifTitle"].Value;
+                    var message = string.Format(_localizer["NewRatingNotifMessage"].Value, studentName, course.Name, addCommentDTO.Rate);
+
+                    await _notificationRepository.CreateNotificationAsync(new Notification
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        UserId = course.InstructorId,
+                        Title = title,
+                        Message = message,
+                        Type = AccountService.Domain.Enums.NotificationType.NewRating,
+                        CreatedAt = DateTime.UtcNow,
+                        IsRead = false
+                    });
+                }
             }
 
             return new ApiResponse("Created", _localizer["Success"].Value, comment.Id, true);

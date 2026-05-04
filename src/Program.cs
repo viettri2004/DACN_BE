@@ -238,6 +238,8 @@ static void ConfigureLocalization(IServiceCollection services, IConfiguration co
 
 static void ConfigureDbContext(IServiceCollection services, IConfiguration configuration)
 {
+    AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+    
     string? ConnectionString = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION");
     services.AddDbContext<AppDbContext>(options =>
         options.UseNpgsql(ConnectionString));
@@ -250,6 +252,8 @@ static void ConfigureControllers(IServiceCollection services)
         options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
 
         options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+
+        options.SerializerSettings.DateTimeZoneHandling = Newtonsoft.Json.DateTimeZoneHandling.Utc;
     });
     services.AddEndpointsApiExplorer();
 }

@@ -155,6 +155,13 @@ namespace src.Services.AccountService.API.Controllers
         [HttpPost("reset-password")]
         public async Task<ActionResult<ApiResponse>> ResetPassword([FromBody] ResetPasswordDTO dto)
         {
+            var otpKey = $"ResetPassword:{dto.Email}";
+            var isValidOtp = await _otpService.ValidateOtpAsync(otpKey, dto.Otp);
+            if (!isValidOtp)
+            {
+                return BadRequest(new ApiResponse("Error", _localizer["InvalidOtp"].Value, null, false));
+            }
+
             var response = await _authservice.ResetPassword(dto.Email, dto.NewPassword);
 
             return response.ToActionResult();

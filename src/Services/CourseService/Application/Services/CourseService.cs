@@ -186,19 +186,27 @@ namespace CourseService.Application.Services
                          ? course.Enrollments.SelectMany(e => e.Comments).Where(cm => cm.Type == CommentType.Review).Average(cm => cm.Rate) 
                          : 0,
                 TotalReviews = course.Enrollments.SelectMany(e => e.Comments).Count(cm => cm.Type == CommentType.Review),
-                Curriculum = course.Lectures.Select(l => new CurriculumSectionDTO
-                {
-                    Id = l.Id,
-                    Title = l.Name,
-                    Lessons = l.LectureVideos.Select(v => new CurriculumLessonDTO
+                Curriculum = new Func<List<CurriculumSectionDTO>>(() => {
+                    int videoCounter = 0;
+                    return course.Lectures.Select(l => new CurriculumSectionDTO
                     {
-                        Id = v.Id,
-                        Title = v.Name,
-                        Duration = $"{v.Duration / 60:00}:{v.Duration % 60:00}",
-                        Type = "video",
-                        IsPreview = false
-                    }).ToList()
-                }).ToList()
+                        Id = l.Id,
+                        Title = l.Name,
+                        Lessons = l.LectureVideos.Select(v => 
+                        {
+                            bool isPreview = videoCounter < 2;
+                            videoCounter++;
+                            return new CurriculumLessonDTO
+                            {
+                                Id = v.Id,
+                                Title = v.Name,
+                                Duration = $"{v.Duration / 60:00}:{v.Duration % 60:00}",
+                                Type = "video",
+                                IsPreview = isPreview
+                            };
+                        }).ToList()
+                    }).ToList();
+                })()
             };
 
             return new ApiResponse("Success", _localizer["Success"].Value, response, true);
