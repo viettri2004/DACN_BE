@@ -28,13 +28,15 @@ namespace CourseService.Application.Services
         private readonly INotificationRepository _notificationRepository;
         private readonly IBackgroundJobClient _backgroundJobClient;
         private readonly IDistributedCache _cache;
+        private readonly INotificationService _notificationService;
 
         public CourseService(ICourseRepository courseRepository,
                             IStringLocalizer<SharedResources> localizer,
                             ILuceneSearchService luceneSearchService,
                             INotificationRepository notificationRepository,
                             IBackgroundJobClient backgroundJobClient,
-                            IDistributedCache cache)
+                            IDistributedCache cache,
+                            INotificationService notificationService)
         {
             _courseRepository = courseRepository;
             _localizer = localizer;
@@ -42,6 +44,7 @@ namespace CourseService.Application.Services
             _notificationRepository = notificationRepository;
             _backgroundJobClient = backgroundJobClient;
             _cache = cache;
+            _notificationService = notificationService;
         }
 
         #region Course Management
@@ -124,7 +127,10 @@ namespace CourseService.Application.Services
                 await _courseRepository.UpdateAsync(course);
                 await _courseRepository.SaveChangesAsync();
                 await RemoveRecommendedCache();
-                _backgroundJobClient.Enqueue(() => _luceneSearchService.IndexCourseAsync(course.Id));
+                
+                // Enqueue Lucene indexing job
+                string courseIdToIndex = course.Id;
+                _backgroundJobClient.Enqueue<ILuceneSearchService>(service => service.IndexCourseAsync(courseIdToIndex));
 
                 return new ApiResponse("Success", _localizer["UpdateCourseSuccess"].Value, null, true);
             }
@@ -282,15 +288,13 @@ namespace CourseService.Application.Services
 
         #region Student Features
 
-        public async Task<ApiResponse> GetCoursesByStudentIdAsync(string studentId, int pageNumber, int pageSize)
+        public async Task<ApiResponse> GetCoursesByStudentIdAsync(string studentId, int pageNumber, int pageSize, string? filterStatus = "All")
         {
             var query = _courseRepository.GetEnrollmentsQueryable()
                 .AsNoTracking()
                 .Where(e => e.StudentId == studentId && e.Status == true);
 
-            var totalCount = await query.CountAsync();
-
-            // Optimizing: Fetch all progress for this student once
+            // Fetch ALL progress for this student once
             var allProgress = await _courseRepository.GetProgressQueryable()
                 .AsNoTracking()
                 .Where(p => p.StudentId == studentId && p.IsCompleted == true)
@@ -299,48 +303,56 @@ namespace CourseService.Application.Services
                 .ToDictionaryAsync(x => x.CourseId, x => x.Count);
 
             // Fetch ALL active enrollments with required details for overall stats
-            var allEnrollments = await query
+            var allEnrollmentsFromDb = await query
                 .Include(e => e.Course).ThenInclude(c => c.Instructor)
                 .Include(e => e.Course).ThenInclude(c => c.Lectures).ThenInclude(l => l.LectureVideos)
                 .Include(e => e.Course).ThenInclude(c => c.Lectures).ThenInclude(l => l.Documents)
                 .Include(e => e.Course).ThenInclude(c => c.Lectures).ThenInclude(l => l.Quizzes)
                 .ToListAsync();
 
-            int completedCourses = 0;
+            int completedCoursesCount = 0;
             double totalStudyTime = 0.0;
-            double totalProgress = 0.0;
+            double totalProgressValue = 0.0;
 
-            foreach (var e in allEnrollments)
+            var allMappedCourses = allEnrollmentsFromDb.Select(e => 
             {
-                var tl = e.Course.Lectures.Sum(l => 
+                var totalLessons = e.Course.Lectures.Sum(l => 
                     (l.LectureVideos?.Count ?? 0) + (l.Documents?.Count ?? 0) + (l.Quizzes?.Count ?? 0));
 
-                allProgress.TryGetValue(e.CourseId, out int cl);
+                allProgress.TryGetValue(e.CourseId, out int completedLessons);
+                var progress = totalLessons > 0 ? (int)Math.Round((double)completedLessons / totalLessons * 100) : 0;
 
-                var p = tl > 0 ? (int)Math.Round((double)cl / tl * 100) : 0;
-                if (p == 100) completedCourses++;
+                if (progress == 100) completedCoursesCount++;
 
                 var totalDuration = e.Course.Lectures.SelectMany(l => l.LectureVideos).Sum(v => v.Duration);
                 var hours = Math.Round(totalDuration / 3600.0, 1);
-                totalStudyTime += hours * (p / 100.0);
-                totalProgress += p;
-            }
+                totalStudyTime += hours * (progress / 100.0);
+                totalProgressValue += progress;
 
-            double averageProgress = totalCount > 0 ? Math.Round(totalProgress / totalCount, 1) : 0;
+                return new { Enrollment = e, Progress = progress, CompletedLessons = completedLessons, TotalLessons = totalLessons };
+            }).ToList();
 
-            // Paging for current view
-            var enrollments = allEnrollments
-                .OrderByDescending(e => e.EnrolledAt)
+            // Apply filtering based on filterStatus
+            var filteredMappedCourses = filterStatus?.ToLower() switch
+            {
+                "inprogress" => allMappedCourses.Where(x => x.Progress > 0 && x.Progress < 100).ToList(),
+                "completed" => allMappedCourses.Where(x => x.Progress == 100).ToList(),
+                "notstarted" => allMappedCourses.Where(x => x.Progress == 0).ToList(),
+                _ => allMappedCourses.OrderByDescending(x => x.Enrollment.EnrolledAt).ToList()
+            };
+
+            var totalCount = filteredMappedCourses.Count;
+            var pagedMappedCourses = filteredMappedCourses
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToList();
 
-            var courseIds = enrollments.Select(e => e.CourseId).ToList();
+            var pagedCourseIds = pagedMappedCourses.Select(x => x.Enrollment.CourseId).ToList();
 
             // Batch fetch stats for courses in the current page
             var courseStats = await _courseRepository.GetEnrollmentsQueryable()
                 .AsNoTracking()
-                .Where(en => courseIds.Contains(en.CourseId) && en.Status == true)
+                .Where(en => pagedCourseIds.Contains(en.CourseId) && en.Status == true)
                 .GroupBy(en => en.CourseId)
                 .Select(g => new {
                     CourseId = g.Key,
@@ -351,14 +363,9 @@ namespace CourseService.Application.Services
                 })
                 .ToDictionaryAsync(x => x.CourseId);
 
-            var courseList = enrollments.Select(e => 
+            var courseList = pagedMappedCourses.Select(x => 
             {
-                var totalLessons = e.Course.Lectures.Sum(l => 
-                    (l.LectureVideos?.Count ?? 0) + (l.Documents?.Count ?? 0) + (l.Quizzes?.Count ?? 0));
-
-                allProgress.TryGetValue(e.CourseId, out int completedLessons);
-                var progress = totalLessons > 0 ? (int)Math.Round((double)completedLessons / totalLessons * 100) : 0;
-
+                var e = x.Enrollment;
                 courseStats.TryGetValue(e.CourseId, out var stats);
 
                 var totalDuration = e.Course.Lectures.SelectMany(l => l.LectureVideos).Sum(v => v.Duration);
@@ -371,9 +378,9 @@ namespace CourseService.Application.Services
                     ImageUrl = e.Course.ImageUrl,
                     InstructorName = e.Course.Instructor.FullName,
                     EnrolledAt = e.EnrolledAt,
-                    Progress = progress,
-                    TotalLessons = totalLessons,
-                    CompletedLessons = completedLessons,
+                    Progress = x.Progress,
+                    TotalLessons = x.TotalLessons,
+                    CompletedLessons = x.CompletedLessons,
                     LastVisit = e.LastVisit,
                     Status = e.Course.Status.ToString(),
                     Price = e.Course.Price,
@@ -391,9 +398,9 @@ namespace CourseService.Application.Services
                 TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
                 HasNextPage = pageNumber < (int)Math.Ceiling(totalCount / (double)pageSize),
                 HasPreviousPage = pageNumber > 1,
-                CompletedCourses = completedCourses,
+                CompletedCourses = completedCoursesCount,
                 TotalStudyTime = Math.Round(totalStudyTime, 1),
-                AverageProgress = (int)Math.Round(averageProgress)
+                AverageProgress = allEnrollmentsFromDb.Count > 0 ? (int)Math.Round(totalProgressValue / allEnrollmentsFromDb.Count) : 0
             };
 
             return new ApiResponse("Success", _localizer["Success"].Value, result, true);
@@ -544,6 +551,8 @@ namespace CourseService.Application.Services
                 UpdatedAt = fullCourse.UpdatedAt,
                 ImageUrl = fullCourse.ImageUrl,
                 Status = fullCourse.Status.ToString(),
+                Price = fullCourse.Price,
+                Description = fullCourse.Description ?? string.Empty,
                 TotalStudents = totalStudents,
                 Rating = Math.Round(rating, 1),
                 Lectures = fullCourse.Lectures.Select(l => new LectureContentDTO
@@ -610,9 +619,24 @@ namespace CourseService.Application.Services
         {
             var course = await _courseRepository.GetByIdAsync(courseId);
             if (course == null || course.InstructorId != instructorId) return new ApiResponse("Forbidden", _localizer["Unauthorized"].Value, null, false);
-            var request = new CourseRequest { Id = Guid.NewGuid().ToString(), CourseId = courseId, Status = RequestStatus.Pending, CreatedAt = DateTime.UtcNow };
+
+            var existingRequest = await _courseRepository.GetRequestsQueryable()
+                .AnyAsync(r => r.CourseId == courseId && r.Status == RequestStatus.Pending);
+
+            if (existingRequest)
+                return new ApiResponse("Conflict", _localizer["RequestAlreadySent"].Value, null, false);
+            var request = new CourseRequest { Id = Guid.NewGuid().ToString(), CourseId = courseId, InstructorId = instructorId, Status = RequestStatus.Pending, CreatedAt = DateTime.UtcNow };
             await _courseRepository.AddRequestAsync(request);
             await _courseRepository.SaveChangesAsync();
+
+            // Notify Admin
+            await _notificationService.CreateNotificationForRoleAsync(
+                NotificationRole.Admin,
+                _localizer["NewCourseRequestTitle"].Value,
+                string.Format(_localizer["NewCourseRequestMessage"].Value, course.Name),
+                NotificationType.CourseRequestResult
+            );
+
             return new ApiResponse("Created", _localizer["Success"].Value, null, true);
         }
 
@@ -627,21 +651,49 @@ namespace CourseService.Application.Services
 
         public async Task<ApiResponse> ApproveCourseRequestAsync(string requestId, ResponseRequestDTO responseRequestDTO)
         {
-            var request = await _courseRepository.GetRequestsQueryable().Include(r => r.Course).FirstOrDefaultAsync(r => r.Id == requestId);
+            var request = await _courseRepository.GetRequestsQueryable()
+                .Include(r => r.Course)
+                .FirstOrDefaultAsync(r => r.Id == requestId);
             if (request == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
             request.Status = RequestStatus.Approved;
             request.Course.Status = CourseStatus.Public;
             await _courseRepository.SaveChangesAsync();
             _backgroundJobClient.Enqueue(() => _luceneSearchService.IndexCourseAsync(request.Course.Id));
+
+            // Notify Instructor
+            var notification = new Notification
+            {
+                UserId = request.InstructorId,
+                Title = _localizer["CourseApprovedTitle"].Value,
+                Message = string.Format(_localizer["CourseApprovedMessage"].Value, request.Course.Name),
+                Type = NotificationType.CourseRequestResult,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _notificationService.CreateNotificationAsync(notification);
+
             return new ApiResponse("Success", _localizer["Success"].Value, null, true);
         }
 
         public async Task<ApiResponse> RejectCourseRequestAsync(string requestId, ResponseRequestDTO responseRequestDTO)
         {
-            var request = await _courseRepository.GetRequestByIdAsync(requestId);
+            var request = await _courseRepository.GetRequestsQueryable()
+                .Include(r => r.Course)
+                .FirstOrDefaultAsync(r => r.Id == requestId);
             if (request == null) return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
             request.Status = RequestStatus.Rejected;
             await _courseRepository.SaveChangesAsync();
+
+            // Notify Instructor
+            var notification = new Notification
+            {
+                UserId = request.InstructorId,
+                Title = _localizer["CourseRejectedTitle"].Value,
+                Message = string.Format(_localizer["CourseRejectedMessage"].Value, request.Course.Name, responseRequestDTO.Message ?? ""),
+                Type = NotificationType.CourseRequestResult,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _notificationService.CreateNotificationAsync(notification);
+
             return new ApiResponse("Success", _localizer["Success"].Value, null, true);
         }
 
@@ -656,7 +708,12 @@ namespace CourseService.Application.Services
         #endregion
 
         #region Helper Methods
-        private async Task RemoveRecommendedCache() { await _cache.RemoveAsync("course:recommended:guest"); }
+        private async Task RemoveRecommendedCache() 
+        { 
+            await _cache.RemoveAsync("course:recommended:guest"); 
+            // Also clear search caches if they exist
+            await _cache.RemoveAsync("course:search:all");
+        }
         #endregion
     }
 }

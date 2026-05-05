@@ -63,27 +63,17 @@ namespace AccountService.Application.Services
             if (string.IsNullOrWhiteSpace(RegisterDTO.FullName))
                 return new ApiResponse("BadRequest", _localizer["RequiredField", "FullName"].Value, null, false);
 
-            if (string.IsNullOrWhiteSpace(RegisterDTO.PhoneNumber))
-                return new ApiResponse("BadRequest", _localizer["RequiredField", "PhoneNumber"].Value, null, false);
-
-            if (!System.Text.RegularExpressions.Regex.IsMatch(RegisterDTO.PhoneNumber, @"^\d{10}$"))
-                return new ApiResponse("BadRequest", _localizer["InvalidFormat", "PhoneNumber"].Value, null, false);
-
             if (await _userManager.FindByNameAsync(RegisterDTO.UserName) != null)
                 return new ApiResponse("Conflict", _localizer["UsernameAlreadyExists"].Value, null, false);
 
             if (await _userManager.FindByEmailAsync(RegisterDTO.Email) != null)
                 return new ApiResponse("Conflict", _localizer["EmailAlreadyExists"].Value, null, false);
 
-            if (await _userManager.Users.AnyAsync(u => u.PhoneNumber == RegisterDTO.PhoneNumber))
-                return new ApiResponse("Conflict", _localizer["PhoneNumberAlreadyExists"].Value, null, false);
-
             User user = new Student
             {
                 UserName = RegisterDTO.UserName,
                 Email = RegisterDTO.Email,
                 FullName = RegisterDTO.FullName,
-                PhoneNumber = RegisterDTO.PhoneNumber,
                 CreatedAt = DateTime.UtcNow,
                 IsBanned = false
             };
@@ -331,8 +321,8 @@ namespace AccountService.Application.Services
             {
                 await _notificationService.CreateNotificationForRoleAsync(
                     NotificationRole.Admin,
-                    "New Instructor Request",
-                    $"{user.FullName} has requested to become an instructor.",
+                    _localizer["NewInstructorRequestTitle"].Value,
+                    string.Format(_localizer["NewInstructorRequestMessage"].Value, user.FullName),
                     NotificationType.InstructorRequest
                 );
 

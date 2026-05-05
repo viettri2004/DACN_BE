@@ -11,7 +11,7 @@ namespace CourseService.Application.Interfaces
         Task<ApiResponse> UpdateCourseAsync(string courseId, UpdateCourseDTO updateCourseDTO, string instructorId);
         Task<ApiResponse> GetCourseDetailAsync(string courseId, string studentId);
         Task<ApiResponse> GetRecommendedCoursesAsync(string? userId, int pageNumber, int pageSize);
-        Task<ApiResponse> GetCoursesByStudentIdAsync(string studentId, int pageNumber, int pageSize);
+        Task<ApiResponse> GetCoursesByStudentIdAsync(string studentId, int pageNumber, int pageSize, string? filterStatus = "All");
         Task<ApiResponse> GetCourseContentAsync(string courseId, string userId);
         Task<ApiResponse> GetInstructorCourseContentAsync(string courseId, string instructorId);
         Task<ApiResponse> GetCoursesByInstructorAsync(string instructorId, int pageNumber, int pageSize);

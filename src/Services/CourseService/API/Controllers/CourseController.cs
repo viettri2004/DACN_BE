@@ -92,18 +92,19 @@ namespace CourseService.API.Controllers
 
         [Authorize(Policy = "Student")]
         [HttpGet("student-courses")]
-        public async Task<ActionResult<ApiResponse>> GetMyCourses([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<ApiResponse>> GetMyCourses([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, [FromQuery] string? filterStatus = "All")
         {
             var studentId = User.Claims.FirstOrDefault(c =>
                 c.Type == "id")?.Value;
-
+ 
             if (string.IsNullOrEmpty(studentId))
                 return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
-
-            var response = await _courseService.GetCoursesByStudentIdAsync(studentId, pageNumber, pageSize);
+ 
+            var response = await _courseService.GetCoursesByStudentIdAsync(studentId, pageNumber, pageSize, filterStatus);
 
             return response.ToActionResult();
         }
+
         [Authorize]
         [HttpGet("search")]
         public async Task<ActionResult<ApiResponse>> SearchCourses([FromQuery] CourseSearchDTO queryParams)

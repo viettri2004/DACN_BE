@@ -211,9 +211,9 @@ static void ConfigureHangfire(IServiceCollection services, IConfiguration config
 
     services.AddHangfireServer(options =>
     {
-        options.ServerName = "VideoProcessor";
-        options.WorkerCount = 2;
-        options.Queues = new[] { "video" };
+        options.ServerName = "MainProcessor";
+        options.WorkerCount = 4; // Tăng worker để xử lý song song tốt hơn
+        options.Queues = new[] { "video", "default" };
     });
 }
 

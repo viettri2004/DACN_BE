@@ -748,4 +748,31 @@
   <data name="NewQAReplyForCreatorNotifMessage" xml:space="preserve">
     <value>{0} has replied to your question "{1}".</value>
   </data>
+  <data name="RequestAlreadySent" xml:space="preserve">
+    <value>An approval request for this course has already been sent and is pending.</value>
+  </data>
+  <data name="NewCourseRequestTitle" xml:space="preserve">
+    <value>New Course Approval Request</value>
+  </data>
+  <data name="NewCourseRequestMessage" xml:space="preserve">
+    <value>An instructor has just submitted an approval request for the course "{0}".</value>
+  </data>
+  <data name="CourseApprovedTitle" xml:space="preserve">
+    <value>Course Approved</value>
+  </data>
+  <data name="CourseApprovedMessage" xml:space="preserve">
+    <value>Congratulations! Your course "{0}" has been approved and published.</value>
+  </data>
+  <data name="CourseRejectedTitle" xml:space="preserve">
+    <value>Course Rejected</value>
+  </data>
+  <data name="CourseRejectedMessage" xml:space="preserve">
+    <value>Unfortunately, your course "{0}" was not approved. Reason: {1}</value>
+  </data>
+  <data name="NewInstructorRequestTitle" xml:space="preserve">
+    <value>New Instructor Request</value>
+  </data>
+  <data name="NewInstructorRequestMessage" xml:space="preserve">
+    <value>User {0} has just requested to become an instructor.</value>
+  </data>
 </root>

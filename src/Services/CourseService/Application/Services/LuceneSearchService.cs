@@ -65,6 +65,9 @@ namespace CourseService.Application.Services
         private readonly SpellChecker _spellChecker;
         private DirectoryTaxonomyReader? _taxonomyReader;
 
+        // Thread-safety for writers
+        private static readonly System.Threading.SemaphoreSlim _writerLock = new System.Threading.SemaphoreSlim(1, 1);
+
         public LuceneSearchService(
             IServiceScopeFactory scopeFactory,
             IStringLocalizer<SharedResources> localizer,
@@ -93,6 +96,11 @@ namespace CourseService.Application.Services
             {
                 OpenMode = OpenMode.CREATE_OR_APPEND
             };
+
+            // Ensure directories are clean of stale locks on startup
+            UnlockDirectoryIfLocked(_directory);
+            UnlockDirectoryIfLocked(_taxonomyDirectory);
+            UnlockDirectoryIfLocked(_spellDirectory);
 
             _writer = new IndexWriter(_directory, indexConfig);
             _taxonomyWriter = new DirectoryTaxonomyWriter(_taxonomyDirectory, OpenMode.CREATE_OR_APPEND);
@@ -133,23 +141,26 @@ namespace CourseService.Application.Services
                     var boolQuery = new BooleanQuery();
                     var searchTerm = searchDto.SearchTerm.ToLowerInvariant().Trim();
                     
-                    // Escape Lucene special characters
-                    searchTerm = QueryParserBase.Escape(searchTerm);
-
-                    var terms = searchTerm.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    foreach (var term in terms)
+                    // Use QueryParser for natural language search on the 'name' field
+                    var parser = new QueryParser(LUCENE_VERSION, "name", _analyzer);
+                    parser.DefaultOperator = Operator.AND;
+                    
+                    try 
                     {
-                        var termBoolQuery = new BooleanQuery();
-
-                        var nameQuery = new WildcardQuery(new Term("name", $"*{term}*"));
-                        termBoolQuery.Add(nameQuery, Occur.SHOULD);
-
-                        var instructorQuery = new WildcardQuery(new Term("instructorName", $"*{term}*"));
-                        termBoolQuery.Add(instructorQuery, Occur.SHOULD);
-
-                        boolQuery.Add(termBoolQuery, Occur.MUST);
+                        var parsedQuery = parser.Parse(searchTerm);
+                        boolQuery.Add(parsedQuery, Occur.SHOULD);
                     }
+                    catch (ParseException)
+                    {
+                        // Fallback to wildcard if parsing fails
+                        var escaped = QueryParserBase.Escape(searchTerm);
+                        boolQuery.Add(new WildcardQuery(new Term("name", $"*{escaped}*")), Occur.SHOULD);
+                    }
+
+                    // Add wildcard search for partial matches on name_lower and instructor
+                    var escapedTerm = QueryParserBase.Escape(searchTerm);
+                    boolQuery.Add(new WildcardQuery(new Term("name_lower", $"*{escapedTerm}*")), Occur.SHOULD);
+                    boolQuery.Add(new WildcardQuery(new Term("instructorName", $"*{escapedTerm}*")), Occur.SHOULD);
 
                     baseQuery = boolQuery;
                 }
@@ -200,7 +211,7 @@ namespace CourseService.Application.Services
 
                 var page = Math.Max(1, searchDto?.Page ?? 1);
                 var pageSize = Math.Max(1, searchDto?.PageSize ?? 10);
-                int numHits = Math.Max(1, page * pageSize);
+                int numHits = 1000; // Search up to 1000 items to get accurate total count
 
                 var facetsCollector = new FacetsCollector();
                 TopDocs topDocs = FacetsCollector.Search(searcher, drillDownQuery, numHits, facetsCollector);
@@ -240,10 +251,7 @@ namespace CourseService.Application.Services
                 // Sort by count descending, then name
                 availableTags = availableTags.OrderByDescending(t => t.Count).ThenBy(t => t.TagName).ToList();
 
-                var pagedScoreDocs = topDocs.ScoreDocs
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToList();
+                var pagedScoreDocs = topDocs.ScoreDocs.ToList();
 
                 var courseIds = new List<string>();
                 foreach (var scoreDoc in pagedScoreDocs)
@@ -417,7 +425,7 @@ namespace CourseService.Application.Services
                     Items = pagedCoursesData,
                     Page = page,
                     PageSize = pageSize,
-                    TotalCount = sortedCourses.Count
+                    TotalCount = totalHits
                 };
 
                 var finalResponse = new CourseSearchResponseDTO
@@ -459,18 +467,34 @@ namespace CourseService.Application.Services
 
             try
             {
-                var boolQuery = new BooleanQuery();
                 var term = searchTerm.ToLowerInvariant().Trim();
                 
-                // Escape Lucene special characters
-                term = QueryParserBase.Escape(term);
+                var boolQuery = new BooleanQuery();
                 
-                var nameQuery = new WildcardQuery(new Term("name", $"*{term}*"));
-                boolQuery.Add(nameQuery, Occur.SHOULD);
+                // Use QueryParser for name field to support finding terms anywhere in the string
+                var nameParser = new QueryParser(LUCENE_VERSION, "name", _analyzer);
+                nameParser.DefaultOperator = Operator.AND;
+                
+                try 
+                {
+                    var parsedNameQuery = nameParser.Parse(term);
+                    boolQuery.Add(parsedNameQuery, Occur.SHOULD);
+                }
+                catch
+                {
+                    boolQuery.Add(new PrefixQuery(new Term("name_lower", term)), Occur.SHOULD);
+                }
 
-                var instructorQuery = new WildcardQuery(new Term("instructorName", $"*{term}*"));
-                boolQuery.Add(instructorQuery, Occur.SHOULD);
+                // Support partial word matching (e.g., 'lea' finds 'learning')
+                var escaped = QueryParserBase.Escape(term);
+                boolQuery.Add(new WildcardQuery(new Term("name_lower", $"*{escaped}*")), Occur.SHOULD);
+                boolQuery.Add(new WildcardQuery(new Term("instructorName_lower", $"*{escaped}*")), Occur.SHOULD);
 
+                // Add prefix match as an additional signal for better relevance
+                boolQuery.Add(new PrefixQuery(new Term("name_lower", term)), Occur.SHOULD);
+                
+                boolQuery.MinimumNumberShouldMatch = 1;
+ 
                 // Filter by Public status
                 var finalQuery = new BooleanQuery();
                 finalQuery.Add(boolQuery, Occur.MUST);
@@ -548,8 +572,10 @@ namespace CourseService.Application.Services
                 new StringField("id", fullCourse.Id ?? string.Empty, Field.Store.YES),
                 new TextField("name", fullCourse.Name ?? string.Empty, Field.Store.NO),
                 new StringField("name_stored", fullCourse.Name ?? string.Empty, Field.Store.YES), // For preview
+                new StringField("name_lower", (fullCourse.Name ?? string.Empty).ToLowerInvariant(), Field.Store.NO), // For better searching
                 new TextField("description", fullCourse.Description ?? string.Empty, Field.Store.NO),
                 new TextField("instructorName", fullCourse.Instructor?.FullName ?? string.Empty, Field.Store.NO),
+                new StringField("instructorName_lower", (fullCourse.Instructor?.FullName ?? string.Empty).ToLowerInvariant(), Field.Store.NO),
                 new StringField("instructorName_stored", fullCourse.Instructor?.FullName ?? string.Empty, Field.Store.YES), // For preview
                 new StringField("imageUrl", fullCourse.ImageUrl ?? string.Empty, Field.Store.YES), // For preview
                 new DoubleField("price", (double)fullCourse.Price, Field.Store.NO),
@@ -575,13 +601,24 @@ namespace CourseService.Application.Services
                 }
             }
 
-            var facetedDoc = _facetsConfig.Build(_taxonomyWriter, doc);
-            _writer.UpdateDocument(new Term("id", fullCourse.Id ?? string.Empty), facetedDoc);
-            _taxonomyWriter.Commit();
+            await _writerLock.WaitAsync();
+            try
+            {
+                var facetedDoc = _facetsConfig.Build(_taxonomyWriter, doc);
+                _writer.UpdateDocument(new Term("id", fullCourse.Id ?? string.Empty), facetedDoc);
+                _writer.Commit();
+                _taxonomyWriter.Commit();
+                _searcherManager.MaybeRefresh();
+            }
+            finally
+            {
+                _writerLock.Release();
+            }
         }
 
         public async Task IndexAllCoursesAsync()
         {
+            await _writerLock.WaitAsync();
             try
             {
                 // Clear the main index
@@ -630,8 +667,10 @@ namespace CourseService.Application.Services
                     new StringField("id", course.Id ?? string.Empty, Field.Store.YES),
                     new TextField("name", course.Name ?? string.Empty, Field.Store.NO),
                     new StringField("name_stored", course.Name ?? string.Empty, Field.Store.YES), // For preview
+                    new StringField("name_lower", (course.Name ?? string.Empty).ToLowerInvariant(), Field.Store.NO), // For better searching
                     new TextField("description", course.Description ?? string.Empty, Field.Store.NO),
                     new TextField("instructorName", course.Instructor?.FullName ?? string.Empty, Field.Store.NO),
+                    new StringField("instructorName_lower", (course.Instructor?.FullName ?? string.Empty).ToLowerInvariant(), Field.Store.NO),
                     new StringField("instructorName_stored", course.Instructor?.FullName ?? string.Empty, Field.Store.YES), // For preview
                     new StringField("imageUrl", course.ImageUrl ?? string.Empty, Field.Store.YES), // For preview
                     new DoubleField("price", (double)course.Price, Field.Store.NO),
@@ -669,10 +708,11 @@ namespace CourseService.Application.Services
 
                 } while (courses.Count == batchSize);
 
-                _searcherManager.MaybeRefresh();
+                _searcherManager.MaybeRefreshBlocking();
                 
                 // Build SpellChecker dictionary from the 'name' field
-                using (var reader = DirectoryReader.Open(_directory))
+                // Use the writer to open the reader to avoid FileNotFoundException on hdd
+                using (var reader = DirectoryReader.Open(_writer, applyAllDeletes: true))
                 {
                     _spellChecker.IndexDictionary(new LuceneDictionary(reader, "name"), new IndexWriterConfig(LUCENE_VERSION, _analyzer), true);
                 }
@@ -686,13 +726,41 @@ namespace CourseService.Application.Services
                 Console.WriteLine($"Error indexing courses: {ex.Message}");
                 throw;
             }
+            finally
+            {
+                _writerLock.Release();
+            }
         }
 
-        public Task DeleteCourseFromIndexAsync(string courseId)
+        public async Task DeleteCourseFromIndexAsync(string courseId)
         {
-            _writer.DeleteDocuments(new Term("id", courseId ?? string.Empty));
+            await _writerLock.WaitAsync();
+            try
+            {
+                _writer.DeleteDocuments(new Term("id", courseId ?? string.Empty));
+                _writer.Commit();
+                _searcherManager.MaybeRefresh();
+            }
+            finally
+            {
+                _writerLock.Release();
+            }
+        }
 
-            return Task.CompletedTask;
+        private void UnlockDirectoryIfLocked(Lucene.Net.Store.Directory directory)
+        {
+            try
+            {
+                if (IndexWriter.IsLocked(directory))
+                {
+                    IndexWriter.Unlock(directory);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log and continue, as a lock might be cleared by another process or be transient
+                Console.WriteLine($"Warning: Could not check/unlock directory: {ex.Message}");
+            }
         }
 
         private decimal CalculatePrice(Course course)

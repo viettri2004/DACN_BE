@@ -748,4 +748,31 @@
   <data name="NewQAReplyForCreatorNotifMessage" xml:space="preserve">
     <value>{0} đã phản hồi câu hỏi "{1}" của bạn.</value>
   </data>
+  <data name="RequestAlreadySent" xml:space="preserve">
+    <value>Yêu cầu phê duyệt cho khóa học này đã được gửi và đang chờ xử lý.</value>
+  </data>
+  <data name="NewCourseRequestTitle" xml:space="preserve">
+    <value>Yêu cầu phê duyệt khóa học mới</value>
+  </data>
+  <data name="NewCourseRequestMessage" xml:space="preserve">
+    <value>Giảng viên vừa gửi yêu cầu phê duyệt cho khóa học "{0}".</value>
+  </data>
+  <data name="CourseApprovedTitle" xml:space="preserve">
+    <value>Khóa học được phê duyệt</value>
+  </data>
+  <data name="CourseApprovedMessage" xml:space="preserve">
+    <value>Chúc mừng! Khóa học "{0}" của bạn đã được phê duyệt và xuất bản.</value>
+  </data>
+  <data name="CourseRejectedTitle" xml:space="preserve">
+    <value>Khóa học bị từ chối</value>
+  </data>
+  <data name="CourseRejectedMessage" xml:space="preserve">
+    <value>Rất tiếc, khóa học "{0}" của bạn không được phê duyệt. Lý do: {1}</value>
+  </data>
+  <data name="NewInstructorRequestTitle" xml:space="preserve">
+    <value>Yêu cầu làm giảng viên mới</value>
+  </data>
+  <data name="NewInstructorRequestMessage" xml:space="preserve">
+    <value>Người dùng {0} vừa gửi yêu cầu trở thành giảng viên.</value>
+  </data>
 </root>
