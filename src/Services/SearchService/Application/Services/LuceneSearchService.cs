@@ -171,18 +171,26 @@ namespace SearchService.Application.Services
             var searcher = _searcherManager.Acquire();
             
             // Refresh taxonomy reader if needed
-            if (_taxonomyReader == null)
+            try
             {
-                _taxonomyReader = new DirectoryTaxonomyReader(_taxonomyDirectory);
-            }
-            else
-            {
-                var newReader = TaxonomyReader.OpenIfChanged(_taxonomyReader);
-                if (newReader != null)
+                if (_taxonomyReader == null)
                 {
-                    _taxonomyReader.Dispose();
-                    _taxonomyReader = (DirectoryTaxonomyReader)newReader;
+                    _taxonomyReader = new DirectoryTaxonomyReader(_taxonomyDirectory);
                 }
+                else
+                {
+                    var newReader = TaxonomyReader.OpenIfChanged(_taxonomyReader);
+                    if (newReader != null)
+                    {
+                        _taxonomyReader.Dispose();
+                        _taxonomyReader = (DirectoryTaxonomyReader)newReader;
+                    }
+                }
+            }
+            catch (Lucene.Net.Index.IndexNotFoundException)
+            {
+                // Taxonomy index empty or not committed yet
+                _taxonomyReader = null;
             }
 
             try
@@ -272,8 +280,12 @@ namespace SearchService.Application.Services
                 var totalHits = topDocs.TotalHits;
 
                 // Extract Facets
-                var facets = new FastTaxonomyFacetCounts(_taxonomyReader, _facetsConfig, facetsCollector);
-                var tagResults = facets.GetTopChildren(100, "tags");
+                FacetResult? tagResults = null;
+                if (_taxonomyReader != null)
+                {
+                    var facets = new FastTaxonomyFacetCounts(_taxonomyReader, _facetsConfig, facetsCollector);
+                    tagResults = facets.GetTopChildren(100, "tags");
+                }
                 
                 var allTagsFromDb = await context.Tags.AsNoTracking().ToListAsync();
 
