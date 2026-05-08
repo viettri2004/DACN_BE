@@ -1,9 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using src.Shared.Domain.Entities;
-using CourseService.Domain.Entities;
-using Entities;
-using AccountService.Domain.Enums;
+using ContentService.Domain.Entities;
+using ContentService.Domain.Enums;
+using InteractionService.Domain.Entities;
+using InteractionService.Domain.Enums;
+using LearningService.Domain.Entities;
+using IdentityService.Domain.Entities;
+using OrderingService.Domain.Entities;
+using NotificationService.Domain.Entities;
+using NotificationService.Domain.Enums;
 
 namespace Shared.Infrastructure.Persistence.Configurations
 {

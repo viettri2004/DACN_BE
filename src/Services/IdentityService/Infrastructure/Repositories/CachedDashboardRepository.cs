@@ -1,0 +1,68 @@
+using SearchService.Application.DTOs;
+using SearchService.Application.Interfaces;
+using NotificationService.Application.Interfaces;
+using NotificationService.Domain.Enums;
+using NotificationService.Domain.Entities;
+using OrderingService.Application.DTOs;
+using OrderingService.Application.Interfaces;
+using OrderingService.Domain.Entities;
+using IdentityService.Application.DTOs;
+using IdentityService.Domain.Entities;
+using LearningService.Application.Services;
+using LearningService.Application.Interfaces;
+using LearningService.Domain.Entities;
+using InteractionService.Application.DTOs;
+using InteractionService.Application.Interfaces;
+using InteractionService.Domain.Enums;
+using InteractionService.Domain.Entities;
+using ContentService.Application.DTOs;
+using ContentService.Application.Interfaces;
+using ContentService.Domain.Enums;
+using ContentService.Domain.Entities;
+using System;
+using System.Threading.Tasks;
+using IdentityService.Application.Interfaces;
+using Microsoft.Extensions.Caching.Distributed;
+using src.Shared.Domain.Entities;
+using Newtonsoft.Json;
+using src.Shared.Infrastructure;
+
+namespace IdentityService.Infrastructure.Repositories
+{
+    public class CachedDashboardRepository : IDashboardRepository
+    {
+        private readonly IDashboardRepository _inner;
+        private readonly IDistributedCache _cache;
+        private const string CacheKey = "dashboard:data";
+
+        public CachedDashboardRepository(IDashboardRepository inner, IDistributedCache cache)
+        {
+            _inner = inner;
+            _cache = cache;
+        }
+
+        public async Task<ApiResponse> GetDashboardDataAsync()
+        {
+            var cachedData = await _cache.GetStringAsync(CacheKey);
+            if (!string.IsNullOrEmpty(cachedData))
+            {
+                return JsonConvert.DeserializeObject<ApiResponse>(cachedData, JsonSettings.CamelCase);
+            }
+
+            var response = await _inner.GetDashboardDataAsync();
+
+            if (response.Success)
+            {
+                var options = new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10) // Cache for 10 minutes
+                };
+                await _cache.SetStringAsync(CacheKey, JsonConvert.SerializeObject(response, JsonSettings.CamelCase), options);
+            }
+
+            return response;
+        }
+    }
+}
+
+

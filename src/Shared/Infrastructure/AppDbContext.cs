@@ -1,11 +1,16 @@
-using Entities;
-using CourseService.Domain.Entities;
+using ContentService.Domain.Entities;
+using ContentService.Domain.Enums;
+using InteractionService.Domain.Entities;
+using InteractionService.Domain.Enums;
+using LearningService.Domain.Entities;
+using IdentityService.Domain.Entities;
+using OrderingService.Domain.Entities;
+using NotificationService.Domain.Entities;
+using NotificationService.Domain.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using src.Shared.Domain.Entities;
-using AccountService.Domain.Enums;
-using CourseService.Domain.Enums;
 
 namespace Data.Context
 {

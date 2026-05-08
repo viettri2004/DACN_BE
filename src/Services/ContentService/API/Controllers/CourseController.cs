@@ -1,0 +1,271 @@
+using NotificationService.Application.Interfaces;
+using NotificationService.Domain.Enums;
+using NotificationService.Domain.Entities;
+using OrderingService.Application.DTOs;
+using OrderingService.Application.Interfaces;
+using OrderingService.Domain.Entities;
+using IdentityService.Application.DTOs;
+using IdentityService.Application.Interfaces;
+using IdentityService.Domain.Entities;
+using LearningService.Application.Services;
+using LearningService.Application.Interfaces;
+using LearningService.Domain.Entities;
+using InteractionService.Application.DTOs;
+using InteractionService.Application.Interfaces;
+using InteractionService.Domain.Enums;
+using InteractionService.Domain.Entities;
+using ContentService.Domain.Entities;
+using SearchService.Application.DTOs;
+using SearchService.Application.Services;
+using SearchService.Application.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using ContentService.Application.DTOs;
+using ContentService.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Shared.Application.Extension;
+using src.Shared.Domain.Entities;
+using Microsoft.Extensions.Localization;
+using Shared.Domain.Entities;
+using src.Shared.Resources;
+using ContentService.Domain.Enums;
+
+namespace ContentService.API.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class CourseController : ControllerBase
+    {
+        private readonly ICourseService _courseService;
+        private readonly ILuceneSearchService _searchService;
+        private readonly IStringLocalizer<SharedResources> _localizer;
+
+        public CourseController(ICourseService ContentService, ILuceneSearchService searchService, IStringLocalizer<SharedResources> localizer)
+        {
+            _courseService = ContentService;
+            _searchService = searchService;
+            _localizer = localizer;
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpPost("create")]
+        public async Task<ActionResult<ApiResponse>> CreateCourse([FromBody] CreateCourseDTO createCourseDTO)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseService.CreateCourseAsync(createCourseDTO, instructorId);
+
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpPut("{courseId}")]
+        public async Task<ActionResult<ApiResponse>> UpdateCourse([FromRoute] string courseId, [FromBody] UpdateCourseDTO updateCourseDTO)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseService.UpdateCourseAsync(courseId, updateCourseDTO, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpGet("instructor-courses")]
+        public async Task<ActionResult<ApiResponse>> GetInstructorCourses([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseService.GetCoursesByInstructorAsync(instructorId, pageNumber, pageSize);
+            return response.ToActionResult();
+        }
+
+        [HttpGet("course-detail/{courseId}")]
+        public async Task<ActionResult<ApiResponse>> GetCourseDetail([FromRoute] string courseId)
+        {
+            var studentId = User.Claims.FirstOrDefault(c =>
+                c.Type == "id")?.Value;
+
+            var response = await _courseService.GetCourseDetailAsync(courseId, studentId ?? string.Empty);
+
+            return response.ToActionResult();
+        }
+
+        [HttpGet("recommended-courses")]
+        public async Task<ActionResult<ApiResponse>> GetRecommendedCourses([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            var response = await _courseService.GetRecommendedCoursesAsync(userId, pageNumber, pageSize);
+
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Student")]
+        [HttpGet("student-courses")]
+        public async Task<ActionResult<ApiResponse>> GetMyCourses([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, [FromQuery] string? filterStatus = "All")
+        {
+            var studentId = User.Claims.FirstOrDefault(c =>
+                c.Type == "id")?.Value;
+ 
+            if (string.IsNullOrEmpty(studentId))
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+ 
+            var response = await _courseService.GetCoursesByStudentIdAsync(studentId, pageNumber, pageSize, filterStatus);
+
+            return response.ToActionResult();
+        }
+
+        [Authorize]
+        [HttpGet("search")]
+        public async Task<ActionResult<ApiResponse>> SearchCourses([FromQuery] CourseSearchDTO queryParams)
+        {
+            // Support both SelectedTags and TagId[] / tagIds format for compatibility
+            if (queryParams.SelectedTags == null || !queryParams.SelectedTags.Any())
+            {
+                if (Request.Query.TryGetValue("TagId[]", out var tagIds))
+                {
+                    queryParams.SelectedTags = tagIds.ToList()!;
+                }
+                else if (Request.Query.TryGetValue("tagIds", out var tIds))
+                {
+                    queryParams.SelectedTags = tIds.ToList()!;
+                }
+                else if (Request.Query.TryGetValue("SelectedTags[]", out var sTags))
+                {
+                    queryParams.SelectedTags = sTags.ToList()!;
+                }
+            }
+
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(studentId))
+            {
+                return Unauthorized(new ApiResponse("Unauthorized", _localizer["Unauthorized"].Value, null, false));
+            }
+
+            var response = await _searchService.SearchCoursesAsync(queryParams, studentId);
+            return response.ToActionResult();
+        }
+
+        [Authorize]
+        [HttpGet("search-preview")]
+        public async Task<ActionResult<ApiResponse>> SearchCoursesPreview([FromQuery] string searchTerm)
+        {
+            var studentId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            var response = await _searchService.SearchCoursesPreviewAsync(searchTerm, studentId ?? string.Empty);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpPost("re-index")]
+        public async Task<IActionResult> ReIndexAllCourses()
+        {
+            await _searchService.IndexAllCoursesAsync();
+            return Ok(new { message = _localizer["ReIndexStarted"].Value });
+        }
+
+
+        [Authorize]
+        [HttpGet("course-content/{courseId}")]
+        public async Task<ActionResult<ApiResponse>> GetCourseContent([FromRoute] string courseId)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+
+            var isAdmin = User.IsInRole("Admin");
+            var response = await _courseService.GetCourseContentAsync(courseId, userId, isAdmin);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpGet("instructor-course-content/{courseId}")]
+        public async Task<ActionResult<ApiResponse>> GetInstructorCourseContent([FromRoute] string courseId)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+
+            var response = await _courseService.GetInstructorCourseContentAsync(courseId, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpDelete("{courseId}")]
+        public async Task<ActionResult<ApiResponse>> DeleteCourse([FromRoute] string courseId)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseService.DeleteCourseAsync(courseId, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpPost("request-publish/{courseId}")]
+        public async Task<ActionResult<ApiResponse>> RequestPublishCourse([FromRoute] string courseId)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _courseService.CreateCourseRequestAsync(courseId, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Admin")]
+        [HttpGet("pending-requests")]
+        public async Task<ActionResult<ApiResponse>> GetPendingRequests([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            var response = await _courseService.GetPendingCourseRequestsAsync(pageNumber, pageSize);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Admin")]
+        [HttpPost("approve-request/{requestId}")]
+        public async Task<ActionResult<ApiResponse>> ApproveRequest([FromRoute] string requestId, [FromBody] ResponseRequestDTO responseRequestDTO)
+        {
+            var response = await _courseService.ApproveCourseRequestAsync(requestId, responseRequestDTO);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Admin")]
+        [HttpPost("reject-request/{requestId}")]
+        public async Task<ActionResult<ApiResponse>> RejectRequest([FromRoute] string requestId, [FromBody] ResponseRequestDTO responseRequestDTO)
+        {
+            var response = await _courseService.RejectCourseRequestAsync(requestId, responseRequestDTO);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Admin")]
+        [HttpGet("admin/courses")]
+        public async Task<ActionResult<ApiResponse>> GetAllCoursesForAdmin([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            var response = await _courseService.GetAllCoursesForAdminAsync(pageNumber, pageSize);
+            return response.ToActionResult();
+        }
+    }
+}
+
+
+
+
+

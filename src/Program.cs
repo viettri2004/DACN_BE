@@ -1,36 +1,47 @@
-using AccountService.Application.DTOs;
-using AccountService.Application.Interfaces;
-using AccountService.Application.Services;
-using AccountService.Infrastructure.Email;
-using AccountService.Infrastructure.Google;
-using AccountService.Infrastructure.Otp;
-using AccountService.Infrastructure.Persistence.Repositories;
-using AccountService.Infrastructure.Repositories;
-using CartService.Application.Interfaces;
-using CartService.Infrastructure.Repositories;
+using IdentityService.Domain.Entities;
+using IdentityService.Application.DTOs;
+using IdentityService.Application.Interfaces;
+using IdentityService.Application.Services;
+using IdentityService.Infrastructure.Email;
+using IdentityService.Infrastructure.Google;
+using IdentityService.Infrastructure.Otp;
+using IdentityService.Infrastructure.Repositories;
+using IdentityService.Infrastructure.Repositories;
+using OrderingService.Application.Interfaces;
+using OrderingService.Infrastructure.Repositories;
 using CloudinaryDotNet;
-using CourseService.Application.Interfaces;
-using CourseService.Application.Services;
-using CourseService.Infrastructure.Repositories;
+using ContentService.Application.Interfaces;
+using ContentService.Application.Services;
+using ContentService.Infrastructure.Repositories;
 using Data.Context;
 using Data.Seeding;
 using DotNetEnv;
-using Entities;
-using LectureService.Application.Interfaces;
-using LectureService.Infrastructure.Repositories;
+using ContentService.Application.Interfaces;
+using ContentService.Infrastructure.Repositories;
+using InteractionService.Application.Interfaces;
+using InteractionService.Application.Services;
+using InteractionService.Infrastructure.Repositories;
+using LearningService.Application.Interfaces;
+using LearningService.Application.Services;
+using SearchService.Application.Interfaces;
+using SearchService.Application.Services;
+using SearchService.Infrastructure;
+using NotificationService.Application.Interfaces;
+using NotificationService.Application.Services;
+using NotificationService.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using PaymentService.Application.Interfaces;
-using PaymentService.Infrastructure.Repositories;
-using PaymentService.Infrastructure.Services;
+using OrderingService.Application.Interfaces;
+using OrderingService.Infrastructure.Repositories;
+using OrderingService.Infrastructure.Services;
 using Serilog;
 using Shared.Infrastructure.cloudinaryService;
 using src.Shared.Domain.Entities;
-using CourseService.Infrastructure;
+using SearchService.Infrastructure;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Hangfire;
 using Shared.Infrastructure.Hubs;
@@ -126,17 +137,11 @@ static void ConfigureCache(IServiceCollection services, IConfiguration configura
 static void ConfigureDI(IServiceCollection services, IConfiguration configuration)
 {
     services.AddHttpClient();
+    // --- Search Service ---
     services.AddHttpClient<IAiService, LmsAiService>(client =>
     {
         client.Timeout = TimeSpan.FromMinutes(15);
     });
-    services.AddSingleton(provider => new Cloudinary(Environment.GetEnvironmentVariable("CLOUDINARY_URL")));
-
-    services.Configure<GoogleConfig>(configuration.GetSection("Google"));
-    services.AddScoped<IGoogleAuthService, GoogleAuthService>();
-
-    services.AddScoped<DbSeeder>();
-    services.AddScoped<CloudinaryService>();
     services.AddSingleton<ILuceneSearchService>(provider =>
     {
         var env = provider.GetRequiredService<IWebHostEnvironment>();
@@ -148,40 +153,56 @@ static void ConfigureDI(IServiceCollection services, IConfiguration configuratio
 
         return ActivatorUtilities.CreateInstance<LuceneSearchService>(provider);
     });
-    services.AddScoped<ISepayService, SepayService>();
-    services.AddScoped<IVnPayService, VnPayService>();
-    services.AddScoped<IPaymentRepository, PaymentRepository>();
-    services.AddScoped<IPaymentService, PaymentService.Application.Services.PaymentService>();
+    services.AddScoped<IVideoProcessingService, VideoProcessingService>();
+
+    // --- Content Service ---
+    services.AddSingleton(provider => new Cloudinary(Environment.GetEnvironmentVariable("CLOUDINARY_URL")));
+    services.AddScoped<CloudinaryService>();
     services.AddScoped<ICourseRepository, CourseRepository>();
+    services.AddScoped<ITagRepository, TagRepository>();
+    services.AddScoped<ICourseService, ContentService.Application.Services.CourseService>();
+    services.AddScoped<IInstructorService, ContentService.Application.Services.InstructorService>();
+    services.AddScoped<ContentService.Application.Interfaces.ILectureService, ContentService.Application.Services.LectureService>();
+    services.AddScoped<ContentService.Application.Interfaces.ILectureRepository, ContentService.Infrastructure.Repositories.LectureRepository>();
+    services.AddScoped<ContentService.Application.Interfaces.IQuizService, ContentService.Application.Services.QuizService>();
+    services.AddScoped<ContentService.Application.Interfaces.IQuizRepository, ContentService.Infrastructure.Repositories.QuizRepository>();
+
+    // --- Learning Service ---
+    services.AddScoped<IStudentProgressService, StudentProgressService>();
+
+    // --- Interaction Service ---
     services.AddScoped<IQAThreadRepository, QAThreadRepository>();
     services.AddScoped<IWishlistRepository, WishlistRepository>();
     services.AddScoped<ICommentRepository, CommentRepository>();
-    services.AddScoped<ICourseService, CourseService.Application.Services.CourseService>();
-    services.AddScoped<IQAThreadService, CourseService.Application.Services.QAThreadService>();
-    services.AddScoped<IWishlistService, CourseService.Application.Services.WishlistService>();
-    services.AddScoped<ICommentService, CourseService.Application.Services.CommentService>();
-    services.AddScoped<IInstructorService, CourseService.Application.Services.InstructorService>();
-    services.AddScoped<IStudentProgressService, CourseService.Application.Services.StudentProgressService>();
-    services.AddScoped<LectureService.Application.Interfaces.ILectureService, LectureService.Application.Services.LectureService>();
-    services.AddScoped<LectureService.Application.Interfaces.ILectureRepository, LectureService.Infrastructure.Repositories.LectureRepository>();
-    services.AddScoped<LectureService.Application.Interfaces.IQuizService, LectureService.Application.Services.QuizService>();
-    services.AddScoped<LectureService.Application.Interfaces.IQuizRepository, LectureService.Infrastructure.Repositories.QuizRepository>();
-    services.AddScoped<IQuizRepository, QuizRepository>();
+    services.AddScoped<IQAThreadService, QAThreadService>();
+    services.AddScoped<IWishlistService, WishlistService>();
+    services.AddScoped<ICommentService, CommentService>();
+
+    // --- Ordering Service ---
+    services.AddScoped<ISepayService, SepayService>();
+    services.AddScoped<IVnPayService, VnPayService>();
+    services.AddScoped<IPaymentRepository, PaymentRepository>();
+    services.AddScoped<IPaymentService, OrderingService.Application.Services.PaymentService>();
     services.AddScoped<ICartRepository, CartRepository>();
-    services.AddScoped<ITagRepository, TagRepository>();
+
+    // --- Identity Service ---
+    services.Configure<GoogleConfig>(configuration.GetSection("Google"));
+    services.AddScoped<IGoogleAuthService, GoogleAuthService>();
     services.AddScoped<ITokenService, TokenService>();
     services.AddScoped<IAccountRepository, AccountRepository>();
-    services.AddScoped<AccountService.Application.Interfaces.IUserService, AccountService.Application.Services.UserService>();
-    services.AddScoped<AccountService.Application.Interfaces.IDashboardService, AccountService.Application.Services.DashboardService>();
-    services.AddScoped<AccountService.Application.Interfaces.INotificationService, AccountService.Application.Services.NotificationService>();
+    services.AddScoped<IdentityService.Application.Interfaces.IUserService, IdentityService.Application.Services.UserService>();
+    services.AddScoped<IdentityService.Application.Interfaces.IDashboardService, IdentityService.Application.Services.DashboardService>();
     services.AddScoped<IDashboardRepository, DashboardRepository>();
     services.AddScoped<IDashboardRepository>(provider =>
         new CachedDashboardRepository(provider.GetRequiredService<DashboardRepository>(), provider.GetRequiredService<IDistributedCache>()));
     services.AddScoped<IAuthService, AuthService>();
     services.AddScoped<IEmailService, EmailService>();
     services.AddScoped<IOtpService, OtpService>();
+    services.AddScoped<DbSeeder>();
+
+    // --- Notification Service ---
+    services.AddScoped<NotificationService.Application.Interfaces.INotificationService, NotificationService.Application.Services.NotificationService>();
     services.AddScoped<INotificationRepository, NotificationRepository>();
-    services.AddScoped<IVideoProcessingService, VideoProcessingService>();
 }
 
 static void ConfigureHangfire(IServiceCollection services, IConfiguration configuration)
@@ -438,3 +459,4 @@ public class MyHangfireAuthorizationFilter : IDashboardAuthorizationFilter
         return true;
     }
 }
+
