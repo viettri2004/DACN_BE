@@ -293,6 +293,11 @@ namespace Shared.Infrastructure.Persistence.Configurations
                 .WithMany(c => c.CourseRequests)
                 .HasForeignKey(cr => cr.CourseId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(cr => cr.Instructor)
+                .WithMany()
+                .HasForeignKey(cr => cr.InstructorId)
+                .OnDelete(DeleteBehavior.Cascade);
             builder.Property(cr => cr.Status)
                 .HasConversion<string>() 
                 .IsRequired();
@@ -303,6 +308,12 @@ namespace Shared.Infrastructure.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<Notification> builder)
         {
+            builder.HasKey(n => n.Id);
+            builder.HasOne(n => n.User)
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             builder.Property(n => n.Type)
                 .HasConversion<string>()
                 .IsRequired();
@@ -336,6 +347,7 @@ namespace Shared.Infrastructure.Persistence.Configurations
                 .WithMany()
                 .HasForeignKey(t => t.CreatorId)
                 .OnDelete(DeleteBehavior.Cascade);
+
             builder.Property(t => t.Title).IsRequired();
             builder.HasIndex(t => t.CourseId);
         }
@@ -354,6 +366,7 @@ namespace Shared.Infrastructure.Persistence.Configurations
                 .WithMany()
                 .HasForeignKey(m => m.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
             builder.Property(m => m.Content).IsRequired();
             builder.HasIndex(m => m.ThreadId);
         }
@@ -367,6 +380,11 @@ namespace Shared.Infrastructure.Persistence.Configurations
             builder.HasOne(slp => slp.Course)
                 .WithMany()
                 .HasForeignKey(slp => slp.CourseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(slp => slp.Student)
+                .WithMany()
+                .HasForeignKey(slp => slp.StudentId)
                 .OnDelete(DeleteBehavior.Cascade);
             builder.HasIndex(slp => new { slp.StudentId, slp.CourseId });
             builder.HasIndex(slp => new { slp.StudentId, slp.LectureId, slp.ItemId, slp.ItemType }).IsUnique();
@@ -387,6 +405,34 @@ namespace Shared.Infrastructure.Persistence.Configurations
                 .HasForeignKey(w => w.CourseId)
                 .OnDelete(DeleteBehavior.Cascade);
             builder.HasIndex(w => new { w.StudentId, w.CourseId }).IsUnique();
+        }
+    }
+
+    public class InstructorRequestConfiguration : IEntityTypeConfiguration<InstructorRequest>
+    {
+        public void Configure(EntityTypeBuilder<InstructorRequest> builder)
+        {
+            builder.HasKey(ir => ir.Id);
+            builder.HasOne(ir => ir.User)
+                .WithMany()
+                .HasForeignKey(ir => ir.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne(ir => ir.Admin)
+                .WithMany()
+                .HasForeignKey(ir => ir.AdminId)
+                .OnDelete(DeleteBehavior.Restrict);
+        }
+    }
+
+    public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
+    {
+        public void Configure(EntityTypeBuilder<RefreshToken> builder)
+        {
+            builder.HasKey(rt => rt.Id);
+            builder.HasOne(rt => rt.User)
+                .WithMany()
+                .HasForeignKey(rt => rt.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

@@ -28,6 +28,7 @@ namespace LearningService.Domain.Entities
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string StudentId { get; set; } = null!;
+        public User Student { get; set; } = null!;
         public string LectureId { get; set; } = null!;
         public string CourseId { get; set; } = null!;
         public string ItemId { get; set; } = null!;

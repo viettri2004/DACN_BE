@@ -623,6 +623,7 @@ namespace SearchService.Application.Services
                 .Include(c => c.Enrollments)
                     .ThenInclude(e => e.Comments)
                 .AsNoTracking()
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(c => c.Id == courseId);
 
             if (fullCourse == null) return;
@@ -711,6 +712,7 @@ namespace SearchService.Application.Services
                             .Include(c => c.Enrollments)
                                 .ThenInclude(e => e.Comments)
                             .AsNoTracking()
+                            .AsSplitQuery()
                             .OrderBy(c => c.Id)
                             .Skip(page * batchSize)
                             .Take(batchSize)

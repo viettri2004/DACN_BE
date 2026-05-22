@@ -303,6 +303,13 @@ namespace OrderingService.API.Controllers
             var response = await _paymentService.GetPaymentHistoryAsync(studentId, pageNumber, pageSize);
             return response.ToActionResult();
         }
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/transactions")]
+        public async Task<ActionResult<ApiResponse>> GetAdminTransactions([FromQuery] string status = "all", [FromQuery] string paymentMethod = "all", [FromQuery] string searchTerm = "", [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            var response = await _paymentService.GetAdminTransactionsAsync(status, paymentMethod, searchTerm, pageNumber, pageSize);
+            return response.ToActionResult();
+        }
     }
 }
 

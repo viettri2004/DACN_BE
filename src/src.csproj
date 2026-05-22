@@ -55,7 +55,7 @@
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
   </None>
-  <None Update="Services\CourseService\Infrastructure\Prompts\*.txt">
+  <None Update="Services\SearchService\Infrastructure\Prompts\*.txt">
     <CopyToOutputDirectory>Always</CopyToOutputDirectory>
   </None>
 </ItemGroup>

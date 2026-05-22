@@ -554,6 +554,7 @@ namespace OrderingService.Application.Services
                         .Include(c => c.CourseTags)
                         .Include(c => c.Enrollments)
                             .ThenInclude(e => e.Comments)
+                        .AsSplitQuery()
                         .FirstOrDefaultAsync(c => c.Id == courseIdToRedeem);
 
                     if (courseForIndex != null)
@@ -667,8 +668,121 @@ namespace OrderingService.Application.Services
                 return new ApiResponse("Error", ex.Message, null, false);
             }
         }
+
+        public async Task<ApiResponse> GetAdminTransactionsAsync(string status, string paymentMethod, string searchTerm, int pageNumber, int pageSize)
+        {
+            try
+            {
+                var query = _context.Orders
+                    .Include(o => o.Student)
+                    .Include(o => o.OrderItems)
+                        .ThenInclude(oi => oi.Course)
+                            .ThenInclude(c => c.Instructor)
+                    .Include(o => o.PaymentTransactions)
+                    .AsNoTracking()
+                    .AsQueryable();
+
+                // 1. Filter by Status
+                if (!string.IsNullOrEmpty(status) && status.ToLower() != "all")
+                {
+                    if (status.ToLower() == "completed")
+                        query = query.Where(o => o.Status == "Paid");
+                    else if (status.ToLower() == "pending")
+                        query = query.Where(o => o.Status == "Pending");
+                    else if (status.ToLower() == "failed")
+                        query = query.Where(o => o.Status == "Failed" || o.Status == "Cancelled");
+                }
+
+                // 2. Filter by Payment Method
+                if (!string.IsNullOrEmpty(paymentMethod) && paymentMethod.ToLower() != "all")
+                {
+                    var pmUpper = paymentMethod.ToUpper();
+                    // We assume methods in DB might be like "VnPay", "Sepay_MBBank", "GiftCode: ..."
+                    if (pmUpper == "VNPAY")
+                        query = query.Where(o => o.PaymentMethod != null && o.PaymentMethod.ToUpper() == "VNPAY");
+                    else if (pmUpper == "QRCODE")
+                        query = query.Where(o => o.PaymentMethod != null && o.PaymentMethod.ToUpper().Contains("SEPAY"));
+                    else if (pmUpper == "GIFTCODE")
+                        query = query.Where(o => o.PaymentMethod != null && o.PaymentMethod.ToUpper().Contains("GIFTCODE"));
+                }
+
+                // 3. Search Term
+                if (!string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    var st = searchTerm.ToLower();
+                    query = query.Where(o => 
+                        o.Id.ToLower().Contains(st) ||
+                        (o.Student != null && o.Student.FullName != null && o.Student.FullName.ToLower().Contains(st)) ||
+                        (o.Student != null && o.Student.Email != null && o.Student.Email.ToLower().Contains(st)) ||
+                        (o.PaymentTransactions.Any() && o.PaymentTransactions.First().GatewayTransactionId != null && o.PaymentTransactions.First().GatewayTransactionId!.ToLower().Contains(st))
+                    );
+                }
+
+                // Sorting (latest first)
+                query = query.OrderByDescending(o => o.CreatedAt);
+
+                // Count total items
+                var totalCount = await query.CountAsync();
+
+                // Pagination
+                var orders = await query
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                // Map to DTO
+                var resultList = orders.Select(o => {
+                    var txId = o.PaymentTransactions.FirstOrDefault()?.GatewayTransactionId ?? o.Id;
+                    // Determine simplified payment method for UI
+                    string pmSimplified = "unknown";
+                    if (o.PaymentMethod != null)
+                    {
+                        var methodUp = o.PaymentMethod.ToUpper();
+                        if (methodUp.Contains("VNPAY")) pmSimplified = "vnpay";
+                        else if (methodUp.Contains("SEPAY") || methodUp.Contains("MOMO")) pmSimplified = "qrcode";
+                        else if (methodUp.Contains("GIFTCODE")) pmSimplified = "giftcode";
+                    }
+
+                    var courses = o.OrderItems.Where(oi => oi.Course != null).Select(oi => new AdminTransactionCourseDto
+                    {
+                        Id = oi.CourseId,
+                        Title = oi.Course!.Name,
+                        Instructor = oi.Course!.Instructor?.FullName ?? "Unknown",
+                        Price = oi.Price
+                    }).ToList();
+
+                    return new AdminOrderDto
+                    {
+                        Id = o.Id,
+                        GateTransactionId = txId,
+                        StudentName = o.Student?.FullName ?? "Unknown",
+                        StudentEmail = o.Student?.Email ?? "Unknown",
+                        StudentAvatar = o.Student?.AvatarUrl,
+                        Amount = o.TotalAmount,
+                        PaymentMethod = pmSimplified,
+                        CardNum = o.PaymentMethod ?? "", // We don't store actual card number, fallback to payment method string
+                        CreatedAt = o.CreatedAt,
+                        Status = o.Status == "Paid" ? "completed" : (o.Status == "Pending" ? "pending" : "failed"),
+                        Courses = courses
+                    };
+                }).ToList();
+
+                var pagedResult = new PagedResult<AdminOrderDto>
+                {
+                    Items = resultList,
+                    Page = pageNumber,
+                    PageSize = pageSize,
+                    TotalCount = totalCount
+                };
+
+                return new ApiResponse("Success", _localizer["PaymentHistoryRetrieved"].Value, pagedResult, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
     }
 }
-
 
 

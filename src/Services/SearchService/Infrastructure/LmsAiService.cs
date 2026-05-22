@@ -104,9 +104,16 @@ namespace SearchService.Infrastructure
             var client = new Google.GenAI.Client(apiKey: _geminiApiKey);
 
             string promptTemplatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Services", "SearchService", "Infrastructure", "Prompts", "LmsAnalysisPrompt.txt");
+            
             if (!File.Exists(promptTemplatePath))
             {
+                // Fallback to relative path from current directory
                 promptTemplatePath = Path.Combine("Services", "SearchService", "Infrastructure", "Prompts", "LmsAnalysisPrompt.txt");
+            }
+
+            if (!File.Exists(promptTemplatePath))
+            {
+                throw new FileNotFoundException($"Could not find prompt template at: {promptTemplatePath}");
             }
 
             string promptTemplate = await File.ReadAllTextAsync(promptTemplatePath);

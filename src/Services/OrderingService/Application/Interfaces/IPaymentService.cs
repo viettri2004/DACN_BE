@@ -35,6 +35,7 @@ namespace OrderingService.Application.Interfaces
         Task<ApiResponse> DeleteGiftCodeAsync(string giftCodeId, string userId);
         Task<ApiResponse> GetGiftCodesByCourseAsync(string courseId, string userId);
         Task<ApiResponse> GetPaymentHistoryAsync(string studentId, int pageNumber, int pageSize);
+        Task<ApiResponse> GetAdminTransactionsAsync(string status, string paymentMethod, string searchTerm, int pageNumber, int pageSize);
     }
 }
 

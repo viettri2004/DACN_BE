@@ -3,6 +3,7 @@ using System;
 using Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace src.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260510122718_UpdateMissingRelationships")]
+    partial class UpdateMissingRelationships
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -509,6 +512,9 @@ namespace src.Migrations
                     b.Property<string>("LectureId")
                         .HasColumnType("text");
 
+                    b.Property<string>("LectureId1")
+                        .HasColumnType("text");
+
                     b.Property<int>("Rate")
                         .HasColumnType("integer");
 
@@ -533,6 +539,8 @@ namespace src.Migrations
                     b.HasIndex("EnrollmentId");
 
                     b.HasIndex("LectureId");
+
+                    b.HasIndex("LectureId1");
 
                     b.HasIndex("ReplyId");
 
@@ -1229,8 +1237,7 @@ namespace src.Migrations
                 {
                     b.HasOne("IdentityService.Domain.Entities.User", "Admin")
                         .WithMany()
-                        .HasForeignKey("AdminId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("AdminId");
 
                     b.HasOne("IdentityService.Domain.Entities.User", "User")
                         .WithMany()
@@ -1267,9 +1274,14 @@ namespace src.Migrations
                         .HasForeignKey("EnrollmentId")
                         .OnDelete(DeleteBehavior.Cascade);
 
+                    b.HasOne("ContentService.Domain.Entities.Lecture", "Lecture")
+                        .WithMany()
+                        .HasForeignKey("LectureId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ContentService.Domain.Entities.Lecture", null)
                         .WithMany("Comments")
-                        .HasForeignKey("LectureId");
+                        .HasForeignKey("LectureId1");
 
                     b.HasOne("InteractionService.Domain.Entities.Comment", "Parent")
                         .WithMany("Replies")
@@ -1285,6 +1297,8 @@ namespace src.Migrations
                     b.Navigation("Course");
 
                     b.Navigation("Enrollment");
+
+                    b.Navigation("Lecture");
 
                     b.Navigation("Parent");
 

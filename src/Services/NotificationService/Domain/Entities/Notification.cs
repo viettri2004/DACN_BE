@@ -23,6 +23,7 @@ using ContentService.Domain.Entities;
 using System;
 using System.ComponentModel.DataAnnotations;
 using NotificationService.Domain.Enums;
+using IdentityService.Domain.Entities;
 
 namespace NotificationService.Domain.Entities
 {
@@ -31,6 +32,7 @@ namespace NotificationService.Domain.Entities
         [Key]
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string UserId { get; set; } = null!;
+        public virtual User User { get; set; } = null!;
         public string Title { get; set; } = null!;
         public string Message { get; set; } = null!;
         public NotificationType Type { get; set; }

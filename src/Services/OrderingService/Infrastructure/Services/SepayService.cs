@@ -207,83 +207,83 @@ namespace OrderingService.Infrastructure.Services
             }
 
             // Re-index courses to update student count
-            foreach (var item in orderItems)
+            
+            // Batch fetch courses for indexing and notifications
+            var coursesForIndex = await _context.Courses
+                .AsNoTracking()
+                .Include(c => c.Instructor)
+                .Include(c => c.CourseTags)
+                .Include(c => c.Enrollments)
+                    .ThenInclude(e => e.Comments)
+                .AsSplitQuery()
+                .Where(c => courseIds.Contains(c.Id))
+                .ToListAsync();
+
+            foreach (var course in coursesForIndex)
             {
                 try
                 {
-                    var courseForIndex = await _context.Courses
-                        .AsNoTracking()
-                        .Include(c => c.Instructor)
-                        .Include(c => c.CourseTags)
-                        .Include(c => c.Enrollments)
-                            .ThenInclude(e => e.Comments)
-                        .FirstOrDefaultAsync(c => c.Id == item.CourseId);
-
-                    if (courseForIndex != null)
-                    {
-                        await _luceneSearchService.IndexCourseAsync(courseForIndex);
-                    }
+                    await _luceneSearchService.IndexCourseAsync(course);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to re-index course {CourseId} after Sepay payment", item.CourseId);
+                    _logger.LogError(ex, "Failed to re-index course {CourseId} after Sepay payment", course.Id);
                 }
             }
 
             _logger.LogInformation("Kích hoạt thành công Order {OrderId} qua Sepay Webhook.", orderId);
 
-            // Trigger NewEnrollment notification for instructors (smart: only if no unread exists)
+            // Trigger NewEnrollment notification for instructors
             var student = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == order.StudentId);
-            foreach (var item in orderItems)
+            var instructorIds = coursesForIndex.Select(c => c.InstructorId).Distinct().ToList();
+            
+            // Check unread status in batch
+            var instructorsWithUnread = await _context.Notifications
+                .Where(n => instructorIds.Contains(n.UserId) 
+                            && n.Type == NotificationType.NewEnrollment 
+                            && !n.IsRead)
+                .Select(n => n.UserId)
+                .Distinct()
+                .ToListAsync();
+
+            foreach (var course in coursesForIndex)
             {
                 try
                 {
-                    var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == item.CourseId);
-                    if (course != null)
+                    if (!instructorsWithUnread.Contains(course.InstructorId))
                     {
-                        var hasUnread = await _context.Notifications
-                            .AnyAsync(n => n.UserId == course.InstructorId
-                                        && n.Type == NotificationType.NewEnrollment
-                                        && !n.IsRead);
-                        if (!hasUnread)
+                        await _notificationRepository.CreateNotificationAsync(new Notification
                         {
-                            await _notificationRepository.CreateNotificationAsync(new Notification
-                            {
-                                UserId = course.InstructorId,
-                                Title = _localizer["NewEnrollmentNotifTitle"].Value,
-                                Message = string.Format(_localizer["NewEnrollmentNotifMessage"].Value,
-                                    student?.FullName ?? "Student", course.Name),
-                                Type = NotificationType.NewEnrollment,
-                                CreatedAt = DateTime.UtcNow,
-                                RelatedId = course.Id
-                            });
-                        }
+                            UserId = course.InstructorId,
+                            Title = _localizer["NewEnrollmentNotifTitle"].Value,
+                            Message = string.Format(_localizer["NewEnrollmentNotifMessage"].Value,
+                                student?.FullName ?? "Student", course.Name),
+                            Type = NotificationType.NewEnrollment,
+                            CreatedAt = DateTime.UtcNow,
+                            RelatedId = course.Id
+                        });
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "NewEnrollment notification failed for course {CourseId}", item.CourseId);
+                    _logger.LogError(ex, "NewEnrollment notification failed for course {CourseId}", course.Id);
                 }
             }
 
             // Student notification for payment success
             try
             {
-                foreach (var item in orderItems)
+                foreach (var course in coursesForIndex)
                 {
-                    var course = await _context.Courses.AsNoTracking().FirstOrDefaultAsync(c => c.Id == item.CourseId);
-                    if (course != null)
+                    await _notificationRepository.CreateNotificationAsync(new Notification
                     {
-                        await _notificationRepository.CreateNotificationAsync(new Notification
-                        {
-                            UserId = order.StudentId,
-                            Title = _localizer["PaymentSuccessNotifTitle"].Value,
-                            Message = string.Format(_localizer["PaymentSuccessNotifMessage"].Value, course.Name),
-                            Type = NotificationType.System,
-                            CreatedAt = DateTime.UtcNow,
-                            RelatedId = course.Id
-                        });
-                    }
+                        UserId = order.StudentId,
+                        Title = _localizer["PaymentSuccessNotifTitle"].Value,
+                        Message = string.Format(_localizer["PaymentSuccessNotifMessage"].Value, course.Name),
+                        Type = NotificationType.System,
+                        CreatedAt = DateTime.UtcNow,
+                        RelatedId = course.Id
+                    });
                 }
             }
             catch (Exception ex)

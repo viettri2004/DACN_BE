@@ -181,6 +181,7 @@ namespace ContentService.Application.Services
                 .Include(c => c.Lectures.OrderBy(l => l.DisplayOrder))
                     .ThenInclude(l => l.LectureVideos.OrderBy(v => v.DisplayOrder))
                 .Include(c => c.Enrollments).ThenInclude(e => e.Comments)
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(c => c.Id == courseId);
 
             if (course == null) return new ApiResponse("NotFound", _localizer["CourseNotFound"].Value, null, false);

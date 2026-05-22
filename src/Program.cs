@@ -69,6 +69,9 @@ catch (Exception ex)
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Host.UseSerilog((context, configuration) => 
+    configuration.ReadFrom.Configuration(context.Configuration));
+
 var jwtSection = builder.Configuration.GetSection("JWT");
 if (string.IsNullOrEmpty(jwtSection["Issuer"]) ||
     string.IsNullOrEmpty(jwtSection["Audience"]) ||
@@ -262,8 +265,9 @@ static void ConfigureDbContext(IServiceCollection services, IConfiguration confi
     AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
     
     string? ConnectionString = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION");
-    services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(ConnectionString));
+    services.AddDbContextPool<AppDbContext>(options =>
+        options.UseNpgsql(ConnectionString, npgsqlOptions => 
+            npgsqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)), poolSize: 200);
 }
 
 static void ConfigureControllers(IServiceCollection services)
