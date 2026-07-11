@@ -774,5 +774,26 @@
   </data>
   <data name="NewInstructorRequestMessage" xml:space="preserve">
     <value>User {0} has just requested to become an instructor.</value>
+    <comment/>
+  </data>
+  <data name="SubtitlesSaved" xml:space="preserve">
+    <value>Subtitles saved successfully.</value>
+    <comment/>
+  </data>
+  <data name="AiProcessingRetriggered" xml:space="preserve">
+    <value>AI subtitle processing has been re-triggered.</value>
+    <comment/>
+  </data>
+  <data name="InvalidSubtitlesData" xml:space="preserve">
+    <value>Invalid subtitles data.</value>
+    <comment/>
+  </data>
+  <data name="VideoAnalysisSaved" xml:space="preserve">
+    <value>Video analysis summary &amp; segments saved successfully.</value>
+    <comment/>
+  </data>
+  <data name="InvalidAnalysisData" xml:space="preserve">
+    <value>Invalid analysis summary &amp; segments data.</value>
+    <comment/>
   </data>
 </root>

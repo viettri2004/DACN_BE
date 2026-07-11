@@ -153,7 +153,7 @@ namespace InteractionService.Application.Services
                 var course = await _courseRepository.GetByIdAsync(addCommentDTO.CourseId);
                 if (course != null)
                 {
-                    _backgroundJobClient.Enqueue(() => _luceneSearchService.IndexCourseAsync(course.Id));
+                    _backgroundJobClient.Enqueue<ILuceneSearchService>(service => service.IndexCourseAsync(course.Id));
 
                     var student = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
                     var studentName = student?.FullName ?? "Học viên";

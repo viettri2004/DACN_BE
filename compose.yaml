@@ -22,10 +22,13 @@ services:
       - "5223:8080"
     env_file:
       - .env
+    environment:
+      - ASPNETCORE_URLS=http://0.0.0.0:8080
     depends_on:
       - redis-service
     volumes:
       - ./shared-uploads:/app/wwwroot/uploads
+      - ./lucene_data:/app/lucene_data
 
   # --- Redis (Caching & Hangfire) ---
   redis-service:
@@ -37,6 +40,15 @@ services:
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     volumes:
       - redis-data:/data
+
+    # --- Cloudflare Tunnel ---
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: always
+    command: tunnel run --token ${TUNNEL_TOKEN}
+    # Không cần expose port, tunnel kết nối outbound đến Cloudflare
+    # Truy cập server qua Docker internal network: http://server:8080
 
 volumes:
   redis-data:

@@ -220,6 +220,57 @@ namespace ContentService.API.Controllers
             return response.ToActionResult();
         }
 
+        [Authorize(Policy = "Instructor")]
+        [HttpGet("subtitles/{videoId}")]
+        public async Task<ActionResult<ApiResponse>> GetSubtitles([FromRoute] string videoId)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _lectureService.GetSubtitlesAsync(videoId, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpPut("subtitles/{videoId}")]
+        public async Task<ActionResult<ApiResponse>> SaveSubtitles([FromRoute] string videoId, [FromBody] SaveSubtitlesDTO dto)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _lectureService.SaveSubtitlesAsync(videoId, dto, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpPut("analysis/{videoId}")]
+        public async Task<ActionResult<ApiResponse>> SaveVideoAnalysis([FromRoute] string videoId, [FromBody] SaveVideoAnalysisDTO dto)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _lectureService.SaveVideoAnalysisAsync(videoId, dto, instructorId);
+            return response.ToActionResult();
+        }
+
+        [Authorize(Policy = "Instructor")]
+        [HttpPost("retrigger-ai/{videoId}")]
+        public async Task<ActionResult<ApiResponse>> RetriggerAiProcessing([FromRoute] string videoId)
+        {
+            var instructorId = User.Claims.FirstOrDefault(c => c.Type == "id")?.Value;
+            if (string.IsNullOrEmpty(instructorId))
+            {
+                return Unauthorized(new ApiResponse("Error", _localizer["Unauthorized"].Value, null, false));
+            }
+            var response = await _lectureService.RetriggerAiProcessingAsync(videoId, instructorId);
+            return response.ToActionResult();
+        }
     }
 }
 

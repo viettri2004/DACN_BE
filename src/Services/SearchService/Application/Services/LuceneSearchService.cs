@@ -109,32 +109,44 @@ namespace SearchService.Application.Services
             {
                 InitializeIndex(baseDataPath, indexPath, taxonomyPath, spellcheckerPath);
             }
-            catch (Exception ex) when (ex is IOException || ex is FileNotFoundException)
+            catch (Exception ex)
             {
-                Console.WriteLine($"Lucene index corrupted: {ex.Message}. Attempting to wipe and rebuild...");
+                Console.WriteLine($"Lucene index corrupted: {ex.GetType().Name}: {ex.Message}. Attempting to wipe and rebuild...");
                 
                 // Dispose current objects if they exist
-                _searcherManager?.Dispose();
-                _spellChecker?.Dispose();
-                _taxonomyWriter?.Dispose();
-                _writer?.Dispose();
-                _directory?.Dispose();
-                _taxonomyDirectory?.Dispose();
-                _spellDirectory?.Dispose();
+                try { _searcherManager?.Dispose(); } catch { }
+                try { _spellChecker?.Dispose(); } catch { }
+                try { _taxonomyWriter?.Dispose(); } catch { }
+                try { _writer?.Dispose(); } catch { }
+                try { _directory?.Dispose(); } catch { }
+                try { _taxonomyDirectory?.Dispose(); } catch { }
+                try { _spellDirectory?.Dispose(); } catch { }
+
+                _searcherManager = null!;
+                _spellChecker = null!;
+                _taxonomyWriter = null!;
+                _writer = null!;
+                _directory = null!;
+                _taxonomyDirectory = null!;
+                _spellDirectory = null!;
 
                 try
                 {
                     // Wipe directories
                     if (System.IO.Directory.Exists(baseDataPath))
                         System.IO.Directory.Delete(baseDataPath, true);
+                    
+                    // Wait briefly for filesystem to release
+                    System.Threading.Thread.Sleep(500);
                 }
                 catch (Exception deleteEx)
                 {
                     Console.WriteLine($"Failed to delete corrupted index directory: {deleteEx.Message}");
                 }
 
-                // Re-initialize
+                // Re-initialize with fresh index
                 InitializeIndex(baseDataPath, indexPath, taxonomyPath, spellcheckerPath);
+                Console.WriteLine("Lucene index rebuilt successfully. Run IndexAllCoursesAsync to repopulate.");
             }
         }
 

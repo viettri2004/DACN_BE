@@ -17,6 +17,7 @@
   <a href="#-architecture">Architecture</a> •
   <a href="#-getting-started">Getting Started</a> •
   <a href="#-environment-configuration">Configuration</a> •
+  <a href="#-folder-structure">Folder Structure</a> •
   <a href="#-api-reference">API</a> •
   <a href="#-contributing">Contributing</a> •
   <a href="#-license">License</a>
@@ -28,56 +29,57 @@
 
 **VietEdu** is a full-featured online learning platform backend designed to power modern e-learning experiences. It provides RESTful APIs for course management, lecture delivery, quiz assessment, payment processing, and real-time notifications — all enhanced with AI-powered capabilities like automatic video transcription and intelligent content analysis.
 
-Built with a **Modular Monolith** approach, VietEdu balances the simplicity of a monolithic deployment with the clean separation of concerns found in microservices. Each business domain (Courses, Lectures, Accounts, Payments, Cart) lives in its own self-contained module with dedicated API, Application, Domain, and Infrastructure layers.
+Built with a **Modular Monolith** approach, VietEdu balances the simplicity of a monolithic deployment with the clean separation of concerns found in microservices. Each business domain lives in its own self-contained module with dedicated API, Application, Domain, and Infrastructure layers.
 
 ### Why VietEdu?
 
 | Problem | VietEdu's Solution |
 |---|---|
 | Complex microservice orchestration | Modular Monolith — single deployment, clean boundaries |
-| Manual content transcription | AI-powered automatic video transcription & subtitle generation |
-| Slow course search | Full-text search powered by Apache Lucene.NET |
-| Lack of real-time interaction | SignalR-based live notifications |
-| Rigid payment systems | Multi-provider payment support (VnPay, SePay) |
+| Manual content transcription | AI-powered automatic video transcription & subtitle generation via dedicated AI Server |
+| AI Content Analysis & Summary | Google Gemini AI (`gemini-3-flash-preview`) analysis using Google.GenAI SDK |
+| Slow course search | Full-text search, spelling suggestions, and facet filtering powered by Apache Lucene.NET 4.8 |
+| Lack of real-time interaction | SignalR-based live notifications (`/notificationHub`) |
+| Rigid payment systems | Multi-provider payment support (VnPay gateway & QR-based bank transfer SePay with instant webhook validation) |
 
 ---
 
 ## ✨ Key Features
 
-### 🎯 Core Platform
-- **Course Management** — Create, publish, and manage courses with approval workflows
-- **Lecture System** — Upload videos, documents, and organize content with drag-and-drop ordering
-- **Quiz Engine** — Build quizzes with multiple question types, attempt tracking, and scoring
-- **Shopping Cart & Checkout** — Full e-commerce flow for course purchases
-- **User Roles** — Role-based access for Students, Instructors, and Admins
+### 👤 Identity & Authentication (`IdentityService`)
+- **Multi-Role User Management** — Dedicated workflows and profiles for Students, Instructors, and Admins.
+- **Secure Authentication** — JWT Authentication with access tokens, refresh tokens, and Google OAuth login integration.
+- **Admin Dashboard** — Centralized analytics and system metrics with distributed cache optimization.
 
-### 🤖 AI & Intelligence
-- **Video Transcription** — Automatic speech-to-text via iFlyTek ASR and Google Cloud Speech
-- **Subtitle Generation** — Auto-generate subtitles for lecture videos
-- **Content Analysis** — AI-powered content analysis via Google Gemini
-- **Smart Prompts** — Configurable AI prompt templates for content generation
+### 📚 Course & Content Management (`ContentService`)
+- **Course Lifecycle** — Create, update, and publish courses with approval workflows (Request -> Review -> Approve/Reject).
+- **Rich Lecture System** — Organize lectures with video lectures, document attachments, and drag-and-drop order sequencing.
+- **Quiz Engine** — Create quizzes with multiple-choice questions, options, and attempt tracking.
+- **Category & Tag System** — Organize courses dynamically via tags.
+- **Secure Uploads** — Direct-to-Cloudinary media upload signature generation (Image, Video, Raw documents) for client applications.
 
-### 🔍 Search & Discovery
-- **Full-Text Search** — Apache Lucene.NET-powered course and content search
-- **Tag System** — Organize and discover courses through tags and categories
+### 💬 Course Interactions (`InteractionService`)
+- **Q&A Threads** — Multi-user forum threads and message replies inside lectures.
+- **Comments & Reviews** — Post comments on courses.
+- **Wishlist** — Save courses to a personalized student wishlist.
 
-### 💳 Payments
-- **VnPay Integration** — Vietnam's leading payment gateway
-- **SePay Integration** — QR-based bank transfer payments
-- **Transaction Tracking** — Complete payment lifecycle management
+### 📈 Student Progress (`LearningService`)
+- **Progress Tracking** — Tracks lecture completion progress for enrolled students.
+- **Quiz Assessments** — Records quiz attempts, calculates results, and stores history.
 
-### 🔔 Real-Time
-- **SignalR Notifications** — Instant push notifications to connected clients
-- **Live Updates** — Real-time course enrollment and status updates
+### 🔔 Real-Time Notifications (`NotificationService`)
+- **SignalR Hub** — Live push notifications for course events, enrollment changes, and announcement broadcasts.
+- **Notification Center** — Fetch, mark as read, and manage user notifications.
 
-### 🏗️ Infrastructure
-- **JWT Authentication** — Secure token-based auth with refresh tokens
-- **Google OAuth** — Social login with Google
-- **Cloudinary CDN** — Optimized media storage and delivery
-- **Redis Caching** — High-performance distributed caching
-- **Hangfire** — Reliable background job processing
-- **Serilog** — Structured logging with file and console sinks
-- **i18n** — Full internationalization support (Vietnamese & English)
+### 💳 Shopping Cart & Checkout (`OrderingService`)
+- **Cart Management** — Add/remove items, retrieve cart details.
+- **VnPay Integration** — Seamless payment gateway redirect checkout with signature validation, return and IPN callbacks.
+- **SePay QR Payment** — Dynamic bank transfer QR generation (via QRCoder) with secure webhook callback handling.
+
+### 🔍 Search & AI Capabilities (`SearchService`)
+- **Lucene Full-Text Search** — High-performance course searching, autocomplete search suggestions, and facet tagging.
+- **Gemini Video Analysis** — Extract video transcripts to automatically generate summaries and study aids using the Google GenAI SDK.
+- **Hangfire Worker** — Asynchronous video processing and speech-to-text transcription queues.
 
 ---
 
@@ -93,34 +95,38 @@ graph TB
 
     subgraph API_GATEWAY["ASP.NET Core 9 Host"]
         direction TB
-        MW["Middleware Pipeline<br/>CORS · Auth · Localization"]
+        MW["Middleware Pipeline<br/>CORS · Auth · Localization · Global Exception"]
 
         subgraph MODULES["Service Modules"]
             direction LR
-            AS["👤 Account<br/>Service"]
-            CS["📚 Course<br/>Service"]
-            LS["🎬 Lecture<br/>Service"]
-            PS["💳 Payment<br/>Service"]
-            CRS["🛒 Cart<br/>Service"]
+            IS["👤 Identity<br/>Service"]
+            CS["📚 Content<br/>Service"]
+            INS["💬 Interaction<br/>Service"]
+            LS["📈 Learning<br/>Service"]
+            NS["🔔 Notification<br/>Service"]
+            OS["💳 Ordering<br/>Service"]
+            SS["🔍 Search<br/>Service"]
         end
 
         subgraph SHARED["Shared Kernel"]
             direction LR
             DB["AppDbContext"]
-            ENT["Entities"]
-            RES["Resources (i18n)"]
-            EXT["Extensions"]
+            ENT["Entities (ApiResponse, PagedResult)"]
+            RES["Resources (i18n RESX)"]
+            HUB["NotificationHub"]
+            CLD["CloudinaryService"]
         end
     end
 
     subgraph EXTERNAL["External Services"]
         direction LR
         PG["🐘 PostgreSQL"]
-        RD["⚡ Redis"]
-        CL["☁️ Cloudinary"]
+        RD["⚡ Redis (Cache & Hangfire)"]
+        CL["☁️ Cloudinary CDN"]
         GM["🤖 Gemini AI"]
-        VP["💰 VnPay"]
-        SP["💰 SePay"]
+        AIS["⚙️ AI Transcribe Server"]
+        VP["💰 VnPay Gate"]
+        SP["💰 SePay QR"]
         GA["🔐 Google Auth"]
     end
 
@@ -130,11 +136,11 @@ graph TB
     SHARED --> PG
     SHARED --> RD
     CS --> CL
-    CS --> GM
-    PS --> VP
-    PS --> SP
-    AS --> GA
-    LS --> CL
+    SS --> AIS
+    SS --> GM
+    OS --> VP
+    OS --> SP
+    IS --> GA
 
     style API_GATEWAY fill:#1a1a2e,stroke:#16213e,color:#e6e6e6
     style MODULES fill:#0f3460,stroke:#16213e,color:#e6e6e6
@@ -197,17 +203,18 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     C->>MW: HTTP Request
+    MW->>MW: Global Exception handler
     MW->>MW: CORS Validation
     MW->>MW: JWT Authentication
-    MW->>MW: Request Localization
+    MW->>MW: Request Localization (vi/en)
     MW->>CTRL: Route to Controller
     CTRL->>SVC: Call Application Service
     SVC->>REPO: Query/Command
     REPO->>DB: EF Core Query
     DB-->>REPO: Data
     REPO-->>SVC: Domain Entity
-    SVC-->>CTRL: DTO / Result
-    CTRL-->>C: ApiResponse (JSON)
+    SVC-->>CTRL: DTO / ApiResponse
+    CTRL-->>C: ActionResult<ApiResponse>
 ```
 
 ### API Response Format
@@ -218,7 +225,7 @@ All endpoints return a consistent `ApiResponse` envelope:
 {
   "success": true,
   "code": "SUCCESS",
-  "message": "Operation completed successfully",
+  "message": "Thao tác thành công",
   "data": { }
 }
 ```
@@ -232,8 +239,8 @@ All endpoints return a consistent `ApiResponse` envelope:
 | Tool | Version | Purpose |
 |---|---|---|
 | [.NET SDK](https://dotnet.microsoft.com/download) | 9.0+ | Runtime & build tooling |
-| [PostgreSQL](https://www.postgresql.org/download/) | 14+ | Primary database |
-| [Redis](https://redis.io/download) | 6+ | Caching & Hangfire storage |
+| [PostgreSQL](https://www.postgresql.org/download/) | 16+ | Primary database |
+| [Redis](https://redis.io/download) | alpine / 6+ | Caching, Rate Limiting & Hangfire storage |
 | [Docker](https://docs.docker.com/get-docker/) | 20+ | *(Optional)* Containerized deployment |
 | [Git](https://git-scm.com/) | 2.30+ | Version control |
 
@@ -248,13 +255,14 @@ cd DACN_BE
 
 #### 2. Configure Environment Variables
 
-Create a `.env` file inside the `src/` directory:
+Create a `.env` file in the root directory (or in `src/` directory depending on launch preference):
 
 ```bash
+# Copy template
 cp src/.env.example src/.env
 ```
 
-Then edit `src/.env` with your actual credentials (see [Environment Configuration](#-environment-configuration) for details).
+Ensure variables are set correctly (see [Environment Configuration](#-environment-configuration) details).
 
 #### 3. Restore Dependencies
 
@@ -269,133 +277,73 @@ dotnet restore
 dotnet ef database update
 ```
 
-> **Note:** Make sure your `POSTGRES_CONNECTION` in `.env` points to a running PostgreSQL instance before running migrations.
+> [!NOTE]
+> Make sure PostgreSQL is running and the connection string is valid in your `.env` before updating database.
 
-#### 5. Start Redis
+#### 5. Run the Project
 
-```bash
-# Using Docker (recommended)
-docker run -d --name redis-cache -p 6379:6379 redis:alpine
-
-# Or use a local Redis installation
-redis-server
-```
-
-### Running the Project
-
-#### Option A: .NET CLI (Development)
-
+##### Option A: .NET CLI
 ```bash
 cd src
 dotnet run
 ```
-
-The API will be available at:
+The API is available at:
 - **HTTP:** `http://localhost:5223`
 - **Swagger UI:** `http://localhost:5223/swagger`
 - **Hangfire Dashboard:** `http://localhost:5223/hangfire`
 
-#### Option B: Docker Compose (Production-like)
-
+##### Option B: Docker Compose
 ```bash
-# Build and start all services
-docker compose up --build
-
-# Run in detached mode
 docker compose up --build -d
-
-# View logs
-docker compose logs -f server
 ```
-
-This will start:
-- **VietEdu API** on port `5223`
-- **Redis** container for caching and background jobs
-
-#### Option C: Visual Studio
-
-1. Open `DACN_BE.sln`
-2. Set `src` as the startup project
-3. Press `F5` or click **Run**
-
-### Verifying the Installation
-
-Once the server is running, verify it's working:
-
-```bash
-# Health check via Swagger
-curl http://localhost:5223/swagger/v1/swagger.json
-
-# Or simply open in your browser
-# http://localhost:5223/swagger
-```
+This starts:
+- **API Server** on port `5223`
+- **Redis** on port `6379`
+- **Cloudflare Tunnel** container for secure domain access
 
 ---
 
 ## ⚙️ Environment Configuration
 
-VietEdu uses a `.env` file in the `src/` directory for sensitive configuration. The app loads these variables at startup via `DotNetEnv`.
+VietEdu uses `.env` files for configuration. The app loads these variables at startup via `DotNetEnv`.
 
 ### Required Variables
 
-Create `src/.env` with the following variables:
+Ensure `.env` contains the following configurations:
 
 ```env
 # ─── Database & Cache ────────────────────────────────────────
-POSTGRES_CONNECTION="Host=localhost;Port=5432;Database=vietedu;Username=postgres;Password=your_password;"
+POSTGRES_CONNECTION="Host=your_postgres_host;Port=5432;Database=vietedu;Username=postgres;Password=your_password;SSL Mode=Prefer;"
 REDIS_CONNECTION="localhost:6379"
 
-# ─── Media Storage ───────────────────────────────────────────
-CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
+# ─── Security & JWT ──────────────────────────────────────────
+JWT__Issuer="http://localhost:5223"
+JWT__Audience="http://localhost:5223"
+JWT__SigningKey="your_signing_key_at_least_32_characters"
+JWT__AccessTokenExpireMinutes=30
+
+# ─── Cloudinary Media Storage ────────────────────────────────
+Cloudinary__Url="cloudinary://API_KEY:API_SECRET@CLOUD_NAME"
+CLOUDINARY_URL="cloudinary://API_KEY:API_SECRET@CLOUD_NAME"
 
 # ─── AI Services ─────────────────────────────────────────────
-GEMINI_API_KEY="your_gemini_api_key"
-AI_SERVER_URL="http://your-ai-server:8000/transcribe-from-cloudinary"
+GEMINI_API_KEY="your_google_gemini_api_key"
+AI__ServerUrl="http://your-ai-transcribe-server:8000/transcribe-from-cloudinary"
 
-# ─── Security ────────────────────────────────────────────────
-JWT__SigningKey="your_jwt_signing_key_minimum_32_chars"
-
-# ─── Email (SMTP) ────────────────────────────────────────────
-Email__Password="your_smtp_app_password"
+# ─── Email Configuration (SMTP) ──────────────────────────────
+Email__Password="your_smtp_password"
 
 # ─── Payment Gateways ────────────────────────────────────────
 VnPay__HashSecret="your_vnpay_hash_secret"
+Sepay__ApiKey="your_sepay_auth_webhook_token"
 
 # ─── Google OAuth ─────────────────────────────────────────────
-Google__ClientId="your_google_client_id.apps.googleusercontent.com"
+Google__ClientId="your_google_client_id"
 Google__ClientSecret="your_google_client_secret"
-```
 
-### Application Settings (`appsettings.json`)
-
-Non-secret configuration lives in `src/appsettings.json`:
-
-| Section | Key | Description | Default |
-|---|---|---|---|
-| `JWT` | `Issuer` | Token issuer URL | `http://localhost:5223` |
-| `JWT` | `Audience` | Token audience URL | `http://localhost:5223` |
-| `JWT` | `AccessTokenExpireMinutes` | Token TTL in minutes | `30` |
-| `Email` | `From` | Sender email address | — |
-| `VnPay` | `TmnCode` | VnPay terminal code | — |
-| `VnPay` | `BaseUrl` | VnPay gateway URL | Sandbox URL |
-| `VnPay` | `ReturnUrl` | Payment return callback | — |
-| `Google` | `AuthUri` | Google OAuth endpoint | Google default |
-| `Google` | `RedirectUri` | OAuth callback URL | — |
-| `FrontendUrls` | `PaymentSuccess` | Redirect after payment success | `http://localhost:5173/...` |
-| `FrontendUrls` | `PaymentFail` | Redirect after payment failure | `http://localhost:5173/...` |
-
-### Docker Compose Environment
-
-When running via Docker Compose, environment variables are passed through the `compose.yaml` file:
-
-```yaml
-environment:
-  - ASPNETCORE_ENVIRONMENT=Production
-  - ConnectionStrings__DefaultConnection=${POSTGRES_CONNECTION}
-  - ConnectionStrings__Redis=${REDIS_CONNECTION}
-  - Cloudinary__Url=${CLOUDINARY_URL}
-  - Gemini__ApiKey=${GEMINI_API_KEY}
-  - AI__ServerUrl=${AI_SERVER_URL}
+# ─── Cloudflare Tunnel Token ──────────────────────────────────
+TUNNEL_TOKEN="your_cloudflare_tunnel_token"
+ENABLE_SWAGGER=true
 ```
 
 ---
@@ -405,96 +353,82 @@ environment:
 ```
 DACN_BE/
 ├── 📄 DACN_BE.sln                    # Visual Studio solution file
-├── 📄 compose.yaml                   # Docker Compose configuration
+├── 📄 compose.yaml                   # Docker Compose setup
 ├── 📄 README.md                      # This file
 │
-└── src/                              # Application source code
-    ├── 📄 Program.cs                 # Application entry point & DI configuration
-    ├── 📄 src.csproj                 # Project file & NuGet dependencies
-    ├── 📄 .env                       # Environment variables (not committed)
-    ├── 📄 Dockerfile                 # Multi-stage Docker build
-    ├── 📄 appsettings.json           # Non-secret application config
-    │
-    ├── Services/                     # 🔷 Business domain modules
-    │   ├── AccountService/           # 👤 User management & authentication
-    │   │   ├── API/
-    │   │   │   └── Controllers/
-    │   │   │       ├── AccountController.cs      # Auth, profile, user CRUD
-    │   │   │       ├── DashboardController.cs    # Admin analytics
-    │   │   │       └── NotificationController.cs # Push notifications
-    │   │   ├── Application/          # DTOs, interfaces, services
-    │   │   ├── Domain/
-    │   │   │   ├── Entities/         # User, Student, Instructor, Admin, Notification
-    │   │   │   └── Enums/
-    │   │   └── Infrastructure/       # Repos, Email, Google OAuth, OTP
-    │   │
-    │   ├── CourseService/            # 📚 Course lifecycle management
-    │   │   ├── API/
-    │   │   │   └── Controllers/
-    │   │   │       ├── CourseController.cs   # Course CRUD & enrollment
-    │   │   │       ├── AiController.cs       # AI content generation
-    │   │   │       └── TagController.cs      # Tag management
-    │   │   ├── Application/
-    │   │   ├── Domain/
-    │   │   │   ├── Entities/         # Course, Tag, Enrollment, Comment, CourseRequest
-    │   │   │   └── Enums/
-    │   │   └── Infrastructure/
-    │   │       ├── Repositories/
-    │   │       ├── Prompts/          # AI prompt templates (.txt)
-    │   │       ├── LmsAiService.cs   # Gemini AI integration
-    │   │       └── VideoProcessingService.cs
-    │   │
-    │   ├── LectureService/           # 🎬 Lecture & quiz management
-    │   │   ├── API/
-    │   │   │   └── Controllers/
-    │   │   │       ├── LectureController.cs  # Lecture CRUD & video upload
-    │   │   │       └── QuizController.cs     # Quiz management & attempts
-    │   │   ├── Application/
-    │   │   ├── Domain/
-    │   │   │   └── Entities/         # Lecture, LectureVideo, Quiz, Question, QuizAttempt
-    │   │   └── Infrastructure/
-    │   │
-    │   ├── PaymentService/           # 💳 Payment processing
-    │   │   ├── API/
-    │   │   │   └── Controllers/
-    │   │   │       └── PaymentController.cs  # VnPay & SePay integration
-    │   │   ├── Application/
-    │   │   ├── Domain/
-    │   │   └── Infrastructure/       # VnPayService, SepayService
-    │   │
-    │   └── CartService/              # 🛒 Shopping cart
-    │       ├── API/
-    │       │   └── Controllers/
-    │       │       └── CartController.cs
-    │       ├── Application/
-    │       ├── Domain/
-    │       └── Infrastructure/
-    │
-    ├── Shared/                       # 🔷 Cross-cutting concerns
-    │   ├── Application/
-    │   │   ├── Extension/
-    │   │   │   └── ApiResponseExtension.cs   # .ToActionResult() helper
-    │   │   └── Interfaces/
-    │   ├── Domain/
-    │   │   └── Entities/
-    │   │       ├── ApiResponse.cs            # Standard API envelope
-    │   │       ├── PagedResult.cs            # Pagination wrapper
-    │   │       └── SharedResources.cs        # i18n resource accessor
-    │   ├── Infrastructure/
-    │   │   ├── AppDbContext.cs               # EF Core database context
-    │   │   ├── DbInitializer.cs             # Seed data
-    │   │   ├── Cloudiary/                   # Cloudinary media service
-    │   │   ├── Hubs/
-    │   │   │   └── NotificationHub.cs       # SignalR real-time hub
-    │   │   └── iFlyTek/                     # Speech-to-text integration
-    │   └── Resources/
-    │       ├── SharedResources.vi.resx       # Vietnamese translations
-    │       └── SharedResources.en.resx       # English translations
-    │
-    ├── Migrations/                   # EF Core database migrations
-    ├── Properties/
-    │   └── launchSettings.json       # Dev server launch profiles
-    └── lucene_index/                 # Lucene.NET search index data
+├── src/                              # Main API Source Code
+│   ├── 📄 Program.cs                 # Application entry point & DI configuration
+│   ├── 📄 src.csproj                 # Project file & NuGet packages
+│   ├── 📄 Dockerfile                 # Multi-stage Docker deployment config
+│   ├── 📄 appsettings.json           # Non-secret application config
+│   │
+│   ├── Services/                     # 🔷 Service Modules (Clean Architecture)
+│   │   ├── IdentityService/          # 👤 Users, Roles, Google OAuth, Dashboards
+│   │   │   ├── API/Controllers/      # AccountController, DashboardController
+│   │   │   ├── Application/          # DTOs, interfaces, services (Auth, Token, User)
+│   │   │   ├── Domain/Entities/      # User, Student, Instructor, RefreshToken
+│   │   │   └── Infrastructure/       # Repositories, GoogleAuth, Otp, Email
+│   │   │
+│   │   ├── ContentService/           # 📚 Course, Lectures, Quizzes, Tags
+│   │   │   ├── API/Controllers/      # Course, Lecture, Quiz, Tag, Webhook, Media, InstructorDashboard
+│   │   │   ├── Application/          # CourseService, LectureService, QuizService, InstructorService
+│   │   │   ├── Domain/Entities/      # Course, Lecture, Quiz, Question, Tag, VideoSubtitle
+│   │   │   └── Infrastructure/       # Repositories
+│   │   │
+│   │   ├── InteractionService/       # 💬 Reviews, Wishlist, Q&A Threads
+│   │   │   ├── API/Controllers/      # CommentController, QAController, WishlistController
+│   │   │   ├── Application/          # CommentService, QAThreadService, WishlistService
+│   │   │   ├── Domain/Entities/      # Comment, Wishlist, QAThread, QAMessage
+│   │   │   └── Infrastructure/       # Repositories
+│   │   │
+│   │   ├── LearningService/          # 📈 Progress tracker & Quiz attempts
+│   │   │   ├── API/Controllers/      # StudentProgressController
+│   │   │   ├── Application/          # StudentProgressService
+│   │   │   ├── Domain/Entities/      # StudentLectureProgress, Enrollment, QuizAttempt, QuizAttemptAnswer
+│   │   │   └── Infrastructure/
+│   │   │
+│   │   ├── NotificationService/      # 🔔 Notification lifecycle
+│   │   │   ├── API/Controllers/      # NotificationController
+│   │   │   ├── Application/          # NotificationService
+│   │   │   ├── Domain/Entities/      # Notification
+│   │   │   └── Infrastructure/       # Repositories
+│   │   │
+│   │   ├── OrderingService/          # 🛒 Carts, Checkout & Payments
+│   │   │   ├── API/Controllers/      # CartController, PaymentController
+│   │   │   ├── Application/          # PaymentService
+│   │   │   ├── Domain/Entities/      # Order, OrderItem, GiftCode, PaymentTransaction
+│   │   │   └── Infrastructure/       # SepayService, VnPayService, CartRepository, PaymentRepository
+│   │   │
+│   │   └── SearchService/            # 🔍 Lucene indexing & AI Processing
+│   │       ├── API/Controllers/      # SearchController, AiController
+│   │       ├── Application/          # LuceneSearchService
+│   │       └── Infrastructure/       # LmsAiService (Gemini API), VideoProcessingService (Hangfire)
+│   │
+│   ├── Shared/                       # 🔷 Shared Kernel
+│   │   ├── Application/
+│   │   │   ├── Extension/            # ApiResponseExtension (.ToActionResult() helper)
+│   │   │   ├── Interfaces/
+│   │   │   └── Middlewares/          # GlobalExceptionMiddleware
+│   │   ├── Domain/Entities/          # ApiResponse, PagedResult, SharedResources
+│   │   ├── Infrastructure/
+│   │   │   ├── AppDbContext.cs       # Shared DbContext
+│   │   │   ├── DbInitializer.cs      # Database seed data configuration
+│   │   │   ├── Hubs/                 # SignalR Hubs (NotificationHub)
+│   │   │   ├── Cloudiary/            # Cloudinary upload integrations
+│   │   │   └── Repositories/
+│   │   └── Resources/                # Localization resource files (.resx)
+│   │
+│   └── Migrations/                   # EF Core DB migrations
+│
+└── tests/                            # Unit & Integration Tests
+    └── Services/
+        ├── ContentService.Tests/
+        ├── IdentityService.Tests/
+        ├── InteractionService.Tests/
+        ├── LearningService.Tests/
+        ├── NotificationService.Tests/
+        ├── OrderingService.Tests/
+        └── SearchService.Tests/
 ```
 
 ---
@@ -509,7 +443,7 @@ http://localhost:5223/api
 
 ### Authentication
 
-All protected endpoints require a JWT Bearer token in the `Authorization` header:
+Protected endpoints require a JWT Bearer token:
 
 ```
 Authorization: Bearer <your_jwt_token>
@@ -517,7 +451,7 @@ Authorization: Bearer <your_jwt_token>
 
 ### Localization
 
-Set the response language via the `Accept-Language` header:
+Control responses language via `Accept-Language` header:
 
 ```
 Accept-Language: vi    # Vietnamese (default)
@@ -526,44 +460,47 @@ Accept-Language: en    # English
 
 ### Available Endpoints
 
-| Module | Endpoint | Methods | Description |
+| Service Module | Endpoint | Methods | Description |
 |---|---|---|---|
-| **Account** | `/api/Account` | `GET` `POST` `PUT` `DELETE` | User management, registration, login |
-| **Account** | `/api/Account/google-*` | `GET` `POST` | Google OAuth flow |
-| **Dashboard** | `/api/Dashboard` | `GET` | Admin analytics & statistics |
-| **Notification** | `/api/Notification` | `GET` `POST` `PUT` | Push notifications management |
-| **Course** | `/api/Course` | `GET` `POST` `PUT` `DELETE` | Course CRUD & enrollment |
-| **AI** | `/api/Ai` | `POST` | AI-powered content generation |
-| **Tag** | `/api/Tag` | `GET` `POST` `PUT` `DELETE` | Course tag management |
-| **Lecture** | `/api/Lecture` | `GET` `POST` `PUT` `DELETE` | Lectures, videos, documents |
-| **Quiz** | `/api/Quiz` | `GET` `POST` `PUT` `DELETE` | Quiz management & attempts |
-| **Payment** | `/api/Payment` | `GET` `POST` | Payment processing & callbacks |
-| **Cart** | `/api/Cart` | `GET` `POST` `DELETE` | Shopping cart operations |
-
-> 📝 **Full API documentation** is available at `/swagger` when the server is running.
+| **Identity** | `/api/Account` | `GET` `POST` `PUT` `DELETE` | Login, registration, profile updates |
+| **Identity** | `/api/Account/google-*` | `GET` `POST` | Google OAuth login and callback redirection |
+| **Identity** | `/api/Dashboard` | `GET` | System-wide admin dashboard analytics |
+| **Content** | `/api/Course` | `GET` `POST` `PUT` `DELETE` | Course catalog, publishing approvals, recommendations |
+| **Content** | `/api/InstructorDashboard`| `GET` | Course performance statistics for instructors |
+| **Content** | `/api/Lecture` | `GET` `POST` `PUT` `DELETE` | Lecture items (videos, document downloads) |
+| **Content** | `/api/Quiz` | `GET` `POST` `PUT` `DELETE` | Quizzes management, questions structure |
+| **Content** | `/api/Tag` | `GET` `POST` `PUT` `DELETE` | Manage categories/tags |
+| **Content** | `/api/Media/*` | `GET` | Signature generators for Cloudinary upload validation |
+| **Content** | `/api/webhooks/cloudinary`| `POST` | Notification webhook triggered by Cloudinary processing |
+| **Interaction**| `/api/Comment` | `GET` `POST` `DELETE` | Course comments and review posts |
+| **Interaction**| `/api/QA` | `GET` `POST` `PUT` `DELETE` | Lecture discussion threads and Q&A messages |
+| **Interaction**| `/api/Wishlist` | `GET` `POST` `DELETE` | Student course wishlist operations |
+| **Learning** | `/api/StudentProgress` | `GET` `POST` | Course progress tracking & lecture completion |
+| **Notification**| `/api/Notification` | `GET` `POST` `PUT` | Push notification management |
+| **Ordering** | `/api/Cart` | `GET` `POST` `DELETE` | Shopping cart updates |
+| **Ordering** | `/api/Payment/*` | `POST` `GET` | Checkout and IPN handlers for VnPay and SePay |
+| **Search** | `/api/Search/index-all` | `POST` | Command for re-indexing Lucene databases (Admin) |
+| **Search** | `/api/Ai/analyze` | `POST` | Cloudinary video analysis summary with Google Gemini |
 
 ---
 
 ## 🧪 Tech Stack
 
-| Category | Technology |
-|---|---|
-| **Runtime** | .NET 9.0 (ASP.NET Core) |
-| **Language** | C# 13 |
-| **Database** | PostgreSQL via EF Core 9 |
-| **Cache** | Redis (StackExchange.Redis) |
-| **Auth** | ASP.NET Identity + JWT Bearer + Google OAuth |
-| **Real-Time** | SignalR |
-| **Search** | Apache Lucene.NET 4.8 |
-| **Background Jobs** | Hangfire (Redis storage) |
-| **Media** | Cloudinary CDN |
-| **AI** | Google Gemini (GenAI SDK), iFlyTek ASR |
-| **Payments** | VnPay, SePay |
-| **Logging** | Serilog (Console + File sinks) |
-| **API Docs** | Swashbuckle (Swagger/OpenAPI) |
-| **Mapping** | AutoMapper |
-| **Containerization** | Docker + Docker Compose |
-| **i18n** | Microsoft.Extensions.Localization (.resx) |
+- **Runtime** — .NET 9.0 (ASP.NET Core API Host)
+- **Language** — C# 13
+- **Primary Database** — PostgreSQL via EF Core 9 (`Npgsql.EntityFrameworkCore.PostgreSQL`)
+- **Caching & Queueing** — Redis (`Microsoft.Extensions.Caching.StackExchangeRedis`)
+- **Background Jobs** — Hangfire with Redis Storage (`Hangfire.Redis.StackExchange`)
+- **Authentication** — ASP.NET Identity + JWT Bearer + Google Authentication
+- **Search System** — Apache Lucene.NET 4.8 (Whitespace tokenizer, spellchecking, facets)
+- **AI Integrations** — Google Gemini API (`Google.GenAI` SDK 0.1.0)
+- **Payment APIs** — VnPay Integration & SePay Webhooks (with QR code generation via `QRCoder`)
+- **Real-Time Delivery** — ASP.NET Core SignalR
+- **Media CDN** — Cloudinary (`CloudinaryDotNet`)
+- **Logging** — Serilog (Console and daily rolling file logs)
+- **API Documentation** — Swashbuckle (Swagger/OpenAPI UI integration)
+- **Mapping** — AutoMapper 13.0.1
+- **Deployment** — Docker multi-stage builds & Docker Compose
 
 ---
 
@@ -571,116 +508,31 @@ Accept-Language: en    # English
 
 We welcome contributions! Here's how you can help make VietEdu better.
 
-### Getting Started
-
-1. **Fork** the repository
-2. **Clone** your fork:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/DACN_BE.git
-   ```
-3. **Create a feature branch:**
-   ```bash
-   git checkout -b feature/amazing-feature
-   ```
-4. **Make your changes** following the conventions below
-5. **Commit** with a descriptive message:
-   ```bash
-   git commit -m "feat(course): add bulk enrollment endpoint"
-   ```
-6. **Push** to your fork:
-   ```bash
-   git push origin feature/amazing-feature
-   ```
-7. **Open a Pull Request** against the `main` branch
-
-### Commit Convention
+### Commit Conventions
 
 We follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 | Prefix | Purpose | Example |
 |---|---|---|
-| `feat` | New feature | `feat(lecture): add subtitle generation` |
-| `fix` | Bug fix | `fix(payment): handle VnPay timeout` |
-| `docs` | Documentation | `docs: update API reference` |
-| `refactor` | Code restructuring | `refactor(account): extract token logic` |
-| `test` | Tests | `test(quiz): add attempt scoring tests` |
-| `chore` | Maintenance | `chore: update NuGet packages` |
+| `feat` | New feature | `feat(ordering): add SePay QR code generator` |
+| `fix` | Bug fix | `fix(search): repair Lucene index lock exceptions` |
+| `docs` | Documentation | `docs: update API endpoints list in README` |
+| `refactor`| Code cleanup | `refactor(shared): optimize dbContext pool limits` |
+| `test` | Add tests | `test(content): write tests for Quiz lifecycle` |
+| `chore` | Maintenance | `chore: update Swashbuckle dependencies` |
 
-### Code Conventions
+### Coding Guidelines
 
-- **Controllers** — Return `ActionResult<ApiResponse>` and use `.ToActionResult()`
-- **New messages** — Add to `SharedResources.resx` and use `IStringLocalizer`
-- **Module structure** — Follow the 4-layer pattern: `API/` → `Application/` → `Domain/` → `Infrastructure/`
-- **Dependency Injection** — Register services in `Program.cs` inside the `ConfigureDI` method
-- **Naming** — Use PascalCase for classes/methods, camelCase for local variables
-
-### Reporting Issues
-
-Found a bug? Please [open an issue](https://github.com/viettri2004/DACN_BE/issues) with:
-- A clear and descriptive title
-- Steps to reproduce the behavior
-- Expected vs actual behavior
-- Screenshots or logs if applicable
+- **Controllers** — Keep them slim. Return `ActionResult<ApiResponse>` and invoke the `.ToActionResult()` helper extensions.
+- **Dependency Injection** — Add registrations inside the `ConfigureDI` method in `Program.cs`.
+- **Localization** — Maintain string resource keys inside `SharedResources.resx`. Avoid hardcoded response strings.
+- **Tests** — Add unit and integration tests under the relevant service project in `tests/Services/`.
 
 ---
 
 ## 📜 License
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
-
-```
-MIT License
-
-Copyright (c) 2025 VietEdu
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-```
-
----
-
-## 🗺️ Roadmap
-
-### ✅ Delivered
-
-- [x] Modular Monolith architecture
-- [x] JWT & Google OAuth authentication
-- [x] Course management with approval workflow
-- [x] Lecture & video management with Cloudinary
-- [x] Quiz engine with attempt tracking
-- [x] Shopping cart & payment integration (VnPay, SePay)
-- [x] AI-powered video transcription & subtitle generation
-- [x] Full-text search with Lucene.NET
-- [x] Real-time notifications via SignalR
-- [x] Internationalization (Vietnamese & English)
-- [x] Background job processing with Hangfire
-- [x] Docker & Docker Compose deployment
-
-### 🚧 In Progress
-
-- [ ] Comprehensive unit & integration test suite
-- [ ] Rate limiting & API throttling
-- [ ] Course progress tracking & completion certificates
-
-### 🔮 Planned
-
-- [ ] WebSocket-based live chat for courses
-- [ ] Instructor earnings dashboard & payout system
-- [ ] Advanced analytics & learning path recommendations
-- [ ] Mobile push notifications (FCM)
-- [ ] Multi-tenant support for organizations
-- [ ] GraphQL API layer
-- [ ] Event sourcing for audit trails
-- [ ] CI/CD pipeline with GitHub Actions
-- [ ] Course reviews & rating system improvements
-- [ ] Content moderation pipeline
 
 ---
 

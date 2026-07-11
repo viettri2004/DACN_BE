@@ -98,7 +98,7 @@ namespace ContentService.Application.Services
                 await _courseRepository.SaveChangesAsync();
                 await RemoveRecommendedCache();
 
-                _backgroundJobClient.Enqueue(() => _luceneSearchService.IndexCourseAsync(newCourse.Id));
+                _backgroundJobClient.Enqueue<ILuceneSearchService>(service => service.IndexCourseAsync(newCourse.Id));
 
                 return new ApiResponse("Created", _localizer["CreateCourseSuccess"].Value, new InstructorCourseListDTO
                 {
@@ -167,7 +167,7 @@ namespace ContentService.Application.Services
             await _courseRepository.DeleteAsync(course);
             await _courseRepository.SaveChangesAsync();
             await RemoveRecommendedCache();
-            _backgroundJobClient.Enqueue(() => _luceneSearchService.DeleteCourseFromIndexAsync(courseId));
+            _backgroundJobClient.Enqueue<ILuceneSearchService>(service => service.DeleteCourseFromIndexAsync(courseId));
 
             return new ApiResponse("Success", _localizer["DeleteCourseSuccess"].Value, null, true);
         }
@@ -680,7 +680,7 @@ namespace ContentService.Application.Services
             request.ProcessedAt = DateTime.UtcNow;
             request.Course.Status = CourseStatus.Public;
             await _courseRepository.SaveChangesAsync();
-            _backgroundJobClient.Enqueue(() => _luceneSearchService.IndexCourseAsync(request.Course.Id));
+            _backgroundJobClient.Enqueue<ILuceneSearchService>(service => service.IndexCourseAsync(request.Course.Id));
 
             // Notify Instructor
             var notification = new Notification

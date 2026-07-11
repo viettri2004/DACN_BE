@@ -27,20 +27,14 @@ using System.Threading.Tasks;
 
 namespace ContentService.Domain.Entities
 {
-    public class LectureVideo
+    public class VideoSubtitle
     {
         public string Id { get; set; } = null!;
-        public string Name { get; set; } = null!;
-        public string VideoUrl   { get; set; } = null!;
-        public string? PublicId { get; set; }
-        public double Duration { get; set; }
+        public double StartTime { get; set; }     // Giây (vd: 12.5)
+        public double EndTime { get; set; }       // Giây (vd: 15.8)
+        public string Text { get; set; } = null!;
         public int DisplayOrder { get; set; }
-        public string? AnalysisResult { get; set; }
-        public string? SubtitleUrl { get; set; }
-        public string LectureId { get; set; } = null!;
-        public Lecture Lecture { get; set; } = null!;
-        public ICollection<VideoSubtitle> Subtitles { get; set; } = new List<VideoSubtitle>();
+        public string LectureVideoId { get; set; } = null!;
+        public LectureVideo LectureVideo { get; set; } = null!;
     }
 }
-
-

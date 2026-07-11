@@ -45,6 +45,10 @@ namespace ContentService.Application.Interfaces
         Task<ApiResponse> UpdateDocumentAsync(string documentId, string name, string? docUrl, string? publicId, string? type, string instructorId);
         Task<ApiResponse> UpdateVideoOrdersAsync(List<UpdateOrderDTO> videoOrders, string instructorId);
         Task<ApiResponse> GetDocumentByIdAsync(string documentId);
+        Task<ApiResponse> GetSubtitlesAsync(string videoId, string instructorId);
+        Task<ApiResponse> SaveSubtitlesAsync(string videoId, SaveSubtitlesDTO dto, string instructorId);
+        Task<ApiResponse> RetriggerAiProcessingAsync(string videoId, string instructorId);
+        Task<ApiResponse> SaveVideoAnalysisAsync(string videoId, SaveVideoAnalysisDTO dto, string instructorId);
     }
 }
 

@@ -435,4 +435,16 @@ namespace Shared.Infrastructure.Persistence.Configurations
                 .OnDelete(DeleteBehavior.Cascade);
         }
     }
+
+    public class VideoSubtitleConfiguration : IEntityTypeConfiguration<VideoSubtitle>
+    {
+        public void Configure(EntityTypeBuilder<VideoSubtitle> builder)
+        {
+            builder.HasKey(s => s.Id);
+            builder.HasOne(s => s.LectureVideo)
+                .WithMany(v => v.Subtitles)
+                .HasForeignKey(s => s.LectureVideoId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
+    }
 }

@@ -111,6 +111,23 @@ var app = builder.Build();
 
 ConfigureMiddleware(app);
 
+// Run initial Lucene indexing in background on startup
+_ = Task.Run(async () =>
+{
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var luceneSearchService = scope.ServiceProvider.GetRequiredService<ILuceneSearchService>();
+        Console.WriteLine("Starting startup Lucene indexing in background...");
+        await luceneSearchService.IndexAllCoursesAsync();
+        Console.WriteLine("Startup Lucene indexing completed successfully.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error during startup Lucene indexing: {ex.Message}");
+    }
+});
+
 app.Run();
 
 static void ConfigureCache(IServiceCollection services, IConfiguration configuration)

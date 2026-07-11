@@ -79,6 +79,28 @@ namespace SearchService.Infrastructure
                 };
                 video.AnalysisResult = JsonConvert.SerializeObject(dbAnalysis);
 
+                // Sync subtitles to DB
+                if (aiResult.Subtitles != null)
+                {
+                    var existingSubs = await _context.VideoSubtitles
+                        .Where(s => s.LectureVideoId == videoId).ToListAsync();
+                    _context.VideoSubtitles.RemoveRange(existingSubs);
+
+                    int order = 0;
+                    foreach (var sub in aiResult.Subtitles)
+                    {
+                        _context.VideoSubtitles.Add(new VideoSubtitle
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            StartTime = sub.StartTime,
+                            EndTime = sub.EndTime,
+                            Text = sub.Text,
+                            DisplayOrder = order++,
+                            LectureVideoId = videoId
+                        });
+                    }
+                }
+
                 await _context.SaveChangesAsync();
             }
             catch (Exception ex)

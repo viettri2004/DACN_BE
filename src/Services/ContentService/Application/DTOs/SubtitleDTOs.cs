@@ -22,25 +22,42 @@ using ContentService.Domain.Enums;
 using ContentService.Domain.Entities;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace ContentService.Domain.Entities
+namespace ContentService.Application.DTOs
 {
-    public class LectureVideo
+    public class SubtitleSegmentDTO
     {
-        public string Id { get; set; } = null!;
-        public string Name { get; set; } = null!;
-        public string VideoUrl   { get; set; } = null!;
-        public string? PublicId { get; set; }
-        public double Duration { get; set; }
-        public int DisplayOrder { get; set; }
-        public string? AnalysisResult { get; set; }
-        public string? SubtitleUrl { get; set; }
-        public string LectureId { get; set; } = null!;
-        public Lecture Lecture { get; set; } = null!;
-        public ICollection<VideoSubtitle> Subtitles { get; set; } = new List<VideoSubtitle>();
+        public string? Id { get; set; }           // null khi tạo mới
+        public double StartTime { get; set; }
+        public double EndTime { get; set; }
+        [Required]
+        public string Text { get; set; } = null!;
+    }
+
+    public class SaveSubtitlesDTO
+    {
+        [Required]
+        public List<SubtitleSegmentDTO> Subtitles { get; set; } = new();
+    }
+
+    public class VideoSegmentDTO
+    {
+        [Required]
+        public string StartTime { get; set; } = null!;
+        [Required]
+        public string Title { get; set; } = null!;
+        [Required]
+        public string Description { get; set; } = null!;
+    }
+
+    public class SaveVideoAnalysisDTO
+    {
+        [Required]
+        public string Summary { get; set; } = null!;
+        [Required]
+        public List<VideoSegmentDTO> Segments { get; set; } = new();
     }
 }
-
-

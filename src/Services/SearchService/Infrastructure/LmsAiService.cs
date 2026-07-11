@@ -43,7 +43,9 @@ namespace SearchService.Infrastructure
         public LmsAiService(HttpClient httpClient)
         {
             _geminiApiKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY") ?? "";
-            _aiServerUrl = Environment.GetEnvironmentVariable("AI_SERVER_URL") ?? "";
+            _aiServerUrl = Environment.GetEnvironmentVariable("AI_SERVER_URL") 
+                           ?? Environment.GetEnvironmentVariable("AI__ServerUrl") 
+                           ?? "";
             _httpClient = httpClient;
         }
 

@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using ConsoleTables;
 using Lucene.Net.Analysis;
 using Lucene.Net.Analysis.Core;
@@ -14,24 +17,77 @@ using Lucene.Net.QueryParsers.Classic;
 using Lucene.Net.Search;
 using Lucene.Net.Store;
 using Lucene.Net.Util;
+using Microsoft.EntityFrameworkCore;
 
 namespace SearchBenchmark;
 
 // ============================================================
-// Mock Course Data
+// EF Core Entities (schema "benchmark")
 // ============================================================
-public class MockCourse
+[Table("courses", Schema = "benchmark")]
+public class BenchmarkCourse
 {
+    [Key]
+    [Column("id")]
     public string Id { get; set; } = null!;
+
+    [Column("name")]
     public string Name { get; set; } = null!;
+
+    [Column("description")]
     public string Description { get; set; } = null!;
+
+    [Column("instructor_name")]
     public string InstructorName { get; set; } = null!;
+
+    [Column("price")]
     public decimal Price { get; set; }
-    public string Status { get; set; } = "public"; // all public for search
+
+    [Column("status")]
+    public string Status { get; set; } = "public";
+
+    [Column("create_time")]
     public DateTime CreateTime { get; set; }
+
+    [Column("average_rating")]
     public double AverageRating { get; set; }
+
+    [Column("total_students")]
     public int TotalStudents { get; set; }
-    public List<string> Tags { get; set; } = new();
+
+    [Column("tags")]
+    public string Tags { get; set; } = "";
+}
+
+// ============================================================
+// DbContext for benchmark schema
+// ============================================================
+public class BenchmarkDbContext : DbContext
+{
+    private readonly string _connectionString;
+
+    public BenchmarkDbContext(string connectionString)
+    {
+        _connectionString = connectionString;
+    }
+
+    public DbSet<BenchmarkCourse> Courses { get; set; } = null!;
+
+    protected override void OnConfiguring(DbContextOptionsBuilder options)
+    {
+        options.UseNpgsql(_connectionString);
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.HasDefaultSchema("benchmark");
+
+        modelBuilder.Entity<BenchmarkCourse>(entity =>
+        {
+            entity.ToTable("courses", "benchmark");
+            entity.HasKey(e => e.Id);
+        });
+    }
 }
 
 // ============================================================
@@ -73,11 +129,11 @@ public static class MockDataGenerator
     };
 
     private static readonly string[] DescriptionTemplates = {
-        "Khóa học {0} giúp bạn nắm vững kiến thức {1} từ cơ bản đến nâng cao. Bạn sẽ được thực hành qua nhiều bài tập và dự án thực tế.",
-        "Tham gia khóa học {0} để trở thành chuyên gia trong lĩnh vực {1}. Được thiết kế bởi các chuyên gia hàng đầu trong ngành.",
-        "Học {0} một cách hiệu quả với phương pháp giảng dạy hiện đại. Khóa học bao gồm {1} và nhiều chủ đề liên quan.",
-        "Khóa học {0} cung cấp kiến thức toàn diện về {1}, bao gồm lý thuyết và thực hành dự án.",
-        "Đào tạo {0} chuyên sâu với trọng tâm vào {1}. Phù hợp cho mọi trình độ từ beginner đến advanced."
+        "Khóa học {0} giúp bạn nắm vững kiến thức {1} từ cơ bản đến nâng cao. Bạn sẽ được thực hành qua nhiều bài tập và dự án thực tế. Khóa học được thiết kế dành cho những ai muốn phát triển sự nghiệp trong lĩnh vực công nghệ thông tin.",
+        "Tham gia khóa học {0} để trở thành chuyên gia trong lĩnh vực {1}. Được thiết kế bởi các chuyên gia hàng đầu trong ngành với hơn 10 năm kinh nghiệm thực tế.",
+        "Học {0} một cách hiệu quả với phương pháp giảng dạy hiện đại. Khóa học bao gồm {1} và nhiều chủ đề liên quan. Bạn sẽ được hướng dẫn từng bước từ cơ bản đến nâng cao.",
+        "Khóa học {0} cung cấp kiến thức toàn diện về {1}, bao gồm lý thuyết và thực hành dự án. Sau khi hoàn thành, bạn sẽ có đủ kỹ năng để làm việc trong môi trường chuyên nghiệp.",
+        "Đào tạo {0} chuyên sâu với trọng tâm vào {1}. Phù hợp cho mọi trình độ từ beginner đến advanced. Bao gồm hơn 50 bài thực hành và 5 dự án thực tế."
     };
 
     private static readonly string[] InstructorFirstNames = {
@@ -101,10 +157,10 @@ public static class MockDataGenerator
         "beginner", "intermediate", "advanced", "project-based"
     };
 
-    public static List<MockCourse> Generate(int count, int seed = 42)
+    public static List<BenchmarkCourse> Generate(int count, int seed = 42)
     {
         var rng = new Random(seed);
-        var courses = new List<MockCourse>(count);
+        var courses = new List<BenchmarkCourse>(count);
 
         for (int i = 0; i < count; i++)
         {
@@ -126,18 +182,18 @@ public static class MockDataGenerator
                 if (!tags.Contains(tag)) tags.Add(tag);
             }
 
-            courses.Add(new MockCourse
+            courses.Add(new BenchmarkCourse
             {
                 Id = Guid.NewGuid().ToString("N"),
                 Name = name,
                 Description = description,
                 InstructorName = instructor,
-                Price = (decimal)(rng.Next(0, 2000000) / 1000) * 1000, // VND-style prices
+                Price = (decimal)(rng.Next(0, 2000000) / 1000) * 1000,
                 Status = "public",
                 CreateTime = DateTime.UtcNow.AddDays(-rng.Next(1, 730)),
-                AverageRating = Math.Round(rng.NextDouble() * 3 + 2, 1), // 2.0 - 5.0
+                AverageRating = Math.Round(rng.NextDouble() * 3 + 2, 1),
                 TotalStudents = rng.Next(0, 50000),
-                Tags = tags
+                Tags = string.Join(",", tags)
             });
         }
 
@@ -146,7 +202,7 @@ public static class MockDataGenerator
 }
 
 // ============================================================
-// Custom Analyzer (same as the project uses)
+// Custom Analyzer (matches project's CaseInsensitiveAnalyzer)
 // ============================================================
 public class CaseInsensitiveAnalyzer : Analyzer
 {
@@ -162,7 +218,7 @@ public class CaseInsensitiveAnalyzer : Analyzer
 }
 
 // ============================================================
-// Lucene Search Engine (simplified, mirrors real implementation)
+// Lucene Search Engine (RAM directory, mirrors real service)
 // ============================================================
 public class LuceneSearchEngine : IDisposable
 {
@@ -176,16 +232,12 @@ public class LuceneSearchEngine : IDisposable
     {
         _directory = new RAMDirectory();
         _analyzer = new CaseInsensitiveAnalyzer(VERSION);
-
-        var config = new IndexWriterConfig(VERSION, _analyzer)
-        {
-            OpenMode = OpenMode.CREATE_OR_APPEND
-        };
+        var config = new IndexWriterConfig(VERSION, _analyzer) { OpenMode = OpenMode.CREATE_OR_APPEND };
         _writer = new IndexWriter(_directory, config);
         _searcherManager = new SearcherManager(_writer, applyAllDeletes: true, null);
     }
 
-    public void IndexAll(List<MockCourse> courses)
+    public void IndexAll(List<BenchmarkCourse> courses)
     {
         foreach (var course in courses)
         {
@@ -206,9 +258,9 @@ public class LuceneSearchEngine : IDisposable
                 new StringField("status", course.Status, Field.Store.NO)
             };
 
-            foreach (var tag in course.Tags)
+            foreach (var tag in course.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
             {
-                doc.Add(new StringField("tag_id", tag, Field.Store.NO));
+                doc.Add(new StringField("tag_id", tag.Trim(), Field.Store.NO));
             }
 
             _writer.AddDocument(doc);
@@ -218,9 +270,6 @@ public class LuceneSearchEngine : IDisposable
         _searcherManager.MaybeRefreshBlocking();
     }
 
-    /// <summary>
-    /// Search matching the real LuceneSearchService logic: QueryParser + WildcardQuery on name, name_lower, instructorName
-    /// </summary>
     public List<string> Search(string searchTerm, int maxResults = 100)
     {
         _searcherManager.MaybeRefreshBlocking();
@@ -231,7 +280,6 @@ public class LuceneSearchEngine : IDisposable
             var boolQuery = new BooleanQuery();
             var term = searchTerm.ToLowerInvariant().Trim();
 
-            // QueryParser for name (same as real service)
             var parser = new QueryParser(VERSION, "name", _analyzer);
             parser.DefaultOperator = Operator.AND;
 
@@ -246,12 +294,10 @@ public class LuceneSearchEngine : IDisposable
                 boolQuery.Add(new WildcardQuery(new Term("name", $"*{escaped}*")), Occur.SHOULD);
             }
 
-            // Wildcard on name_lower and instructorName (same as real service)
             var escapedTerm = QueryParserBase.Escape(term);
             boolQuery.Add(new WildcardQuery(new Term("name_lower", $"*{escapedTerm}*")), Occur.SHOULD);
             boolQuery.Add(new WildcardQuery(new Term("instructorName", $"*{escapedTerm}*")), Occur.SHOULD);
 
-            // Filter by status = public
             var finalQuery = new BooleanQuery();
             finalQuery.Add(boolQuery, Occur.MUST);
             finalQuery.Add(new TermQuery(new Term("status", "public")), Occur.MUST);
@@ -282,88 +328,142 @@ public class LuceneSearchEngine : IDisposable
 }
 
 // ============================================================
-// Database Search Simulator (LINQ = simulates PostgreSQL ILIKE/LIKE)
+// PostgreSQL Search Helper
 // ============================================================
-public class DatabaseSearchSimulator
+public static class PostgresSearch
 {
-    private readonly List<MockCourse> _courses;
-
-    public DatabaseSearchSimulator(List<MockCourse> courses)
-    {
-        _courses = courses;
-    }
-
     /// <summary>
-    /// Simulates: WHERE status = 'public' AND (name ILIKE '%term%' OR description ILIKE '%term%' OR instructor ILIKE '%term%')
-    /// This is equivalent to EF Core .Where(c => c.Name.Contains(term)) with case-insensitive collation
+    /// WHERE status='public' AND (name ILIKE '%term%' OR description ILIKE '%term%' OR instructor_name ILIKE '%term%')
+    /// LIMIT maxResults
     /// </summary>
-    public List<string> Search(string searchTerm, int maxResults = 100)
+    public static async Task<List<string>> SearchAsync(BenchmarkDbContext db, string searchTerm, int maxResults = 100)
     {
-        var term = searchTerm.ToLowerInvariant().Trim();
+        var term = $"%{searchTerm}%";
 
-        return _courses
+        return await db.Courses
             .Where(c => c.Status == "public" &&
-                (c.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                 c.Description.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                 c.InstructorName.Contains(term, StringComparison.OrdinalIgnoreCase)))
-            .Take(maxResults)
+                (EF.Functions.ILike(c.Name, term) ||
+                 EF.Functions.ILike(c.Description, term) ||
+                 EF.Functions.ILike(c.InstructorName, term)))
             .Select(c => c.Id)
-            .ToList();
+            .Take(maxResults)
+            .ToListAsync();
     }
 
     /// <summary>
-    /// Simulates a more realistic DB query with sorting (ORDER BY):
-    /// WHERE ... ORDER BY total_students DESC OFFSET ... LIMIT ...
+    /// Full search with sorting and paging (like real app)
     /// </summary>
-    public List<string> SearchWithSorting(string searchTerm, int page = 1, int pageSize = 10)
+    public static async Task<List<string>> SearchWithPagingAsync(BenchmarkDbContext db, string searchTerm, int page = 1, int pageSize = 10)
     {
-        var term = searchTerm.ToLowerInvariant().Trim();
+        var term = $"%{searchTerm}%";
 
-        return _courses
+        return await db.Courses
             .Where(c => c.Status == "public" &&
-                (c.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                 c.Description.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                 c.InstructorName.Contains(term, StringComparison.OrdinalIgnoreCase)))
+                (EF.Functions.ILike(c.Name, term) ||
+                 EF.Functions.ILike(c.Description, term) ||
+                 EF.Functions.ILike(c.InstructorName, term)))
             .OrderByDescending(c => c.TotalStudents)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(c => c.Id)
-            .ToList();
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Search only on name column (simpler query)
+    /// </summary>
+    public static async Task<List<string>> SearchNameOnlyAsync(BenchmarkDbContext db, string searchTerm, int maxResults = 100)
+    {
+        var term = $"%{searchTerm}%";
+
+        return await db.Courses
+            .Where(c => c.Status == "public" && EF.Functions.ILike(c.Name, term))
+            .Select(c => c.Id)
+            .Take(maxResults)
+            .ToListAsync();
     }
 }
 
 // ============================================================
-// Main Benchmark Program
+// Main Program
 // ============================================================
 public class Program
 {
-    static void Main(string[] args)
+    const string CONNECTION_STRING = "Host=dacn-3t-tonviettri2004-8168.l.aivencloud.com;Port=26599;Database=defaultdb;Username=avnadmin;Password=AVNS_TqbXUwvX9WgXhT-Pbd5;SSL Mode=Require;";
+
+    static async Task Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
 
         Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
-        Console.WriteLine("║   🔍 BENCHMARK: Lucene.NET vs Database (LINQ) Search       ║");
-        Console.WriteLine("║   📊 10,000 Mock Courses · Vietnamese Data                  ║");
+        Console.WriteLine("║  🔍 BENCHMARK: Lucene.NET vs PostgreSQL (Real Database)     ║");
+        Console.WriteLine("║  📊 10,000 Mock Courses · Vietnamese Data · Aiven Cloud     ║");
         Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
         Console.WriteLine();
 
-        // ── Step 1: Generate Mock Data ──
-        Console.Write("⏳ Generating 10,000 mock courses... ");
+        // ── Step 1: Setup database ──
+        Console.Write("⏳ Connecting to PostgreSQL and creating benchmark schema... ");
         var sw = Stopwatch.StartNew();
+
+        await using var setupDb = new BenchmarkDbContext(CONNECTION_STRING);
+        
+        // Create schema + table
+        await setupDb.Database.ExecuteSqlRawAsync("CREATE SCHEMA IF NOT EXISTS benchmark");
+        await setupDb.Database.ExecuteSqlRawAsync(@"
+            DROP TABLE IF EXISTS benchmark.courses;
+            CREATE TABLE benchmark.courses (
+                id VARCHAR(32) PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                instructor_name TEXT NOT NULL,
+                price DECIMAL NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'public',
+                create_time TIMESTAMP NOT NULL,
+                average_rating DOUBLE PRECISION NOT NULL,
+                total_students INTEGER NOT NULL,
+                tags TEXT NOT NULL DEFAULT ''
+            )");
+        sw.Stop();
+        Console.WriteLine($"✅ Done in {sw.ElapsedMilliseconds}ms");
+
+        // ── Step 2: Generate and seed data ──
+        Console.Write("⏳ Generating 10,000 mock courses... ");
+        sw.Restart();
         var courses = MockDataGenerator.Generate(10_000);
         sw.Stop();
         Console.WriteLine($"✅ Done in {sw.ElapsedMilliseconds}ms");
 
-        // Show sample data
         Console.WriteLine("\n📋 Sample courses:");
         for (int i = 0; i < 5; i++)
         {
-            Console.WriteLine($"   [{i+1}] {courses[i].Name}");
-            Console.WriteLine($"       Instructor: {courses[i].InstructorName} | Price: {courses[i].Price:N0} VND | Rating: {courses[i].AverageRating}⭐");
+            Console.WriteLine($"   [{i + 1}] {courses[i].Name}");
+            Console.WriteLine($"       👨‍🏫 {courses[i].InstructorName} | 💰 {courses[i].Price:N0} VND | ⭐ {courses[i].AverageRating}");
         }
 
-        // ── Step 2: Build Lucene Index ──
-        Console.Write("\n⏳ Building Lucene index for 10,000 courses... ");
+        Console.Write($"\n⏳ Inserting 10,000 courses into PostgreSQL (schema: benchmark)... ");
+        sw.Restart();
+
+        // Bulk insert in batches
+        const int batchSize = 500;
+        for (int i = 0; i < courses.Count; i += batchSize)
+        {
+            await using var batchDb = new BenchmarkDbContext(CONNECTION_STRING);
+            var batch = courses.Skip(i).Take(batchSize);
+            batchDb.Courses.AddRange(batch);
+            await batchDb.SaveChangesAsync();
+        }
+
+        sw.Stop();
+        var seedTime = sw.ElapsedMilliseconds;
+        Console.WriteLine($"✅ Done in {seedTime}ms");
+
+        // Verify
+        await using var verifyDb = new BenchmarkDbContext(CONNECTION_STRING);
+        var totalInDb = await verifyDb.Courses.CountAsync();
+        Console.WriteLine($"   📊 Verified: {totalInDb} courses in database");
+
+        // ── Step 3: Build Lucene index ──
+        Console.Write("\n⏳ Building Lucene index (RAM) for 10,000 courses... ");
         sw.Restart();
         var lucene = new LuceneSearchEngine();
         lucene.IndexAll(courses);
@@ -371,37 +471,25 @@ public class Program
         var indexTime = sw.ElapsedMilliseconds;
         Console.WriteLine($"✅ Done in {indexTime}ms");
 
-        // ── Step 3: Prepare DB simulator ──
-        var dbSim = new DatabaseSearchSimulator(courses);
-
         // ── Step 4: Define search queries ──
         var searchQueries = new[]
         {
-            // Exact topic matches
             "Python",
             "React",
             "C#",
             "Docker",
             "Machine Learning",
-
-            // Vietnamese phrases
             "Lập trình",
             "nâng cao",
             "thực chiến",
             "cơ bản",
             "dự án thực tế",
-
-            // Partial matches
-            "Java",          // should match Java, JavaScript
-            "SQL",           // should match SQL Server, PostgreSQL
-            "Web",           // Web3, web-development...
+            "Java",
+            "SQL",
+            "Web",
             "AI",
-
-            // Instructor name search (Vietnamese)
             "Nguyễn",
             "Trần",
-
-            // Uncommon / low-result queries
             "Blockchain",
             "Rust",
             "gRPC",
@@ -409,24 +497,28 @@ public class Program
         };
 
         // ── Step 5: Warmup ──
-        Console.WriteLine("\n🔥 Warming up (3 iterations)...");
-        for (int w = 0; w < 3; w++)
+        Console.WriteLine("\n🔥 Warming up (2 iterations)...");
+        for (int w = 0; w < 2; w++)
         {
             foreach (var q in searchQueries)
             {
                 lucene.Search(q);
-                dbSim.Search(q);
+                await using var warmDb = new BenchmarkDbContext(CONNECTION_STRING);
+                await PostgresSearch.SearchAsync(warmDb, q);
             }
         }
+        Console.WriteLine("   ✅ Warmup complete");
 
         // ── Step 6: Benchmark ──
-        const int ITERATIONS = 100;
-        Console.WriteLine($"\n🏁 Running benchmark ({ITERATIONS} iterations per query)...\n");
+        const int ITERATIONS = 50; // 50 iterations (DB queries take longer)
+        Console.WriteLine($"\n🏁 Running benchmark ({ITERATIONS} iterations per query × {searchQueries.Length} queries)...\n");
 
         var results = new List<BenchmarkResult>();
 
         foreach (var query in searchQueries)
         {
+            Console.Write($"   Testing \"{query}\"... ");
+
             // Lucene benchmark
             var luceneTimes = new List<double>();
             int luceneResultCount = 0;
@@ -440,17 +532,32 @@ public class Program
                 if (i == 0) luceneResultCount = r.Count;
             }
 
-            // DB (LINQ) benchmark
+            // PostgreSQL benchmark (ILIKE on name + description + instructor)
             var dbTimes = new List<double>();
             int dbResultCount = 0;
 
             for (int i = 0; i < ITERATIONS; i++)
             {
+                await using var db = new BenchmarkDbContext(CONNECTION_STRING);
                 sw.Restart();
-                var r = dbSim.Search(query);
+                var r = await PostgresSearch.SearchAsync(db, query);
                 sw.Stop();
                 dbTimes.Add(sw.Elapsed.TotalMilliseconds);
                 if (i == 0) dbResultCount = r.Count;
+            }
+
+            // PostgreSQL with paging benchmark
+            var dbPagedTimes = new List<double>();
+            int dbPagedResultCount = 0;
+
+            for (int i = 0; i < ITERATIONS; i++)
+            {
+                await using var db = new BenchmarkDbContext(CONNECTION_STRING);
+                sw.Restart();
+                var r = await PostgresSearch.SearchWithPagingAsync(db, query);
+                sw.Stop();
+                dbPagedTimes.Add(sw.Elapsed.TotalMilliseconds);
+                if (i == 0) dbPagedResultCount = r.Count;
             }
 
             results.Add(new BenchmarkResult
@@ -467,18 +574,23 @@ public class Program
                 DbMinMs = dbTimes.Min(),
                 DbMaxMs = dbTimes.Max(),
                 DbP95Ms = Percentile(dbTimes, 95),
-                DbResults = dbResultCount
+                DbResults = dbResultCount,
+                DbPagedAvgMs = dbPagedTimes.Average(),
+                DbPagedResults = dbPagedResultCount,
             });
+
+            var speedup = dbTimes.Average() / Math.Max(luceneTimes.Average(), 0.001);
+            Console.WriteLine($"Lucene: {luceneTimes.Average():F2}ms | PG: {dbTimes.Average():F2}ms | {speedup:F1}x");
         }
 
         // ── Step 7: Display Results ──
-        Console.WriteLine("═══════════════════════════════════════════════════════════════════════");
-        Console.WriteLine("  📊 BENCHMARK RESULTS (milliseconds, lower is better)");
-        Console.WriteLine("═══════════════════════════════════════════════════════════════════════\n");
+        Console.WriteLine("\n═══════════════════════════════════════════════════════════════════════════════");
+        Console.WriteLine("  📊 BENCHMARK RESULTS — Lucene.NET vs PostgreSQL ILIKE (ms, lower = better)");
+        Console.WriteLine("═══════════════════════════════════════════════════════════════════════════════\n");
 
         var table = new ConsoleTable(
-            "Query", "Lucene Avg", "DB Avg", "Speedup",
-            "Lucene P95", "DB P95", "L.Results", "DB.Results");
+            "Query", "Lucene Avg", "PG Avg", "Speedup",
+            "Lucene P95", "PG P95", "L.Hits", "PG.Hits");
 
         foreach (var r in results)
         {
@@ -497,81 +609,86 @@ public class Program
 
         table.Write(Format.Minimal);
 
+        // ── Paged Search Results ──
+        Console.WriteLine("\n═══════════════════════════════════════════════════════════════════════════════");
+        Console.WriteLine("  📊 PostgreSQL ILIKE + ORDER BY + LIMIT 10 (Paged Search)");
+        Console.WriteLine("═══════════════════════════════════════════════════════════════════════════════\n");
+
+        var pagedTable = new ConsoleTable("Query", "Lucene Avg", "PG Paged Avg", "Speedup");
+
+        foreach (var r in results)
+        {
+            var speedup = r.DbPagedAvgMs / Math.Max(r.LuceneAvgMs, 0.001);
+            pagedTable.AddRow(
+                r.Query.Length > 18 ? r.Query.Substring(0, 18) + "…" : r.Query,
+                r.LuceneAvgMs.ToString("F3"),
+                r.DbPagedAvgMs.ToString("F3"),
+                $"{speedup:F1}x"
+            );
+        }
+
+        pagedTable.Write(Format.Minimal);
+
         // ── Summary Stats ──
         var avgLucene = results.Average(r => r.LuceneAvgMs);
         var avgDb = results.Average(r => r.DbAvgMs);
+        var avgDbPaged = results.Average(r => r.DbPagedAvgMs);
         var overallSpeedup = avgDb / Math.Max(avgLucene, 0.001);
+        var overallPagedSpeedup = avgDbPaged / Math.Max(avgLucene, 0.001);
 
-        Console.WriteLine("\n═══════════════════════════════════════════════════════════════════════");
+        Console.WriteLine("\n═══════════════════════════════════════════════════════════════════════════════");
         Console.WriteLine("  📈 SUMMARY");
-        Console.WriteLine("═══════════════════════════════════════════════════════════════════════");
-        Console.WriteLine($"  Total courses:        10,000");
-        Console.WriteLine($"  Lucene index time:    {indexTime}ms");
-        Console.WriteLine($"  Iterations per query: {ITERATIONS}");
-        Console.WriteLine($"  Number of queries:    {searchQueries.Length}");
+        Console.WriteLine("═══════════════════════════════════════════════════════════════════════════════");
+        Console.WriteLine($"  Total courses:          10,000");
+        Console.WriteLine($"  DB seed time:           {seedTime}ms");
+        Console.WriteLine($"  Lucene index time:      {indexTime}ms");
+        Console.WriteLine($"  Iterations per query:   {ITERATIONS}");
+        Console.WriteLine($"  Number of queries:      {searchQueries.Length}");
         Console.WriteLine();
-        Console.WriteLine($"  ┌─────────────────────────────────────────┐");
-        Console.WriteLine($"  │  Lucene Average:  {avgLucene,10:F3} ms            │");
-        Console.WriteLine($"  │  DB/LINQ Average: {avgDb,10:F3} ms            │");
-        Console.WriteLine($"  │  Overall Speedup: {overallSpeedup,10:F1}x              │");
-        Console.WriteLine($"  └─────────────────────────────────────────┘");
+        Console.WriteLine($"  ┌──────────────────────────────────────────────────────┐");
+        Console.WriteLine($"  │  Lucene Average:          {avgLucene,10:F3} ms               │");
+        Console.WriteLine($"  │  PostgreSQL ILIKE Avg:    {avgDb,10:F3} ms               │");
+        Console.WriteLine($"  │  PG + Paging + Sort Avg:  {avgDbPaged,10:F3} ms               │");
+        Console.WriteLine($"  │                                                      │");
+        Console.WriteLine($"  │  Lucene vs PG ILIKE:      {overallSpeedup,10:F1}x faster         │");
+        Console.WriteLine($"  │  Lucene vs PG Paged:      {overallPagedSpeedup,10:F1}x faster         │");
+        Console.WriteLine($"  └──────────────────────────────────────────────────────┘");
 
         if (overallSpeedup > 1)
-        {
-            Console.WriteLine($"\n  🚀 Lucene is ~{overallSpeedup:F1}x FASTER than Database/LINQ search!");
-        }
+            Console.WriteLine($"\n  🚀 Lucene is ~{overallSpeedup:F1}x FASTER than PostgreSQL ILIKE!");
         else
-        {
-            Console.WriteLine($"\n  📉 Database/LINQ is ~{1/overallSpeedup:F1}x faster in this in-memory scenario.");
-            Console.WriteLine("  ⚠️  Note: Real PostgreSQL queries involve disk I/O, network latency,");
-            Console.WriteLine("      and query parsing overhead — Lucene advantage grows significantly");
-            Console.WriteLine("      in production with actual database connections.");
-        }
+            Console.WriteLine($"\n  📉 PostgreSQL is ~{1 / overallSpeedup:F1}x faster (unusual for cloud DB).");
 
-        // ── Step 8: Export to CSV ──
-        var csvPath = Path.Combine(AppContext.BaseDirectory, "benchmark_results.csv");
-        ExportToCsv(results, csvPath, indexTime);
-        Console.WriteLine($"\n  📄 Results exported to: {csvPath}");
-
-        // ── Step 9: Additional analysis ──
-        Console.WriteLine("\n═══════════════════════════════════════════════════════════════════════");
-        Console.WriteLine("  🔬 DETAILED ANALYSIS");
-        Console.WriteLine("═══════════════════════════════════════════════════════════════════════\n");
-
-        // Group by result count to see if query selectivity matters
-        var bySelectivity = results.OrderBy(r => r.LuceneResults).ToList();
-        Console.WriteLine("  By selectivity (fewer results = more selective):");
-        Console.WriteLine("  ┌─────────────────────┬───────────┬───────────┬───────────┐");
-        Console.WriteLine("  │ Query               │ Results   │ Lucene ms │ DB ms     │");
-        Console.WriteLine("  ├─────────────────────┼───────────┼───────────┼───────────┤");
-        foreach (var r in bySelectivity.Take(10))
-        {
-            var qDisplay = r.Query.PadRight(19);
-            if (qDisplay.Length > 19) qDisplay = qDisplay.Substring(0, 17) + "…";
-            Console.WriteLine($"  │ {qDisplay} │ {r.LuceneResults,9} │ {r.LuceneAvgMs,9:F3} │ {r.DbAvgMs,9:F3} │");
-        }
-        Console.WriteLine("  └─────────────────────┴───────────┴───────────┴───────────┘");
-
-        Console.WriteLine("\n  ⚠️  IMPORTANT NOTES:");
+        Console.WriteLine("\n  📝 NOTES:");
         Console.WriteLine("  ─────────────────────────────────────────────────────────────");
-        Console.WriteLine("  • This benchmark uses IN-MEMORY data for both Lucene and DB.");
-        Console.WriteLine("  • Real PostgreSQL adds: network latency, disk I/O, query parsing,");
-        Console.WriteLine("    connection pool overhead, and lock contention.");
-        Console.WriteLine("  • Lucene advantage typically grows 5-50x in production vs actual DB.");
-        Console.WriteLine("  • Lucene also provides: fuzzy search, spell checking, facets,");
-        Console.WriteLine("    relevance scoring — features expensive to replicate in SQL.");
+        Console.WriteLine("  • PostgreSQL ILIKE '%term%' does FULL TABLE SCAN (no index help)");
+        Console.WriteLine("  • Each PG query includes: network → Aiven Cloud → parse → scan → return");
+        Console.WriteLine("  • Lucene runs entirely in local RAM — no network overhead");
+        Console.WriteLine("  • In real app, PG would also JOIN Instructor, Tags, Enrollments");
+        Console.WriteLine("  • Lucene also provides: relevance scoring, fuzzy, spell check, facets");
         Console.WriteLine();
 
+        // ── Step 8: Export CSV ──
+        var csvPath = Path.Combine(AppContext.BaseDirectory, "benchmark_results_pg.csv");
+        ExportToCsv(results, csvPath, indexTime, seedTime);
+        Console.WriteLine($"  📄 Results exported to: {csvPath}");
+
+        // ── Step 9: Cleanup ──
+        Console.Write("\n⏳ Cleaning up benchmark schema... ");
+        await using var cleanupDb = new BenchmarkDbContext(CONNECTION_STRING);
+        await cleanupDb.Database.ExecuteSqlRawAsync("DROP TABLE IF EXISTS benchmark.courses");
+        await cleanupDb.Database.ExecuteSqlRawAsync("DROP SCHEMA IF EXISTS benchmark");
+        Console.WriteLine("✅ Done");
+
         lucene.Dispose();
+        Console.WriteLine("\n🏁 Benchmark complete!");
     }
 
     static double Median(List<double> values)
     {
         var sorted = values.OrderBy(v => v).ToList();
         int mid = sorted.Count / 2;
-        return sorted.Count % 2 == 0
-            ? (sorted[mid - 1] + sorted[mid]) / 2.0
-            : sorted[mid];
+        return sorted.Count % 2 == 0 ? (sorted[mid - 1] + sorted[mid]) / 2.0 : sorted[mid];
     }
 
     static double Percentile(List<double> values, int percentile)
@@ -581,21 +698,22 @@ public class Program
         return sorted[Math.Max(0, Math.Min(index, sorted.Count - 1))];
     }
 
-    static void ExportToCsv(List<BenchmarkResult> results, string path, long indexTimeMs)
+    static void ExportToCsv(List<BenchmarkResult> results, string path, long indexTimeMs, long seedTimeMs)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("Query,LuceneAvgMs,LuceneMedianMs,LuceneMinMs,LuceneMaxMs,LuceneP95Ms,LuceneResults,DbAvgMs,DbMedianMs,DbMinMs,DbMaxMs,DbP95Ms,DbResults,SpeedupX");
+        sb.AppendLine("Query,LuceneAvgMs,LuceneMedianMs,LuceneMinMs,LuceneMaxMs,LuceneP95Ms,LuceneResults,DbAvgMs,DbMedianMs,DbMinMs,DbMaxMs,DbP95Ms,DbResults,DbPagedAvgMs,SpeedupX");
 
         foreach (var r in results)
         {
             var speedup = r.DbAvgMs / Math.Max(r.LuceneAvgMs, 0.001);
-            sb.AppendLine($"\"{r.Query}\",{r.LuceneAvgMs:F4},{r.LuceneMedianMs:F4},{r.LuceneMinMs:F4},{r.LuceneMaxMs:F4},{r.LuceneP95Ms:F4},{r.LuceneResults},{r.DbAvgMs:F4},{r.DbMedianMs:F4},{r.DbMinMs:F4},{r.DbMaxMs:F4},{r.DbP95Ms:F4},{r.DbResults},{speedup:F2}");
+            sb.AppendLine($"\"{r.Query}\",{r.LuceneAvgMs:F4},{r.LuceneMedianMs:F4},{r.LuceneMinMs:F4},{r.LuceneMaxMs:F4},{r.LuceneP95Ms:F4},{r.LuceneResults},{r.DbAvgMs:F4},{r.DbMedianMs:F4},{r.DbMinMs:F4},{r.DbMaxMs:F4},{r.DbP95Ms:F4},{r.DbResults},{r.DbPagedAvgMs:F4},{speedup:F2}");
         }
 
         sb.AppendLine();
         sb.AppendLine($"# Lucene Index Build Time: {indexTimeMs}ms");
+        sb.AppendLine($"# DB Seed Time: {seedTimeMs}ms");
         sb.AppendLine($"# Total Courses: 10000");
-        sb.AppendLine($"# Iterations: 100");
+        sb.AppendLine($"# Iterations: 50");
 
         File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
     }
@@ -616,4 +734,6 @@ public class BenchmarkResult
     public double DbMaxMs { get; set; }
     public double DbP95Ms { get; set; }
     public int DbResults { get; set; }
+    public double DbPagedAvgMs { get; set; }
+    public int DbPagedResults { get; set; }
 }

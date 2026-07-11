@@ -774,5 +774,26 @@
   </data>
   <data name="NewInstructorRequestMessage" xml:space="preserve">
     <value>Người dùng {0} vừa gửi yêu cầu trở thành giảng viên.</value>
+    <comment/>
+  </data>
+  <data name="SubtitlesSaved" xml:space="preserve">
+    <value>Lưu phụ đề thành công.</value>
+    <comment/>
+  </data>
+  <data name="AiProcessingRetriggered" xml:space="preserve">
+    <value>Đã bắt đầu xử lý lại phụ đề bằng AI.</value>
+    <comment/>
+  </data>
+  <data name="InvalidSubtitlesData" xml:space="preserve">
+    <value>Dữ liệu phụ đề không hợp lệ.</value>
+    <comment/>
+  </data>
+  <data name="VideoAnalysisSaved" xml:space="preserve">
+    <value>Lưu tóm tắt &amp; chương thành công.</value>
+    <comment/>
+  </data>
+  <data name="InvalidAnalysisData" xml:space="preserve">
+    <value>Dữ liệu tóm tắt &amp; chương không hợp lệ.</value>
+    <comment/>
   </data>
 </root>

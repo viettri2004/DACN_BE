@@ -653,6 +653,406 @@ namespace ContentService.Application.Services
                 return new ApiResponse("Error", ex.Message, null, false);
             }
         }
+
+        public async Task<ApiResponse> GetSubtitlesAsync(string videoId, string instructorId)
+        {
+            try
+            {
+                var video = await _context.LectureVideos
+                    .Include(v => v.Lecture)
+                    .ThenInclude(l => l.Course)
+                    .FirstOrDefaultAsync(v => v.Id == videoId);
+
+                if (video == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                if (video.Lecture.Course.InstructorId != instructorId)
+                {
+                    return new ApiResponse("Forbidden", _localizer["ForbiddenUpdateVideo"].Value, null, false);
+                }
+
+                var subtitles = await _context.VideoSubtitles
+                    .Where(s => s.LectureVideoId == videoId)
+                    .OrderBy(s => s.DisplayOrder)
+                    .Select(s => new SubtitleSegmentDTO
+                    {
+                        Id = s.Id,
+                        StartTime = s.StartTime,
+                        EndTime = s.EndTime,
+                        Text = s.Text
+                    })
+                    .ToListAsync();
+
+                if (!subtitles.Any())
+                {
+                    // 1. Try to download and migrate VTT file from Cloudinary
+                    if (!string.IsNullOrEmpty(video.SubtitleUrl))
+                    {
+                        try
+                        {
+                            using var httpClient = new System.Net.Http.HttpClient();
+                            var vttString = await httpClient.GetStringAsync(video.SubtitleUrl);
+                            var parsedSubtitles = ParseVtt(vttString);
+                            if (parsedSubtitles.Any())
+                            {
+                                int order = 0;
+                                var listToSave = parsedSubtitles.Select(s => new VideoSubtitle
+                                {
+                                    Id = Guid.NewGuid().ToString(),
+                                    StartTime = s.StartTime,
+                                    EndTime = s.EndTime,
+                                    Text = s.Text,
+                                    DisplayOrder = order++,
+                                    LectureVideoId = videoId
+                                }).ToList();
+
+                                await _context.VideoSubtitles.AddRangeAsync(listToSave);
+                                await _context.SaveChangesAsync();
+
+                                subtitles = listToSave.Select(s => new SubtitleSegmentDTO
+                                {
+                                    Id = s.Id,
+                                    StartTime = s.StartTime,
+                                    EndTime = s.EndTime,
+                                    Text = s.Text
+                                }).ToList();
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error migrating VTT for video {videoId}: {ex.Message}");
+                        }
+                    }
+
+                    // 2. Fallback to AnalysisResult JSON if DB and VTT are not available
+                    if (!subtitles.Any() && !string.IsNullOrEmpty(video.AnalysisResult))
+                    {
+                        try
+                        {
+                            var analysis = JsonConvert.DeserializeObject<SearchService.Application.DTOs.LmsAnalysisResponse>(video.AnalysisResult);
+                            if (analysis != null && analysis.Subtitles != null && analysis.Subtitles.Any())
+                            {
+                                subtitles = analysis.Subtitles.Select(s => new SubtitleSegmentDTO
+                                {
+                                    Id = null,
+                                    StartTime = s.StartTime,
+                                    EndTime = s.EndTime,
+                                    Text = s.Text
+                                }).ToList();
+                            }
+                        }
+                        catch
+                        {
+                            // Ignore JSON deserialization errors
+                        }
+                    }
+                }
+
+                return new ApiResponse("Success", _localizer["Success"].Value, subtitles, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> SaveSubtitlesAsync(string videoId, SaveSubtitlesDTO dto, string instructorId)
+        {
+            try
+            {
+                var video = await _context.LectureVideos
+                    .Include(v => v.Lecture)
+                    .ThenInclude(l => l.Course)
+                    .FirstOrDefaultAsync(v => v.Id == videoId);
+
+                if (video == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                if (video.Lecture.Course.InstructorId != instructorId)
+                {
+                    return new ApiResponse("Forbidden", _localizer["ForbiddenUpdateVideo"].Value, null, false);
+                }
+
+                if (dto == null || dto.Subtitles == null)
+                {
+                    return new ApiResponse("BadRequest", _localizer["InvalidSubtitlesData"].Value, null, false);
+                }
+
+                // Delete existing subtitles in DB
+                var existingSubs = await _context.VideoSubtitles
+                    .Where(s => s.LectureVideoId == videoId)
+                    .ToListAsync();
+                _context.VideoSubtitles.RemoveRange(existingSubs);
+
+                var listToSave = new List<VideoSubtitle>();
+                var listForVtt = new List<SearchService.Application.DTOs.SubtitleSegment>();
+                int order = 0;
+
+                foreach (var sub in dto.Subtitles.OrderBy(s => s.StartTime))
+                {
+                    var subId = string.IsNullOrEmpty(sub.Id) ? Guid.NewGuid().ToString() : sub.Id;
+                    listToSave.Add(new VideoSubtitle
+                    {
+                        Id = subId,
+                        StartTime = sub.StartTime,
+                        EndTime = sub.EndTime,
+                        Text = sub.Text,
+                        DisplayOrder = order++,
+                        LectureVideoId = videoId
+                    });
+
+                    listForVtt.Add(new SearchService.Application.DTOs.SubtitleSegment
+                    {
+                        StartTime = sub.StartTime,
+                        EndTime = sub.EndTime,
+                        Text = sub.Text
+                    });
+                }
+
+                await _context.VideoSubtitles.AddRangeAsync(listToSave);
+
+                // Regenerate VTT and upload to Cloudinary
+                var vttContent = GenerateVtt(listForVtt);
+                using (var vttStream = new System.IO.MemoryStream())
+                {
+                    using (var writer = new System.IO.StreamWriter(vttStream, new System.Text.UTF8Encoding(true)))
+                    {
+                        writer.Write(vttContent);
+                        writer.Flush();
+                        vttStream.Position = 0;
+                        var (vttUrl, _) = await _cloudinaryService.UploadRawAsync(vttStream, $"subtitle_{video.Id}.vtt", "subtitles");
+                        video.SubtitleUrl = vttUrl;
+                    }
+                }
+
+                _context.LectureVideos.Update(video);
+                await UpdateCourseTimestampAsync(video.Lecture.CourseId);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse("Success", _localizer["SubtitlesSaved"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> SaveVideoAnalysisAsync(string videoId, SaveVideoAnalysisDTO dto, string instructorId)
+        {
+            try
+            {
+                var video = await _context.LectureVideos
+                    .Include(v => v.Lecture)
+                    .ThenInclude(l => l.Course)
+                    .FirstOrDefaultAsync(v => v.Id == videoId);
+
+                if (video == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                if (video.Lecture.Course.InstructorId != instructorId)
+                {
+                    return new ApiResponse("Forbidden", _localizer["ForbiddenUpdateVideo"].Value, null, false);
+                }
+
+                if (dto == null || dto.Summary == null || dto.Segments == null)
+                {
+                    return new ApiResponse("BadRequest", _localizer["InvalidAnalysisData"].Value, null, false);
+                }
+
+                // Retrieve existing analysis result or initialize a new one
+                var analysis = new LmsAnalysisResponse();
+                if (!string.IsNullOrEmpty(video.AnalysisResult))
+                {
+                    try
+                    {
+                        var existing = JsonConvert.DeserializeObject<LmsAnalysisResponse>(video.AnalysisResult);
+                        if (existing != null)
+                        {
+                            analysis = existing;
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore deserialization error of invalid JSON
+                    }
+                }
+
+                analysis.Summary = dto.Summary;
+                analysis.Segments = dto.Segments.Select(s => new VideoSegment
+                {
+                    StartTime = s.StartTime,
+                    Title = s.Title,
+                    Description = s.Description
+                }).ToList();
+
+                video.AnalysisResult = JsonConvert.SerializeObject(analysis);
+
+                _context.LectureVideos.Update(video);
+                await UpdateCourseTimestampAsync(video.Lecture.CourseId);
+                await _context.SaveChangesAsync();
+
+                return new ApiResponse("Success", _localizer["VideoAnalysisSaved"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        public async Task<ApiResponse> RetriggerAiProcessingAsync(string videoId, string instructorId)
+        {
+            try
+            {
+                var video = await _context.LectureVideos
+                    .Include(v => v.Lecture)
+                    .ThenInclude(l => l.Course)
+                    .FirstOrDefaultAsync(v => v.Id == videoId);
+
+                if (video == null)
+                {
+                    return new ApiResponse("NotFound", _localizer["NotFound"].Value, null, false);
+                }
+
+                if (video.Lecture.Course.InstructorId != instructorId)
+                {
+                    return new ApiResponse("Forbidden", _localizer["ForbiddenUpdateVideo"].Value, null, false);
+                }
+
+                // Delete existing subtitles in DB
+                var existingSubs = await _context.VideoSubtitles
+                    .Where(s => s.LectureVideoId == videoId)
+                    .ToListAsync();
+                _context.VideoSubtitles.RemoveRange(existingSubs);
+
+                // Clear AnalysisResult and SubtitleUrl
+                video.AnalysisResult = null;
+                video.SubtitleUrl = null;
+
+                _context.LectureVideos.Update(video);
+                await UpdateCourseTimestampAsync(video.Lecture.CourseId);
+                await _context.SaveChangesAsync();
+
+                // Enqueue Hangfire job
+                _backgroundJobClient.Enqueue<IVideoProcessingService>(x => x.ProcessVideoAsync(video.Id));
+
+                return new ApiResponse("Success", _localizer["AiProcessingRetriggered"].Value, null, true);
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse("Error", ex.Message, null, false);
+            }
+        }
+
+        private string GenerateVtt(List<SearchService.Application.DTOs.SubtitleSegment> subtitles)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("WEBVTT");
+            sb.AppendLine();
+
+            foreach (var subtitle in subtitles)
+            {
+                sb.AppendLine($"{FormatVttTime(subtitle.StartTime)} --> {FormatVttTime(subtitle.EndTime)}");
+                sb.AppendLine(subtitle.Text);
+                sb.AppendLine();
+            }
+
+            return sb.ToString();
+        }
+
+        private string FormatVttTime(double seconds)
+        {
+            var time = TimeSpan.FromSeconds(seconds);
+            return $"{(int)time.TotalHours:D2}:{time.Minutes:D2}:{time.Seconds:D2}.{time.Milliseconds:D3}";
+        }
+
+        private List<SubtitleSegmentDTO> ParseVtt(string vttContent)
+        {
+            var list = new List<SubtitleSegmentDTO>();
+            var lines = vttContent.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            
+            double? currentStart = null;
+            double? currentEnd = null;
+            var currentTextBuilder = new System.Text.StringBuilder();
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i].Trim();
+                if (line.Contains("-->"))
+                {
+                    if (currentStart.HasValue && currentEnd.HasValue)
+                    {
+                        list.Add(new SubtitleSegmentDTO
+                        {
+                            StartTime = currentStart.Value,
+                            EndTime = currentEnd.Value,
+                            Text = currentTextBuilder.ToString().Trim()
+                        });
+                        currentTextBuilder.Clear();
+                    }
+
+                    var parts = line.Split(new[] { "-->" }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length == 2)
+                    {
+                        currentStart = ParseVttTime(parts[0].Trim());
+                        currentEnd = ParseVttTime(parts[1].Trim());
+                    }
+                }
+                else if (currentStart.HasValue && currentEnd.HasValue && !string.IsNullOrEmpty(line))
+                {
+                    if (currentTextBuilder.Length > 0)
+                        currentTextBuilder.Append(" ");
+                    currentTextBuilder.Append(line);
+                }
+            }
+
+            if (currentStart.HasValue && currentEnd.HasValue)
+            {
+                list.Add(new SubtitleSegmentDTO
+                {
+                    StartTime = currentStart.Value,
+                    EndTime = currentEnd.Value,
+                    Text = currentTextBuilder.ToString().Trim()
+                });
+            }
+
+            return list;
+        }
+
+        private double ParseVttTime(string timeStr)
+        {
+            var parts = timeStr.Split('.');
+            var mainTime = parts[0];
+            double ms = 0;
+            if (parts.Length == 2)
+            {
+                double.TryParse(parts[1], out ms);
+                ms = ms / Math.Pow(10, parts[1].Length);
+            }
+
+            var timeParts = mainTime.Split(':');
+            double seconds = 0;
+            if (timeParts.Length == 2)
+            {
+                double.TryParse(timeParts[0], out double m);
+                double.TryParse(timeParts[1], out double s);
+                seconds = m * 60 + s;
+            }
+            else if (timeParts.Length == 3)
+            {
+                double.TryParse(timeParts[0], out double h);
+                double.TryParse(timeParts[1], out double m);
+                double.TryParse(timeParts[2], out double s);
+                seconds = h * 3600 + m * 60 + s;
+            }
+
+            return seconds + ms;
+        }
     }
 }
 

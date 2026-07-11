@@ -42,6 +42,7 @@ namespace Data.Context
         public DbSet<StudentLectureProgress> StudentLectureProgresses { get; set; } = null!;
         public DbSet<Wishlist> Wishlists { get; set; } = null!;
         public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
+        public DbSet<VideoSubtitle> VideoSubtitles { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
